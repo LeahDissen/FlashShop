@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import { updatePage } from '../api/pages';
 
 export const useAdminControl = (initialData, endpoint) => {
     const [page, setPage] = useState(initialData);
@@ -9,7 +9,7 @@ export const useAdminControl = (initialData, endpoint) => {
 
     const saveChanges = async () => {
         try {
-            await axios.put(`http://localhost:4000/api/page/${endpoint}`, draft);
+            await updatePage(endpoint, draft);
             setPage(draft);
             setEditMode(false);
             setPreviewMode(false);

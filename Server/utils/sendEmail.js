@@ -14,8 +14,8 @@ exports.sendEmail = async (email, subject, payload, template) => {
       port: 587,
       secure: false, // true for 465, false for other ports
       auth: {
-        user: config.USER,
-        pass: config.PASS, // App password
+        user: config.EMAIL_USER,
+        pass: config.EMAIL_PASS, // App password
       },
       tls: {
         rejectUnauthorized: false // Only for development

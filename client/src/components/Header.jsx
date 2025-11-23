@@ -1,17 +1,16 @@
 import { useEffect } from "react";
-import axios from "axios";
+import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 export default function Header() {
-    const isAdmin = localStorage.getItem("admin");
-    const adminControls = useAdminControl({ logo: "" }, "header");
+    const adminControls = useAdminControl({ logo: null }, "header");
     const { draft, updateDraft, editMode } = adminControls;
 
     useEffect(() => {
-        axios.get("http://localhost:4000/api/page/header").then((res) => {
-            adminControls.setPage(res.data);
-            adminControls.setDraft(res.data);
+        getPage("header").then((data) => {
+            adminControls.setPage(data);
+            adminControls.setDraft(data);
         });
     }, []);
 
@@ -39,16 +38,13 @@ export default function Header() {
 
     return (
         <div style={{ padding: "20px", maxWidth: 800, margin: "auto" }}>
-            {isAdmin && (
-                <AdminControls
-                    isAdmin={isAdmin}
-                    editMode={editMode}
-                    previewContent={EditContent}
-                    adminControls={adminControls}
-                >
-                    {ViewContent}
-                </AdminControls>
-            )}
+            <AdminControls
+                editMode={editMode}
+                previewContent={EditContent}
+                adminControls={adminControls}
+            >
+                {ViewContent}
+            </AdminControls>
         </div>
     );
 }

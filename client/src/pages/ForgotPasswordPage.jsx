@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import {forgotPasswordRequest} from '../api/auth'
+import {forgotPasswordRequest} from '../api/auth';
+import { Link } from 'react-router-dom';
+
 export default function ForgotPasswordPage() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
   const [error, setError] = useState('');
-
 
   const handleForgotPassword = () => {
     setError('');
@@ -274,8 +275,8 @@ export default function ForgotPasswordPage() {
             lineHeight: '1.6'
           }}>
             Remember your password?{' '}
-            <a
-              href="#login"
+            <Link
+              to="/login"
               style={{
                 color: '#667eea',
                 textDecoration: 'none',
@@ -286,7 +287,7 @@ export default function ForgotPasswordPage() {
               onMouseLeave={(e) => e.target.style.color = '#667eea'}
             >
               Sign in
-            </a>
+            </Link>
           </p>
         </div>
       </div>

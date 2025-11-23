@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { signUp } from '../api/auth';
+import { Link, useNavigate } from 'react-router-dom';
+
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -17,6 +19,7 @@ export default function SignUpPage() {
             [name]: value
         }));
     };
+    const Navigate = useNavigate();
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -62,6 +65,7 @@ export default function SignUpPage() {
                     password: '',
                     confirmPassword: ''
                 });
+                Navigate('/logIn');
             })
             .catch(error => {
                 console.error('Error creating account:', error);
@@ -442,8 +446,8 @@ export default function SignUpPage() {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}>
                     Already have an account?{' '}
-                    <a
-                        href="#login"
+                    <Link
+                        to="/login"
                         style={{
                             color: '#667eea',
                             textDecoration: 'none',
@@ -454,7 +458,7 @@ export default function SignUpPage() {
                         onMouseLeave={(e) => e.target.style.color = '#667eea'}
                     >
                         Login
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>
