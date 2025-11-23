@@ -9,60 +9,61 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const Navigate = useNavigate()
-  // Extract token from URL (e.g., /reset-password?token=abc123)
-  const getTokenFromUrl = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('token');
-  };
 
+  const getParamsFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      token: params.get('token'),
+      userId: params.get('id') 
+    };
+  };
   const handleResetPassword = () => {
     setError('');
-    
-    // Validation
+
     if (!newPassword || !confirmPassword) {
       setError('Both fields are required');
       return;
     }
-    
+
     if (newPassword.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
     }
-    
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-    
-    const token = getTokenFromUrl();
-    if (!token) {
-      setError('Invalid or missing reset token');
+    const { token, userId } = getParamsFromUrl(); // 2. UPDATE: Get both
+
+    if (!token || !userId) {
+      setError('Invalid or missing reset token/ID');
       return;
     }
-    
-    resetPassword(token, newPassword)
+
+    resetPassword(userId, token, newPassword)
       .then(() => {
         setResetSuccess(true);
-        // Redirect to login after 3 seconds
         setTimeout(() => {
-          Navigate('/login'); // Update with your login route
+          Navigate('/login');
         }, 3000);
       })
       .catch((err) => {
-        setError('Failed to reset password. The link may have expired.');
+        setError(err.response?.data?.msg || 'Failed to reset password.');
       });
+
   };
 
   const getPasswordStrength = (password) => {
     if (!password) return { strength: 0, label: '', color: '' };
-    
+
     let strength = 0;
     if (password.length >= 8) strength++;
     if (password.length >= 12) strength++;
     if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
     if (/\d/.test(password)) strength++;
     if (/[^a-zA-Z0-9]/.test(password)) strength++;
-    
+
     if (strength <= 2) return { strength: 33, label: 'Weak', color: '#ef4444' };
     if (strength <= 3) return { strength: 66, label: 'Medium', color: '#f59e0b' };
     return { strength: 100, label: 'Strong', color: '#10b981' };
@@ -123,11 +124,11 @@ export default function ResetPasswordPage() {
             opacity: 0.9
           }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          
+
           <h1 className="gradient-text" style={{
             fontSize: '36px',
             fontWeight: 700,
@@ -159,7 +160,7 @@ export default function ResetPasswordPage() {
             gap: '12px'
           }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="2">
-              <path d="M20 6L9 17l-5-5"/>
+              <path d="M20 6L9 17l-5-5" />
             </svg>
             <p style={{
               color: '#065f46',
@@ -234,19 +235,19 @@ export default function ResetPasswordPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 {showPassword ? (
                   <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
                   </>
                 ) : (
                   <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </>
                 )}
               </svg>
             </button>
           </div>
-          
+
           {/* Password Strength Indicator */}
           {newPassword && (
             <div style={{ marginTop: '8px' }}>
@@ -261,7 +262,7 @@ export default function ResetPasswordPage() {
                   width: `${passwordStrength.strength}%`,
                   backgroundColor: passwordStrength.color,
                   transition: 'all 0.3s ease'
-                }}/>
+                }} />
               </div>
               <p style={{
                 fontSize: '12px',
@@ -337,13 +338,13 @@ export default function ResetPasswordPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 {showConfirmPassword ? (
                   <>
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
                   </>
                 ) : (
                   <>
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
                   </>
                 )}
               </svg>

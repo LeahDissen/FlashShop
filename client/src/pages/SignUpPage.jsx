@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { signUp } from '../api/auth';
-
+import { signUp, googleLoginAPI } from '../api/auth'; 
+import { useGoogleLogin } from '@react-oauth/google'; 
+import { useNavigate } from 'react-router-dom'
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
         fullName: '',
@@ -9,7 +10,7 @@ export default function SignUpPage() {
         confirmPassword: ''
     });
     const [errors, setErrors] = useState({});
-
+    const navigate = useNavigate(); 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -71,14 +72,26 @@ export default function SignUpPage() {
 
 
 
-    const handleSocialSignUp = (providerName) => {
-        // Social sign-up not configured yet. Keep behavior consistent with LoginPage.
-        // Options to implement:
-        // 1. Wire Firebase client SDK (install `firebase`, add config, import auth + providers).
-        // 2. Use server-side OAuth flow and redirect to backend endpoints.
-        // For now show a friendly placeholder so the UI doesn't throw due to missing variables.
-        alert(`${providerName} signup coming soon!`);
-    };
+ const loginWithGoogle = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            try {
+                // שליחת ה-Access Token לשרת שלך כדי ליצור/לאמת משתמש
+                const response = await googleLoginAPI(tokenResponse.access_token);
+                
+                // שמירת הטוקן שהשרת שלך החזיר (כמו בהתחברות רגילה)
+                localStorage.setItem("token", response.data.token); 
+                
+                alert('Google Sign-Up Successful!');
+                navigate('/home'); // העברה לדף הבית
+            } catch (error) {
+                alert(error.response?.data?.msg || 'Failed to sign up with Google.');
+            }
+        },
+        onError: () => {
+            console.log('Google Login Failed');
+            alert('Google login failed, please try again.');
+        }
+    });
 
     return (
         <div style={{
@@ -400,9 +413,9 @@ export default function SignUpPage() {
                 </div>
 
                 {/* Social Sign Up */}
-                <div style={{ marginBottom: '32px' }}>
+              <div style={{ marginBottom: '32px' }}>
                     <button
-                        onClick={() => handleSocialSignUp('Google')}
+                        onClick={() => loginWithGoogle()} // 2. חיבור הפונקציה לכפתור
                         style={{
                             width: '100%',
                             display: 'flex',
@@ -428,7 +441,7 @@ export default function SignUpPage() {
                             e.currentTarget.style.transform = 'translateY(0)';
                         }}
                     >
-                        <svg width="18" height="18" viewBox="0 0 18 18">
+                      <svg width="18" height="18" viewBox="0 0 18 18">
                             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
                             <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
                             <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />

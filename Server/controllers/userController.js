@@ -1,5 +1,6 @@
 const { auth, authAdmin } = require("../middlewares/auth");
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
 const { Token } = require("../models/tokenModel");
@@ -16,9 +17,6 @@ exports.signup = async (req, res, next) => {
       console.log(validateBody.error.details);
       return res.status(400).json(validateBody.error.details);
     }
-    let old_user = await UserModel.findOne({ email: req.body.email });
-    if(old_user)
-    { return res.status(400).json({ msg: "User already in system, try to log in" }); }
 
     let user = new UserModel(req.body);
     console.log(user);
@@ -94,46 +92,59 @@ exports.requestPasswordReset = async (req, res, next) => {
   }
 };
 
-exports.resetPassword = async (user_Id, token, password) => {
-  console.log(user_Id);
-  let passwordResetToken = await findOne(Token, { userId: user_Id });
-  console.log("passwordResetToken" + passwordResetToken);
-  console.log("yoken" + token);
-  if (!passwordResetToken.token) {
-    throw new Error("Invalid or expired password reset token");
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { userId, token, password } = req.body;
+
+    if (!userId || !token || !password) {
+      return res.status(400).json({ msg: "Missing required fields" });
+    }
+
+
+    let passwordResetToken = await Token.findOne({ userId: userId });
+
+    if (!passwordResetToken) {
+      return res.status(400).json({ msg: "Invalid or expired password reset token" });
+    }
+
+    const isValid = await bcrypt.compare(token, passwordResetToken.token);
+    if (!isValid) {
+      return res.status(400).json({ msg: "Invalid or expired password reset token" });
+    }
+
+  
+    const hash = await bcrypt.hash(password, 10);
+
+   
+    await UserModel.updateOne(
+      { _id: userId },
+      { $set: { password: hash } }
+    );
+
+    const user = await UserModel.findById(userId);
+
+   
+    await sendEmail(
+      user.email,
+      "Password Reset Successful",
+      {
+        name: user.name,
+        loginLink: `${clientURL}/login`
+      },
+      "./utils/template/passwordReset.handlebars" 
+    );
+
+    await Token.deleteOne({ _id: passwordResetToken._id });
+
+    return res.json({ success: true, msg: "Password reset was successful" });
+
+  } catch (err) {
+    console.error("Reset Password Error:", err);
+    return res.status(500).json({ msg: "There was an error, try again later", err: err.message });
   }
-
-  console.log(passwordResetToken.token, token);
-
-  const isValid = await bcrypt.compare(token, passwordResetToken.token);
-
-  if (!isValid) {
-    throw new Error("Invalid or expired password reset token");
-  }
-
-  const hash = await bcrypt.hash(password, Number(bcryptSalt));
-
-  await UserModel.updateOne(
-    { _id: user_Id },
-    { $set: { password: hash } },
-    { new: true }
-  );
-
-  const user = await UserModel.findById(user_Id);
-
-  sendEmail(
-    user.email,
-    "Password Reset Successfully",
-    {
-      name: user.name,
-    },
-    "./template/resetPassword.handlebars"
-  );
-
-  await passwordResetToken.deleteOne();
-
-  return { success: "Password reset was successful" };
 };
+
 //'/myEmail'
 exports.myEmail = async (req, res) => {
   try {
@@ -142,6 +153,39 @@ exports.myEmail = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });
+  }
+};
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const { access_token } = req.body;
+
+    const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    const { email, name, sub: googleId } = googleResponse.data;
+    console.log(googleResponse.data);
+
+
+
+
+    let user = new UserModel({
+      name: name,
+      email: email,
+    });
+    
+    await user.save();
+    const token = createToken(user._id);
+    res.json({ token, user });
+
+  } catch (err) {
+    if (err.code == 11000) {
+      console.log("Email already in system, try to log in");
+      return res.status(500).json({ msg: "Email already in system, try to log in", code: 11000 })
+    }
+
+    console.error("Google Auth Error:", err);
+    res.status(401).json({ msg: "Google authentication failed" });
   }
 };
 //'/myInfo'

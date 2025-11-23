@@ -5,6 +5,7 @@ import AboutPage from "./components/About";
 import TermsModal from "./components/Terms";
 import LoginPage from "./pages/LoginPage";
 import Tips from "./pages/Tips";
+import SignUpPage from "./pages/SignUpPage";
 
 export default function AppRoutes() {
     return (
@@ -18,6 +19,8 @@ export default function AppRoutes() {
                 <Route path="/about" element={<Layout><AboutPage /></Layout>} />
                 <Route path="/terms" element={<Layout> <TermsModal /> </Layout>} />
                 <Route path="/tips" element={<Layout> <Tips /> </Layout>} />
+                <Route path="/signup" element={ <SignUpPage /> } />
+                <Route path="/login" element={<Layout> <LoginPage /> </Layout>} />
 
                 {/* Redirect to home */}
                 <Route path="*" element={<Navigate to="/" />} />
