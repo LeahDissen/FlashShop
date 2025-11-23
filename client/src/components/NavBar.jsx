@@ -19,6 +19,11 @@ export default function NavBar() {
                     </li>
                 }
                 <li>
+                    <Link to="/login" className="hover:underline">
+                        כניסה כמשתמש
+                    </Link>
+                </li>
+                <li>
                     <Link to="/home" className="hover:underline">
                         מוצרים
                     </Link>
