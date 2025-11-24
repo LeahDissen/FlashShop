@@ -4,11 +4,12 @@ let clubSchema = new mongoose.Schema({
     user_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'users',
-        required: true
+        required: false
     },
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     name: {
         type: String,

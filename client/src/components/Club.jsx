@@ -58,13 +58,9 @@ export default function Club() {
             alert("יש לאשר את התקנון");
             return;
         }
-        if (!userId) {
-            alert("עליך להתחבר לאתר כדי להצטרף למועדון");
-            return;
-        }
         try {
             const payload = {
-                user_id: userId,
+                user_id: userId || null,
                 email: formData.email,
                 name: formData.name,
                 birthDate: formData.birthdate
