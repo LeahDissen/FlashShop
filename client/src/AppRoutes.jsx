@@ -5,6 +5,8 @@ import Blog from "./components/Blog";
 import TermsModal from "./components/Terms";
 import LoginPage from "./pages/LoginPage";
 import Tips from "./pages/Tips";
+import ProductsPage from "./pages/productsPage";
+import EditorPage from "./pages/EditorPage";
 
 export default function AppRoutes() {
     return (
@@ -17,6 +19,8 @@ export default function AppRoutes() {
                 <Route path="/tips/*" element={<Layout><Blog /></Layout>} />
                 <Route path="/terms" element={<Layout> <TermsModal /> </Layout>} />
                 <Route path="/tips" element={<Layout> <Tips /> </Layout>} />
+                <Route path="/products" element={<Layout> <ProductsPage /> </Layout>} />
+                <Route path="/editor" element={<Layout> <EditorPage /> </Layout>} />
 
                 {/* Redirect to home */}
                 <Route path="*" element={<Navigate to="/" />} />
