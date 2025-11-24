@@ -4,21 +4,21 @@ const fs = require("fs");
 const path = require("path");
 const { config } = require("../config/secret");
 
-exports.sendEmail = async (email, subject, payload, template) => {
+exports.sendEmail = async (email, subject, payload, template, attachments = []) => {
   try {
-    console.log("inside send email");
+        console.log("inside send email");
 
 
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
-        user: config.EMAIL_USER,
-        pass: config.EMAIL_PASS, // App password
+        user: config.USER,
+        pass: config.PASS,
       },
       tls: {
-        rejectUnauthorized: false // Only for development
+        rejectUnauthorized: false
       }
     });
 
@@ -37,16 +37,14 @@ exports.sendEmail = async (email, subject, payload, template) => {
       to: email,
       subject,
       html: compiledTemplate(payload),
+      attachments: attachments // העברת הקבצים למייל
     };
 
-    // sendMail returns a promise in modern nodemailer versions
     const info = await transporter.sendMail(mailOptions);
     console.log('email sent:', info && info.messageId);
     return { success: true, info };
   } catch (error) {
     console.error('sendEmail error:', error);
-    // rethrow so callers can handle the error and respond appropriately
     throw error;
   }
 };
-

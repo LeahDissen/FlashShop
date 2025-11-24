@@ -6,7 +6,6 @@ import useAuthStore from '../store/authStore';
 export default function NavBar() {
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAdmin = useAuthStore(state => state.isAdmin());
-    console.log("isAdmin: " + isAdmin);
 
     return (
         <nav className="w-full bg-white shadow-sm" aria-label="תפריט ראשי">

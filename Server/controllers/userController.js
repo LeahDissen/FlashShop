@@ -1,4 +1,3 @@
-const { auth, authAdmin } = require("../middlewares/auth");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");

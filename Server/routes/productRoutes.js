@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const productController = require("../controllers/productController");
-const { authAdmin } = require("../middlewares/auth");
 // --- Multer setup ---
 const upload = multer(); // store file in memory as Buffer
 
@@ -13,10 +12,10 @@ router.get("/:id", productController.getProductById);
 
 router.get("/:id/image", productController.getProductImage);
 
-router.post("/", authAdmin, upload.single("image"), productController.addProduct);
+router.post("/", upload.single("image"), productController.addProduct);
 
-router.put("/:id", authAdmin, upload.single("image"), productController.updateProduct);
+router.put("/:id", upload.single("image"), productController.updateProduct);
 
-router.delete("/:id", authAdmin, productController.deleteProduct);
+router.delete("/:id", productController.deleteProduct);
 
 module.exports = router;
