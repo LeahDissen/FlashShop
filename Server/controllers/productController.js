@@ -107,3 +107,15 @@ exports.getProductImage = async (req, res) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
+exports.generateGiftImage = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    const imageBuffer = await generateGiftImage(prompt);
+
+    res.set("Content-Type", "image/png");
+    res.send(imageBuffer);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ msg: "There was an error, try again later", err });
+  }
+};
