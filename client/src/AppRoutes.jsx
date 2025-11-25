@@ -7,6 +7,7 @@ import LoginPage from "./pages/LoginPage";
 import Tips from "./pages/Tips";
 import ProductsPage from "./pages/productsPage";
 import EditorPage from "./pages/EditorPage";
+import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
 
 // Wrapper to provide navigation prop to ProductsPage if needed, 
 // though ProductsPage could also use useNavigate directly.
@@ -36,7 +37,7 @@ export default function AppRoutes() {
 
                 <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
                 <Route path="/editor" element={<Layout> <EditorPageWrapper /> </Layout>} />
-
+                <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />
                 {/* Redirect to home */}
                 <Route path="*" element={<Navigate to="/" />} />
             </Routes>

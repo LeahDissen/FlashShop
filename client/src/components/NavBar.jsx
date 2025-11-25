@@ -17,7 +17,7 @@ export default function NavBar() {
                     </Link>
                 </li>
                 <li>
-                    <Link to="/home" className="hover:underline">
+                    <Link to="/photo-development" className="hover:underline">
                         פיתוח תמונות
                     </Link>
                     
