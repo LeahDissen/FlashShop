@@ -42,7 +42,6 @@ exports.sendEmail = async (email, subject, payload, template, attachments = []) 
 
     if (Array.isArray(email)) {
       mailOptions.bcc = email;
-      mailOptions.to = config.USER;
     } else {
       mailOptions.to = email;
     }

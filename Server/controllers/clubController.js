@@ -86,20 +86,25 @@ exports.sendBroadcastEmail = async (req, res) => {
     try {
         const { subject, message, recipientType } = req.body;
         let query = {};
-        const now = new Date();
-
         if (recipientType === 'new_members') {
-            const lastMonth = new Date(now.setDate(now.getDate() - 30));
-            query = { createdAt: { $gte: lastMonth } };
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+            query = { createdAt: { $gte: oneMonthAgo } };
         }
-
+        else if (recipientType === 'birthday') {
+            const currentMonth = new Date().getMonth() + 1;
+            query = {
+                $expr: {
+                    $eq: [{ $month: "$birthDate" }, currentMonth]
+                }
+            };
+        }
         const members = await ClubModel.find(query);
         const emails = members.map(m => m.email);
 
         if (emails.length === 0) {
-            return res.status(404).json({ msg: "לא נמצאו חברי מועדון מתאימים לשליחה" });
+            return res.status(404).json({ msg: "לא נמצאו חברי מועדון העונים על קריטריוני הסינון" });
         }
-
         let attachments = [];
         if (req.file) {
             attachments.push({
@@ -107,7 +112,6 @@ exports.sendBroadcastEmail = async (req, res) => {
                 content: req.file.buffer
             });
         }
-
         await sendEmail(
             emails,
             subject,
@@ -115,7 +119,6 @@ exports.sendBroadcastEmail = async (req, res) => {
             "./template/generalMail.handlebars",
             attachments
         );
-
         res.json({ msg: `המייל נשלח בהצלחה ל-${members.length} חברי מועדון!` });
     } catch (err) {
         console.log(err);
