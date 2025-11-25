@@ -1,26 +1,12 @@
 
     /* Make root full-width so app can stretch across the viewport */
     #root {
+      direction: rtl;
       max-width: 100%; /* allow full width */
       width: 100%;
       margin: 0; /* no auto-centering */
       padding: 0; /* keep layout spacing inside components */
       text-align: left; /* let components control alignment (RTL handled per-component) */
-    }
-
-    .logo {
-      height: 6em;
-      padding: 1.5em;
-      will-change: filter;
-      transition: filter 300ms;
-    }
-
-    .logo:hover {
-      filter: drop-shadow(0 0 2em #646cffaa);
-    }
-
-    .logo.react:hover {
-      filter: drop-shadow(0 0 2em #61dafbaa);
     }
 
     @keyframes logo-spin {

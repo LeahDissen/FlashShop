@@ -1,11 +1,13 @@
-const AdminControls = ({ 
-    isAdmin,
-    editMode, 
+import useAuthStore from '../store/authStore';
+
+const AdminControls = ({
+    editMode,
     children,
     previewContent,
     adminControls,
 }) => {
-    if (!isAdmin || isAdmin !== "true") return children;
+    const isAdmin = useAuthStore(state => state.isAdmin());
+    if (!isAdmin) return children;
 
     return (
         <div>
@@ -14,7 +16,7 @@ const AdminControls = ({
             ) : (
                 children
             )}
-            
+
             <div className="mt-4">
                 {!editMode ? (
                     <button onClick={() => adminControls.setEditMode(true)}>
@@ -28,8 +30,8 @@ const AdminControls = ({
                         <button onClick={adminControls.cancelEdit} className="ml-2">
                             ❌ Cancel
                         </button>
-                        <button 
-                            onClick={() => adminControls.setPreviewMode(!adminControls.previewMode)} 
+                        <button
+                            onClick={() => adminControls.setPreviewMode(!adminControls.previewMode)}
                             className="ml-2"
                         >
                             👁 {adminControls.previewMode ? "Edit" : "Preview"}

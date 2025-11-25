@@ -9,5 +9,4 @@ exports.config = {
     EMAIL_USER: process.env.USER,
     EMAIL_PASS:  process.env.PASS,
     BCRYPT_SALT: process.env.BCRYPT_SALT
-
 }

@@ -1,6 +1,7 @@
     @import 'tailwindcss';
 
     :root {
+      direction: rtl;
       font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
       line-height: 1.5;
       font-weight: 400;
@@ -26,6 +27,7 @@
     }
 
     body {
+      direction: rtl;
       margin: 0;
       /* avoid forcing body as a flex container so page can span full width
          individual components can use flex if needed */
