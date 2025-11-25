@@ -1,5 +1,4 @@
 const {ProductModel} = require("../models/productModel");
-
 exports.getProducts = async (req, res) => {
   try {
     let products = await ProductModel.find({});
@@ -102,18 +101,6 @@ exports.getProductImage = async (req, res) => {
     const image = product.image[0];
     res.set("Content-Type", image.contentType);
     res.send(image.data);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ msg: "There was an error, try again later", err });
-  }
-};
-exports.generateGiftImage = async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    const imageBuffer = await generateGiftImage(prompt);
-
-    res.set("Content-Type", "image/png");
-    res.send(imageBuffer);
   } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });

@@ -19,6 +19,5 @@ router.put("/:id", upload.single("image"), productController.updateProduct);
 
 router.delete("/:id", productController.deleteProduct);
 
-router.post("/generate-gift-image", productController.generateGiftImage);
 
 module.exports = router;

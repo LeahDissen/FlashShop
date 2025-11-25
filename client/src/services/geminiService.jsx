@@ -1,17 +1,17 @@
 import { GoogleGenAI, Modality } from "@google/genai";
+const apiKey = "AIzaSyBXuB2FZAFL43NsnTP67xFUwE0FJ8KMo0o"
+const ai = new GoogleGenAI({
+  apiKey: apiKey
+})
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
-
-// Base images for products - strictly matching the UI
-// Base images for products - Optimized for AI Overlay (White/Neutral bases)
 const PRODUCT_BASE_IMAGES = {
   // Apparel
-  'T-shirt': 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600&q=80', // White Tee on hanger
+  'T-shirt': 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // White Tee on hanger
   'Hoodie': 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80', // White Hoodie flat lay
-  'Baseball Cap': 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=600&q=80', // White Cap side view
+  'Baseball Cap': 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // White Cap side view
 
   // Drinkware
-  'Coffee Mug': 'https://images.unsplash.com/photo-1517260739337-6799d2df8a12?w=600&q=80', // Classic White Ceramic Mug
+  'Coffee Mug': 'https://images.unsplash.com/photo-1650959858546-d09833d5317b?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D', // Classic White Ceramic Mug
   'Travel Tumbler': 'https://images.unsplash.com/photo-1596483569424-9b87053e160a?w=600&q=80', // Metal/White Tumbler
 
   // Accessories
@@ -20,19 +20,15 @@ const PRODUCT_BASE_IMAGES = {
 
   // Stationery/Fun
   'Notebook': 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&q=80', // Spiral Notebook
-  'Jigsaw Puzzle': 'https://plus.unsplash.com/premium_photo-1664113038676-e41c46342894?w=600&q=80', // Puzzle concept
-  'Wall Art': 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&q=80', // Empty Frame
+  'Jigsaw Puzzle': 'https://www.vecteezy.com/photo/6660857-white-blank-jigsaw-puzzle-with-shadows-on-a-wood-floor-with-cracks-3d-rendering', // Puzzle concept
+  'Heart Puzzle': 'https://www.vecteezy.com/photo/71737630-heart-shaped-jigsaw-puzzle-on-white-surface-symbolizing-love-and-connection-with-bright-lighting', // Empty Frame
 };
 
-/**
- * Generates a creative gift idea based on a prompt.
- * @param {string} prompt 
- * @returns {Promise<string>}
- */
+
 export async function generateGiftIdea(prompt) {
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       contents: `בהתבסס על התיאור הזה: "${prompt}", הצע רעיון למתנה יצירתית ומותאמת אישית. נסח את הרעיון בתמציתיות ובאופן מעורר השראה.`,
       config: {
         temperature: 0.8,
@@ -89,20 +85,22 @@ async function imageUrlToBase64(urlOrData) {
   }
 }
 
-/**
- * Generates a realistic product mockup using Gemini.
- * @param {string} productName 
- * @param {string} userDesignDataUrl 
- * @returns {Promise<string>} Data URL of the generated image
- */
+
 export async function generatePersonalizedProduct(productName, userDesignDataUrl) {
   try {
     // 1. Get Base Image for the specific product
     const baseImageUrl = PRODUCT_BASE_IMAGES[productName] || PRODUCT_BASE_IMAGES['T-shirt'];
     const baseImage = await imageUrlToBase64(baseImageUrl);
+    console.log(baseImage);
+    console.log(baseImage.base64);
+    console.log(baseImage.mimeType);
+
 
     // 2. Get User Design (Canvas output)
     const userDesign = await imageUrlToBase64(userDesignDataUrl);
+    console.log(userDesign);
+    console.log(userDesign.base64);
+    console.log(userDesign.mimeType);
 
     // 3. Create Prompt
     const baseImagePart = {
@@ -137,7 +135,7 @@ export async function generatePersonalizedProduct(productName, userDesignDataUrl
         For ${productName}, apply the design to the main printable area.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
+      model: 'gemini-2.5-flash-image-preview',
       contents: [{ parts: [baseImagePart, designImagePart, { text: prompt }] }],
       config: {
         responseModalities: [Modality.IMAGE],

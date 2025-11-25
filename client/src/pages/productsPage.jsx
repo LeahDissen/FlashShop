@@ -1,18 +1,20 @@
 import React from 'react';
 import PersonalizationSection from '../components/PersonalizationSection';
+import { useProductStore } from '../store/productStore';
 
 
-const ProductsPage = ({ onNavigate, onSelectProduct, selectedProduct }) => {
+const ProductsPage = ({ onNavigate }) => {
+    const { selectedProduct, setSelectedProduct } = useProductStore();
     return (
         <div className="min-h-screen bg-white">
             <div className="pt-8 min-h-[60vh]">
-                <PersonalizationSection 
+                <PersonalizationSection
                     onNavigateToEditor={() => onNavigate('/editor')}
-                    onSelectProduct={onSelectProduct}
+                    onSelectProduct={setSelectedProduct}
                     selectedProduct={selectedProduct}
                 />
             </div>
-          
+
         </div>
     );
 };

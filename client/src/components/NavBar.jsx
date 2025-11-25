@@ -12,7 +12,7 @@ export default function NavBar() {
                 className="flex justify-start items-center gap-6 p-4"
             >
                 <li>
-                    <Link to="/home" className="hover:underline">
+                    <Link to="/products" className="hover:underline">
                         מוצרים
                     </Link>
                 </li>
@@ -20,6 +20,7 @@ export default function NavBar() {
                     <Link to="/home" className="hover:underline">
                         פיתוח תמונות
                     </Link>
+                    
                 </li>
                 <li>
                     <Link to="/terms" className="hover:underline">

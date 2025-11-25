@@ -1,16 +1,4 @@
-/**
- * @typedef {Object} ProjectData
- * @property {string} _id
- * @property {string} name
- * @property {any[]} elements
- * @property {any} canvasBackground
- * @property {string[]} uploadedImages
- * @property {string[]} uploadedBackgrounds
- * @property {string|null} selectedProduct
- * @property {string} [preview]
- * @property {string} createdAt
- * @property {string} updatedAt
- */
+
 
 const DB_NAME = 'GiftShopDB';
 const STORE_NAME = 'projects';
