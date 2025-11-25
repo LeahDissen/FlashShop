@@ -89,7 +89,7 @@ export default function Footer() {
     };
 
     useEffect(() => {
-        getPage("terms").then((data) => {
+        getPage("footer").then((data) => {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });

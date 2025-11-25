@@ -28,18 +28,6 @@ exports.signup = async (req, res, next) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
-<<<<<<< HEAD
-//'/login'
-exports.login = async (req, res, next) => {
-  let validBody = validateLogin(req.body);
-  if (validBody.error) {
-    console.log(validBody.error.details);
-    return res.status(400).json(validBody.error.details);
-  }
-  try {
-    let user = await UserModel.findOne({ email: req.body.email });
-
-=======
 
 exports.login = async (req, res, next) => {
   let validBody = validateLogin(req.body);
@@ -50,7 +38,6 @@ exports.login = async (req, res, next) => {
   try {
     let user = await UserModel.findOne({ email: req.body.email });
 
->>>>>>> dev
     if (!user) {
       return res.status(401).json({ msg: "User or password not match" });
     }
@@ -58,10 +45,6 @@ exports.login = async (req, res, next) => {
     if (!passOk) {
       return res.status(401).json({ msg: "User or password not match" });
     }
-<<<<<<< HEAD
-    let token = createToken(user._id);
-    res.json({ token });
-=======
     let token = createToken(user._id, user.role);
     res.cookie("authToken", token, {
       httpOnly: true,
@@ -75,22 +58,11 @@ exports.login = async (req, res, next) => {
       msg: "Login successful",
       user: userWithoutPassword
     });
->>>>>>> dev
   } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
-<<<<<<< HEAD
-//'/forgot-password'
-exports.requestPasswordReset = async (req, res, next) => {
-  try {
-    const user = await UserModel.findOne({ email: req.body.email });
-    if (!user) throw new Error("Email does not exist");
-
-    await Token.findOneAndDelete({ userId: user._id });
-
-=======
 
 exports.logout = async (req, res) => {
   res.clearCookie('authToken', {
@@ -106,7 +78,6 @@ exports.requestPasswordReset = async (req, res, next) => {
     const user = await UserModel.findOne({ email: req.body.email });
     if (!user) throw new Error("Email does not exist");
     await Token.findOneAndDelete({ userId: user._id });
->>>>>>> dev
     let resetToken = crypto.randomBytes(32).toString("hex");
     const hash = await bcrypt.hash(resetToken, Number(config.BCRYPT_SALT));
 
@@ -149,10 +120,6 @@ exports.resetPassword = async (user_Id, token, password) => {
     throw new Error("Invalid or expired password reset token");
   }
   const hash = await bcrypt.hash(password, Number(bcryptSalt));
-<<<<<<< HEAD
-
-=======
->>>>>>> dev
   await UserModel.updateOne(
     { _id: user_Id },
     { $set: { password: hash } },
