@@ -1,5 +1,5 @@
 import { GoogleGenAI, Modality } from "@google/genai";
-const apiKey = "AIzaSyBXuB2FZAFL43NsnTP67xFUwE0FJ8KMo0o"
+const apiKey = ""
 const ai = new GoogleGenAI({
   apiKey: apiKey
 })
