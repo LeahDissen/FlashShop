@@ -3,7 +3,8 @@ const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/ordersRoutes");
-const tipsRoutes = require("./routes/tipsRoutes");
+const tipsRoutes = require("./routes/tipsRoutes.js");
+const apiRateLimiter = require("./middlewares/apiRate");
 const clubRoutes = require("./routes/clubRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 require("./db/mongoConnection");
@@ -18,11 +19,20 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+<<<<<<< HEAD
 app.use("/auth",authRoutes);
 app.use("/products",productRoutes);
 app.use("/orders",orderRoutes);
 app.use('/contact', contactRoutes);
 app.use(cookieParser());
+=======
+app.use("/auth",apiRateLimiter ,authRoutes);
+app.use(cookieParser());
+
+
+app.use("/products", productRoutes);
+app.use("/orders", orderRoutes);
+>>>>>>> dev
 app.use("/tips", tipsRoutes);
 app.use("/club", clubRoutes);
 
