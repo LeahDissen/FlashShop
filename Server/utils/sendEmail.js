@@ -6,9 +6,6 @@ const { config } = require("../config/secret");
 
 exports.sendEmail = async (email, subject, payload, template, attachments = []) => {
   try {
-        console.log("inside send email");
-
-
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
@@ -22,7 +19,11 @@ exports.sendEmail = async (email, subject, payload, template, attachments = []) 
       }
     });
 
-    console.log('sending to:', email);
+    if (Array.isArray(email)) {
+      console.log(`Sending broadcast email to ${email.length} recipients`);
+    } else {
+      console.log('Sending email to:', email);
+    }
 
     const templatePath = path.resolve(__dirname, template);
     if (!fs.existsSync(templatePath)) {
@@ -34,14 +35,20 @@ exports.sendEmail = async (email, subject, payload, template, attachments = []) 
 
     const mailOptions = {
       from: process.env.USER,
-      to: email,
       subject,
       html: compiledTemplate(payload),
-      attachments: attachments // העברת הקבצים למייל
+      attachments: attachments
     };
 
+    if (Array.isArray(email)) {
+      mailOptions.bcc = email;
+      mailOptions.to = config.USER;
+    } else {
+      mailOptions.to = email;
+    }
+
     const info = await transporter.sendMail(mailOptions);
-    console.log('email sent:', info && info.messageId);
+    console.log('Email sent successfully:', info && info.messageId);
     return { success: true, info };
   } catch (error) {
     console.error('sendEmail error:', error);
