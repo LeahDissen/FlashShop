@@ -1,10 +1,16 @@
-import { Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'; // שינוי ייבוא
 import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
 import useAuthStore from '../store/authStore';
+import useAppStore from '../store/appStore'; // ייבוא ה-Store לשליטה בפופ-אפים
 
 export default function EditPages() {
     const isAdmin = useAuthStore(state => state.isAdmin());
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // שליפה של הפונקציות לפתיחת החלונות הקופצים
+    const { setClubOpen, setTermsOpen } = useAppStore();
 
     if (!isAdmin) {
         return (
@@ -21,7 +27,8 @@ export default function EditPages() {
             description: "שינוי הטקסטים, תמונת הרקע הראשית ומוצרים מקודמים בדף הכניסה.",
             icon: <FaHome className="text-3xl text-white" />,
             link: "/",
-            targetEndpoint: "home"
+            targetEndpoint: "home",
+            type: "page" // סוג רגיל
         },
         {
             id: 2,
@@ -29,7 +36,8 @@ export default function EditPages() {
             description: "עדכון הלוגו והתפריט העליון המופיעים בכל דפי האתר.",
             icon: <FaWindowMaximize className="text-3xl text-white" />,
             link: "/",
-            targetEndpoint: "header"
+            targetEndpoint: "header",
+            type: "page" // למרות שזה ברכיב, זה מוצג בדף הבית בדרך כלל
         },
         {
             id: 3,
@@ -37,7 +45,8 @@ export default function EditPages() {
             description: "עדכון פרטי יצירת קשר, זכויות יוצרים וקישורים בתחתית האתר.",
             icon: <FaWindowMinimize className="text-3xl text-white" />,
             link: "/",
-            targetEndpoint: "footer"
+            targetEndpoint: "footer",
+            type: "page"
         },
         {
             id: 4,
@@ -45,25 +54,48 @@ export default function EditPages() {
             description: "ניהול הכותרת והתמונה הראשית של עמוד הטיפים.",
             icon: <FaLightbulb className="text-3xl text-white" />,
             link: "/tips",
-            targetEndpoint: "tips"
+            targetEndpoint: "tips",
+            type: "page"
         },
         {
             id: 5,
             title: "עריכת תקנון",
             description: "עדכון הטקסט המשפטי ותנאי השימוש באתר.",
             icon: <FaScroll className="text-3xl text-white" />,
-            link: "/terms",
-            targetEndpoint: "terms"
+            link: null, // אין לינק, נשארים בעמוד
+            targetEndpoint: "terms",
+            type: "popup" // סוג פופ-אפ
         },
         {
             id: 6,
             title: "עריכת פופ-אפ מועדון",
             description: "שינוי הטקסט והעיצוב של חלונית ההצטרפות למועדון הלקוחות.",
             icon: <FaGift className="text-3xl text-white" />,
-            link: "/",
-            targetEndpoint: "club"
+            link: null, // אין לינק
+            targetEndpoint: "club",
+            type: "popup" // סוג פופ-אפ
         },
     ];
+
+    const handleEditClick = (page) => {
+        const stateData = { autoEdit: true, targetEndpoint: page.targetEndpoint };
+
+        if (page.type === 'popup') {
+            // לוגיקה עבור פופ-אפים: נשארים בעמוד ופותחים את החלון
+            if (page.targetEndpoint === 'club') {
+                setClubOpen(true);
+            } else if (page.targetEndpoint === 'terms') {
+                setTermsOpen(true);
+            }
+
+            // מעדכנים את ה-State של ה-URL הנוכחי כדי שה-Hook ברכיב הפופ-אפ יקלוט את ה-autoEdit
+            // אנו משתמשים ב-replace: true כדי לא ליצור היסטוריה חדשה סתם
+            navigate(location.pathname, { state: stateData, replace: true });
+        } else {
+            // לוגיקה עבור דפים רגילים: עוברים לדף היעד
+            navigate(page.link, { state: stateData });
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans">
@@ -79,24 +111,23 @@ export default function EditPages() {
                                 <p className="text-gray-500 mt-1 text-lg">בחרי איזה דף או רכיב ברצונך לערוך.</p>
                             </div>
                         </div>
-                        <Link
-                            to="/admindashboard"
-                            className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
+                        <button
+                            onClick={() => navigate("/admindashboard")}
+                            className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline cursor-pointer"
                         >
                             <span>חזרה ללוח הבקרה</span>
                             <FiArrowLeft className="text-xl" />
-                        </Link>
+                        </button>
                     </div>
                 </div>
             </div>
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {pagesToEdit.map((page) => (
-                        <Link
-                            to={page.link}
-                            state={{ autoEdit: true, targetEndpoint: page.targetEndpoint }}
+                        <div
                             key={page.id}
-                            className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:-translate-y-2 flex flex-col">
+                            onClick={() => handleEditClick(page)}
+                            className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:-translate-y-2 flex flex-col cursor-pointer">
                             <div className="h-36 relative overflow-hidden bg-gradient-to-br from-[#f2665e] to-[#d95248] flex items-center justify-center">
                                 <div className="absolute top-0 left-0 w-full h-full opacity-10">
                                     <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -120,7 +151,7 @@ export default function EditPages() {
                                     </span>
                                 </div>
                             </div>
-                        </Link>
+                        </div>
                     ))}
                 </div>
             </div>
