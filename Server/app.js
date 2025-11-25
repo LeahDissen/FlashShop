@@ -19,20 +19,11 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-<<<<<<< HEAD
 app.use("/auth",authRoutes);
 app.use("/products",productRoutes);
 app.use("/orders",orderRoutes);
 app.use('/contact', contactRoutes);
 app.use(cookieParser());
-=======
-app.use("/auth",apiRateLimiter ,authRoutes);
-app.use(cookieParser());
-
-
-app.use("/products", productRoutes);
-app.use("/orders", orderRoutes);
->>>>>>> dev
 app.use("/tips", tipsRoutes);
 app.use("/club", clubRoutes);
 
