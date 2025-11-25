@@ -46,7 +46,7 @@ export default function UpdateCatalog() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 relative" dir="rtl">
+        <div className="min-h-screen bg-gray-50 p-6 relative">
             {/* כותרת עליונה */}
             <div className="max-w-4xl mx-auto mb-8 flex justify-between items-center">
                 <div>

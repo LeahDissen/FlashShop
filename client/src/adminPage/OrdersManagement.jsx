@@ -111,7 +111,7 @@ export default function OrdersManagement() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 font-sans" dir="rtl">
+        <div className="min-h-screen bg-gray-50 p-6 font-sans">
 
             {/* כותרת וחזרה לדשבורד */}
             <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4">

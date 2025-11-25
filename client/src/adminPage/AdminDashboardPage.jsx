@@ -8,7 +8,7 @@ export default function AdminDashboardPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-600" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-600">
         אין לך הרשאה לצפות בדף זה.
       </div>
     );
@@ -60,7 +60,7 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 font-sans" dir="rtl">
+    <div className="min-h-screen bg-gray-50 pb-20 font-sans">
       
       {/* Header Section */}
       <div className="bg-white shadow-sm border-b border-gray-100 mb-10">

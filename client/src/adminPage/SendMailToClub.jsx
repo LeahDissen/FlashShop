@@ -51,9 +51,7 @@ export default function SendMailToClub() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6 relative" dir="rtl">
-
-            {/* כותרת וחזרה */}
+        <div className="min-h-screen bg-gray-50 p-6 relative">
             <div className="max-w-4xl mx-auto mb-8 flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">שליחת מייל לחברי מועדון</h1>
@@ -63,13 +61,10 @@ export default function SendMailToClub() {
                     חזרה ללוח בקרה &larr;
                 </Link>
             </div>
-
-            {/* טופס */}
             <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
                 <form onSubmit={handleSubmit} className="space-y-6">
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* נושא */}
                         <div>
                             <label className="block text-gray-700 font-bold mb-2">נושא המייל</label>
                             <input
@@ -81,8 +76,6 @@ export default function SendMailToClub() {
                                 className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f2665e] focus:border-transparent outline-none transition-all"
                             />
                         </div>
-
-                        {/* למי לשלוח */}
                         <div>
                             <label className="block text-gray-700 font-bold mb-2">למי לשלוח?</label>
                             <select
@@ -93,12 +86,10 @@ export default function SendMailToClub() {
                             >
                                 <option value="all">כל חברי המועדון 👥</option>
                                 <option value="new_members">מצטרפים חדשים (החודש) ✨</option>
-                                {/* <option value="birthday">חוגגי יום הולדת החודש 🎂</option> */}
+                                <option value="birthday">חוגגי יום הולדת החודש 🎂</option>
                             </select>
                         </div>
                     </div>
-
-                    {/* גוף המייל */}
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">תוכן ההודעה</label>
                         <textarea
@@ -110,8 +101,6 @@ export default function SendMailToClub() {
                             className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f2665e] focus:border-transparent outline-none transition-all resize-none"
                         ></textarea>
                     </div>
-
-                    {/* העלאת תמונה */}
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">צרף תמונה (אופציונלי)</label>
                         <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:bg-gray-50 transition-all group">
@@ -124,8 +113,6 @@ export default function SendMailToClub() {
                             <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                         </label>
                     </div>
-
-                    {/* כפתור שליחה */}
                     <button
                         type="submit"
                         disabled={loading}
@@ -141,8 +128,6 @@ export default function SendMailToClub() {
                     </button>
                 </form>
             </div>
-
-            {/* פופ-אפ הצלחה */}
             {showSuccess && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSuccess(false)}></div>
@@ -150,20 +135,17 @@ export default function SendMailToClub() {
                     <div className="relative bg-[#f0645a] rounded-full w-[300px] h-[300px] md:w-[400px] md:h-[400px] flex flex-col items-center justify-center text-center p-8 shadow-2xl text-white animate-bounce-in">
                         <button
                             onClick={() => setShowSuccess(false)}
-                            className="absolute top-6 right-6 text-white/80 hover:text-white text-2xl"
+                            className="absolute top-8 right-8 text-red-800/70 hover:text-red-900 transition-colors text-3xl font-bold bg-white/20 rounded-full p-1 w-10 h-10 flex items-center justify-center"
                         >
                             ✕
                         </button>
-
                         <div className="bg-white/20 p-4 rounded-full mb-4">
                             <FaCheckCircle className="text-5xl text-white" />
                         </div>
-
                         <h2 className="text-3xl font-bold mb-2">המייל נשלח בהצלחה!</h2>
                         <p className="text-lg opacity-90">ההודעה בדרך ללקוחות שלך.</p>
-
-                        <div className="absolute top-10 left-10 w-16 h-16 bg-white/10 rounded-full"></div>
-                        <div className="absolute bottom-10 right-10 w-10 h-10 bg-white/10 rounded-full"></div>
+                        <div className="absolute top-10 left-10 w-16 h-16 bg-white/10 rounded-full pointer-events-none"></div>
+                        <div className="absolute bottom-10 right-10 w-10 h-10 bg-white/10 rounded-full pointer-events-none"></div>
                     </div>
                 </div>
             )}

@@ -87,7 +87,7 @@ export default function Club() {
     if (!isClubOpen && !editMode) return null;
 
     const EditContent = (
-        <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-auto text-right max-h-[80vh] overflow-y-auto" dir="rtl">
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full mx-auto text-right max-h-[80vh] overflow-y-auto">
             <h3 className="font-bold text-lg border-b pb-2 mb-4 text-gray-800">עריכת פופ-אפ מועדון</h3>
             <div className="flex flex-col gap-4">
                 <div>

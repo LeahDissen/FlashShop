@@ -131,7 +131,7 @@ export default function Footer() {
     );
 
     const ViewContent = (
-        <footer className="w-full bg-[#f2665e] py-14 px-8 text-white" dir="rtl" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
+        <footer className="w-full bg-[#f2665e] py-14 px-8 text-white" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
             <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12">
                 {/* טופס יצירת קשר */}
                 <div className="sendANote">
