@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAllMessages, deleteMessageRequest } from "../api/messages";
 import { FaTrash, FaEnvelope, FaUser, FaClock, FaReply } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi";
 
 export default function ViewMessages() {
     const [messages, setMessages] = useState([]);
@@ -48,11 +49,14 @@ export default function ViewMessages() {
                             סה"כ {messages.length} הודעות
                         </span>
                     </h1>
-                    <Link to="/admindashboard" className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
-                        חזרה ללוח בקרה
+                    <Link
+                        to="/admindashboard"
+                        className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
+                    >
+                        <span>חזרה ללוח הבקרה</span>
+                        <FiArrowLeft className="text-xl" />
                     </Link>
                 </div>
-
                 {loading ? (
                     <div className="text-center py-20 text-gray-500 text-xl">טוען הודעות...</div>
                 ) : messages.length === 0 ? (
@@ -64,7 +68,6 @@ export default function ViewMessages() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {messages.map((msg) => (
                             <div key={msg._id} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow overflow-hidden flex flex-col border border-gray-100">
-                                {/* Header Card */}
                                 <div className="bg-[#f2665e]/10 p-4 border-b border-[#f2665e]/20 flex justify-between items-start">
                                     <div>
                                         <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
@@ -84,15 +87,11 @@ export default function ViewMessages() {
                                         <FaTrash />
                                     </button>
                                 </div>
-
-                                {/* Content */}
                                 <div className="p-5 flex-grow">
                                     <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
                                         {msg.message}
                                     </p>
                                 </div>
-
-                                {/* Footer Card / Actions */}
                                 <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
                                     <a
                                         href={`mailto:${msg.email}`}

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from "react-router-dom";
 import { FaPaperPlane, FaImage, FaCheckCircle } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi";
 import { sendBroadcastEmail } from '../api/club';
 
 export default function SendMailToClub() {
@@ -57,8 +58,12 @@ export default function SendMailToClub() {
                     <h1 className="text-3xl font-bold text-gray-800">שליחת מייל לחברי מועדון</h1>
                     <p className="text-gray-500">שמירה על קשר עם הלקוחות שלך מעולם לא הייתה קלה יותר</p>
                 </div>
-                <Link to="/admindashboard" className="text-[#f2665e] hover:underline font-bold">
-                    חזרה ללוח בקרה &larr;
+                <Link
+                    to="/admindashboard"
+                    className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
+                >
+                    <span>חזרה ללוח הבקרה</span>
+                    <FiArrowLeft className="text-xl" />
                 </Link>
             </div>
             <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
@@ -82,8 +87,7 @@ export default function SendMailToClub() {
                                 name="recipientType"
                                 value={formData.recipientType}
                                 onChange={handleChange}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f2665e] outline-none bg-white"
-                            >
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f2665e] outline-none bg-white">
                                 <option value="all">כל חברי המועדון 👥</option>
                                 <option value="new_members">מצטרפים חדשים (החודש) ✨</option>
                                 <option value="birthday">חוגגי יום הולדת החודש 🎂</option>

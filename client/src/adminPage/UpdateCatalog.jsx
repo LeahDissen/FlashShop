@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaCloudUploadAlt, FaFilePdf, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FiArrowLeft } from "react-icons/fi";
 import axios from 'axios';
 
 export default function UpdateCatalog() {
@@ -29,7 +30,6 @@ export default function UpdateCatalog() {
         setMessage({ type: '', text: '' });
 
         try {
-            // שליחה לשרת - נדרש להוסיף את הנתיב הזה בשרת (הסבר בהמשך)
             await axios.post('http://localhost:5000/admin/upload-catalog', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 withCredentials: true
@@ -47,19 +47,20 @@ export default function UpdateCatalog() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 relative">
-            {/* כותרת עליונה */}
             <div className="max-w-4xl mx-auto mb-8 flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">ניהול קטלוג מוצרים</h1>
                     <p className="text-gray-500">כאן ניתן לעדכן את קובץ ה-PDF שהלקוחות מורידים מהאתר</p>
                 </div>
-                <Link to="/admindashboard" className="text-[#f2665e] hover:underline font-bold flex items-center gap-2">
-                    חזרה ללוח בקרה &larr;
+                <Link
+                    to="/admindashboard"
+                    className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline">
+                    <span>חזרה ללוח הבקרה</span>
+                    <FiArrowLeft className="text-xl" />
                 </Link>
             </div>
 
             <div className="max-w-2xl mx-auto">
-                {/* כרטיס קטלוג נוכחי */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="bg-red-100 p-3 rounded-full text-[#f2665e]">
@@ -73,13 +74,11 @@ export default function UpdateCatalog() {
                     <a
                         href="/My-Product-Catalog.pdf"
                         target="_blank"
-                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                    >
+                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
                         צפייה בקובץ
                     </a>
                 </div>
 
-                {/* אזור העלאה */}
                 <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 text-center">
                     <div className={`border-2 border-dashed rounded-2xl p-10 transition-all ${file ? 'border-[#f2665e] bg-red-50' : 'border-gray-300 hover:border-[#f2665e] hover:bg-gray-50'}`}>
                         <input
@@ -106,7 +105,6 @@ export default function UpdateCatalog() {
                         </label>
                     </div>
 
-                    {/* הודעות שגיאה/הצלחה */}
                     {message.text && (
                         <div className={`mt-6 p-3 rounded-lg flex items-center justify-center gap-2 ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                             {message.type === 'success' ? <FaCheckCircle /> : <FaExclamationCircle />}
@@ -114,7 +112,6 @@ export default function UpdateCatalog() {
                         </div>
                     )}
 
-                    {/* כפתור שמירה */}
                     <button
                         onClick={handleUpload}
                         disabled={!file || loading}

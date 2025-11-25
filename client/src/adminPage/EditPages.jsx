@@ -1,6 +1,6 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic } from 'react-icons/fa';
+import { FiArrowLeft } from "react-icons/fi";
 import useAuthStore from '../store/authStore';
 
 export default function EditPages() {
@@ -14,8 +14,6 @@ export default function EditPages() {
         );
     }
 
-    // רשימת הדפים והרכיבים לעריכה
-    // אנו שולחים ב-state את המזהה (endpoint) של הרכיב כדי שרק הוא ייכנס למצב עריכה
     const pagesToEdit = [
         {
             id: 1,
@@ -30,7 +28,7 @@ export default function EditPages() {
             title: "עריכת כותרת (Header)",
             description: "עדכון הלוגו והתפריט העליון המופיעים בכל דפי האתר.",
             icon: <FaWindowMaximize className="text-3xl text-white" />,
-            link: "/", // הכותרת נמצאת בכל דף, אז נפנה לדף הבית
+            link: "/",
             targetEndpoint: "header"
         },
         {
@@ -38,7 +36,7 @@ export default function EditPages() {
             title: "עריכת פוטר (Footer)",
             description: "עדכון פרטי יצירת קשר, זכויות יוצרים וקישורים בתחתית האתר.",
             icon: <FaWindowMinimize className="text-3xl text-white" />,
-            link: "/", // הפוטר נמצא בכל דף
+            link: "/",
             targetEndpoint: "footer"
         },
         {
@@ -69,33 +67,36 @@ export default function EditPages() {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans">
-
-            {/* Header Section */}
             <div className="bg-white shadow-sm border-b border-gray-100 mb-10">
                 <div className="container mx-auto px-6 py-10">
-                    <div className="flex items-center gap-5">
-                        <div className="p-4 bg-[#f2665e] rounded-full shadow-lg shadow-red-200">
-                            <FaMagic className="text-2xl text-white" />
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 bg-[#f2665e] rounded-full shadow-lg shadow-red-200">
+                                <FaMagic className="text-2xl text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-extrabold text-gray-800">ניהול דפים ותוכן</h1>
+                                <p className="text-gray-500 mt-1 text-lg">בחרי איזה דף או רכיב ברצונך לערוך.</p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-3xl font-extrabold text-gray-800">ניהול דפים ותוכן</h1>
-                            <p className="text-gray-500 mt-1 text-lg">בחרי איזה דף או רכיב ברצונך לערוך, והמערכת תעביר אותך ישירות למצב עריכה.</p>
-                        </div>
+                        <Link
+                            to="/admindashboard"
+                            className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
+                        >
+                            <span>חזרה ללוח הבקרה</span>
+                            <FiArrowLeft className="text-xl" />
+                        </Link>
                     </div>
                 </div>
             </div>
-
-            {/* Cards Grid */}
             <div className="container mx-auto px-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {pagesToEdit.map((page) => (
                         <Link
                             to={page.link}
-                            state={{ autoEdit: true, targetEndpoint: page.targetEndpoint }} // כאן הקסם קורה! שולחים State
+                            state={{ autoEdit: true, targetEndpoint: page.targetEndpoint }}
                             key={page.id}
-                            className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:-translate-y-2 flex flex-col"
-                        >
-                            {/* Card Header */}
+                            className="group relative bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:-translate-y-2 flex flex-col">
                             <div className="h-36 relative overflow-hidden bg-gradient-to-br from-[#f2665e] to-[#d95248] flex items-center justify-center">
                                 <div className="absolute top-0 left-0 w-full h-full opacity-10">
                                     <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -106,8 +107,6 @@ export default function EditPages() {
                                     {page.icon}
                                 </div>
                             </div>
-
-                            {/* Card Content */}
                             <div className="p-8 flex-1 flex flex-col items-center text-center">
                                 <h3 className="text-2xl font-bold text-gray-800 mb-3 group-hover:text-[#f2665e] transition-colors">
                                     {page.title}
@@ -115,7 +114,6 @@ export default function EditPages() {
                                 <p className="text-gray-600 leading-relaxed text-sm">
                                     {page.description}
                                 </p>
-
                                 <div className="mt-auto pt-6 opacity-0 transform translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
                                     <span className="text-[#f2665e] font-bold text-sm flex items-center gap-2">
                                         עבור לעריכה &larr;

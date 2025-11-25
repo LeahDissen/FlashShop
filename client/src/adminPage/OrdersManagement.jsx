@@ -1,10 +1,9 @@
-// file: client/src/adminPage/OrdersManagement.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { FiArrowLeft } from "react-icons/fi";
 import {
     FaClipboardList,
     FaSearch,
-    FaFilter,
     FaCheckCircle,
     FaTimesCircle,
     FaClock,
@@ -15,7 +14,6 @@ import {
 } from "react-icons/fa";
 
 export default function OrdersManagement() {
-    // --- Mock Data (נתונים לדוגמה) ---
     const mockOrders = [
         {
             _id: "ORD-789012",
@@ -67,17 +65,12 @@ export default function OrdersManagement() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // כאן תהיה קריאת ה-API האמיתית בעתיד
-        // למשל: getAllOrders().then(data => setOrders(data));
-
-        // סימולציה של טעינה
         setTimeout(() => {
             setOrders(mockOrders);
             setLoading(false);
         }, 800);
     }, []);
 
-    // סינון וחיפוש
     const filteredOrders = orders.filter(order => {
         const matchesStatus = filterStatus === "all" || order.status === filterStatus;
         const matchesSearch =
@@ -86,14 +79,12 @@ export default function OrdersManagement() {
         return matchesStatus && matchesSearch;
     });
 
-    // חישוב סטטיסטיקות
     const stats = {
         total: orders.length,
         pending: orders.filter(o => o.status === 'pending').length,
         revenue: orders.reduce((sum, o) => o.status !== 'cancelled' ? sum + o.total_price : sum, 0)
     };
 
-    // פונקציות עזר לסטטוסים
     const getStatusBadge = (status) => {
         switch (status) {
             case 'pending': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
@@ -112,8 +103,6 @@ export default function OrdersManagement() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans">
-
-            {/* כותרת וחזרה לדשבורד */}
             <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
@@ -124,13 +113,12 @@ export default function OrdersManagement() {
                 </div>
                 <Link
                     to="/admindashboard"
-                    className="bg-white text-gray-600 hover:text-[#f2665e] border border-gray-200 px-6 py-2 rounded-full shadow-sm hover:shadow transition-all font-medium"
+                    className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
                 >
-                    חזרה ללוח הבקרה &larr;
+                    <span>חזרה ללוח הבקרה</span>
+                    <FiArrowLeft className="text-xl" />
                 </Link>
             </div>
-
-            {/* כרטיסי סטטיסטיקה */}
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
@@ -155,10 +143,7 @@ export default function OrdersManagement() {
                 </div>
             </div>
 
-            {/* סרגל כלים: חיפוש וסינון */}
             <div className="max-w-7xl mx-auto bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-
-                {/* חיפוש */}
                 <div className="relative w-full md:w-1/3">
                     <FaSearch className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
@@ -170,7 +155,6 @@ export default function OrdersManagement() {
                     />
                 </div>
 
-                {/* סינון לפי סטטוס */}
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar">
                     {['all', 'pending', 'shipped', 'delivered', 'cancelled'].map(status => (
                         <button
@@ -190,7 +174,6 @@ export default function OrdersManagement() {
                 </div>
             </div>
 
-            {/* טבלת הזמנות */}
             <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                 {loading ? (
                     <div className="p-10 text-center text-gray-500">טוען נתונים...</div>
@@ -269,7 +252,6 @@ export default function OrdersManagement() {
                     </div>
                 )}
 
-                {/* Footer של הטבלה (Pagination למשל) */}
                 <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-sm text-gray-500">
                     <span>מציג {filteredOrders.length} מתוך {orders.length} הזמנות</span>
                     <div className="flex gap-1">
