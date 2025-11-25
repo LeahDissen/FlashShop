@@ -106,3 +106,15 @@ exports.getProductImage = async (req, res) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
+const { generatePersonalizedProduct } = require("../utils/aiService");
+
+exports.generateMockup = async (req, res) => {
+    try {
+        const { productName, designImage } = req.body;
+        const result = await generatePersonalizedProduct(productName, designImage);
+        res.json({ result });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+

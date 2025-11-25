@@ -19,5 +19,6 @@ router.put("/:id", upload.single("image"), productController.updateProduct);
 
 router.delete("/:id", productController.deleteProduct);
 
+router.post("/generate-mockup", productController.generateMockup);
 
 module.exports = router;
