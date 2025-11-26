@@ -107,20 +107,17 @@ const EditorPage = ({ onNavigateToHome }) => {
         addToHistory(newElements);
     }, [addToHistory]);
 
-    // --- Persistence Logic (MongoDB Simulation) ---
-
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
         try {
-            // 1. Generate a thumbnail for the project list
             const node = document.getElementById('canvas-container');
             let previewDataUrl = undefined;
             if (node) {
-                setSelectedElementId(null); // Clear selection for clean shot
-                await new Promise(resolve => setTimeout(resolve, 100)); // wait for render
+                setSelectedElementId(null);
+                await new Promise(resolve => setTimeout(resolve, 100));
                 previewDataUrl = await toPng(node, {
                     quality: 0.5,
-                    pixelRatio: 0.5, // Lower res for thumbnail
+                    pixelRatio: 0.5,
                     filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
                     backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
                 });
@@ -189,7 +186,6 @@ const EditorPage = ({ onNavigateToHome }) => {
         }
     }, [currentProjectId]);
 
-    // --- Element Manipulation (Same as before) ---
     const addTextElement = useCallback(() => {
         const config = { content: 'הוסף טקסט כאן', fontSize: 18, bold: false };
 
@@ -515,7 +511,6 @@ const EditorPage = ({ onNavigateToHome }) => {
                 setZoom={setZoom}
             />
 
-            {/* Persistence / Load Project Modal */}
             {showLoadModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-75 p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden">
