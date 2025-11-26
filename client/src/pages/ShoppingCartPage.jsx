@@ -101,6 +101,8 @@ export default function ShoppingCartPage() {
   }
 
   return (
+  
+      
     <div className="bg-white min-h-screen relative overflow-x-hidden" dir="rtl">
       {/* ... Header ... */}
       <header className="relative h-48 md:h-64 flex items-center justify-center mb-8">

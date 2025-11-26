@@ -5,19 +5,26 @@ const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/ordersRoutes");
 const contactRoutes = require('./routes/contactRoutes');
 const tipsRoutes = require("./routes/tipsRoutes.js");
+const clubRoutes = require("./routes/clubRoutes");
 require("./db/mongoConnection");
 const { config } = require("./config/secret")
-const PORT = config.PORT || 5000;
-const HOST_NAME = config.HOST_NAME || '127.0.0.1';
+const PORT = config.PORT;
+const HOST_NAME = config.HOST_NAME;
 const app = express();
+const cookieParser = require("cookie-parser");
 
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 app.use(express.json());
-app.use("/auth",authRoutes);
-app.use("/products",productRoutes);
-app.use("/orders",orderRoutes);
-app.use('/contact', contactRoutes);
+app.use(cookieParser());
+
+app.use("/auth", authRoutes);
+app.use("/products", productRoutes);
+app.use("/orders", orderRoutes);
 app.use("/tips", tipsRoutes);
+app.use("/club", clubRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);

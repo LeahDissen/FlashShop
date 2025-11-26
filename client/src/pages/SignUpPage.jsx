@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { signUp } from '../api/auth';
+import { Link, useNavigate } from 'react-router-dom';
+import { joinClubRequest } from '../api/club';
+
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -9,6 +12,7 @@ export default function SignUpPage() {
         confirmPassword: ''
     });
     const [errors, setErrors] = useState({});
+    const [joinClub, setJoinClub] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -17,6 +21,7 @@ export default function SignUpPage() {
             [name]: value
         }));
     };
+    const Navigate = useNavigate();
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -54,7 +59,22 @@ export default function SignUpPage() {
         setErrors({});
         //api call to submit async 
         signUp(formData.fullName, formData.email, formData.password)
-            .then(response => {
+            .then(async (response) => {
+                if (joinClub) {
+                    try {
+                        const newUser = response.data;
+
+                        await joinClubRequest({
+                            user_id: newUser._id,
+                            email: formData.email,
+                            name: formData.fullName,
+                        });
+                        console.log("User automatically added to club");
+                    } catch (clubError) {
+                        alert('הרישום למועדון נכשל, אם זאת הכניסה לאתר הושלמה\nאפשר לנסות להצטרף למועדון מאוחר יותר')
+                        console.error('Failed to join club automatically:', clubError);
+                    }
+                }
                 alert('Account created successfully!');
                 setFormData({
                     fullName: '',
@@ -62,6 +82,7 @@ export default function SignUpPage() {
                     password: '',
                     confirmPassword: ''
                 });
+                Navigate('/logIn');
             })
             .catch(error => {
                 console.error('Error creating account:', error);
@@ -72,8 +93,6 @@ export default function SignUpPage() {
 
     const handleSocialSignUp = (provider) => {
         //add sign up with google
-
-       
     };
 
     return (
@@ -343,7 +362,34 @@ export default function SignUpPage() {
                             </p>
                         )}
                     </div>
-
+                    <div style={{
+                        marginBottom: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        direction: 'rtl'
+                    }}>
+                        <input
+                            type="checkbox"
+                            id="joinClub"
+                            checked={joinClub}
+                            onChange={(e) => setJoinClub(e.target.checked)}
+                            style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: '#667eea'
+                            }}
+                        />
+                        <label htmlFor="joinClub" style={{
+                            fontSize: '14px',
+                            color: '#333',
+                            cursor: 'pointer',
+                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                        }}>
+                            אני רוצה להצטרף למועדון הלקוחות ולקבל הטבות 🎁
+                        </label>
+                    </div>
                     <button
                         onClick={handleSubmit}
                         style={{
@@ -442,8 +488,8 @@ export default function SignUpPage() {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}>
                     Already have an account?{' '}
-                    <a
-                        href="#login"
+                    <Link
+                        to="/login"
                         style={{
                             color: '#667eea',
                             textDecoration: 'none',
@@ -454,7 +500,7 @@ export default function SignUpPage() {
                         onMouseLeave={(e) => e.target.style.color = '#667eea'}
                     >
                         Login
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

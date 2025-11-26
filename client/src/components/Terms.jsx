@@ -1,92 +1,84 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useEffect } from "react";
+import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls.jsx";
 import { useAdminControl } from "../hooks/useAdminControl.jsx";
+import useAuthStore from '../store/authStore';
+import useAppStore from '../store/appStore';
 
-export default function TermsModal() {
-    const isAdmin = localStorage.getItem("admin");
-    const adminControls = useAdminControl(
-        { title: "", content: "", btnText: "" },
-        "terms"
-    );
-    const { draft, updateDraft, editMode, previewMode } = adminControls;
-    
-    const [isOpen, setIsOpen] = useState(true);
+export default function Terms() {
+    const isAdmin = useAuthStore(state => state.isAdmin());
+    const { isTermsOpen, setTermsOpen, setClubOpen, setTermsAgreed } = useAppStore();
+    const adminControls = useAdminControl({
+        title: "",
+        content: "",
+        btnText: ""
+    }, "terms");
+    const { draft, updateDraft, editMode } = adminControls;
 
     useEffect(() => {
-        axios.get("http://localhost:4000/api/page/terms").then((res) => {
-            adminControls.setPage(res.data);
-            adminControls.setDraft(res.data);
+        getPage("terms").then((data) => {
+            adminControls.setPage(data);
+            adminControls.setDraft(data);
         });
     }, []);
 
     const handleAgree = () => {
-        localStorage.setItem("termsAgreed", "true");
-        setIsOpen(false);
+        setTermsAgreed(true);
+        setTermsOpen(false);
+        setClubOpen(true);
     };
 
     const handleClose = () => {
-        setIsOpen(false);
+        setTermsOpen(false);
+        setClubOpen(true);
     };
 
     const EditContent = (
         <>
-            <input
-                type="text"
-                value={draft.title}
-                onChange={(e) => updateDraft({ title: e.target.value })}
-                style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-            />
-            <textarea
-                value={draft.content}
-                onChange={(e) => updateDraft({ content: e.target.value })}
-                style={{ width: "100%", height: "250px", marginBottom: "10px", padding: "8px" }}
-            />
-            <input
-                type="text"
-                value={draft.btnText}
-                onChange={(e) => updateDraft({ btnText: e.target.value })}
-                style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-            />
+            <input type="text" value={draft.title} onChange={(e) => updateDraft({ title: e.target.value })} style={{ width: "100%", marginBottom: "10px", padding: "8px" }} placeholder="כותרת" />
+            <textarea value={draft.content} onChange={(e) => updateDraft({ content: e.target.value })} style={{ width: "100%", height: "250px", marginBottom: "10px", padding: "8px" }} placeholder="תוכן התקנון" />
+            <input type="text" value={draft.btnText} onChange={(e) => updateDraft({ btnText: e.target.value })} style={{ width: "100%", marginBottom: "10px", padding: "8px" }} placeholder="טקסט כפתור" />
         </>
     );
 
     const ViewContent = (
-        <>
-            <h2 className="text-xl font-bold mb-4">{draft.title}</h2>
-            <p style={{ whiteSpace: "pre-line" }}>{draft.content}</p>
+        <div className="bg-white rounded-xl shadow-2xl p-8 relative flex flex-col items-center text-center max-w-sm w-full mx-auto border border-gray-100">
+
+            <button
+                onClick={handleClose}
+                className="absolute top-3 right-3 text-gray-400 hover:text-[#f0645a] text-xl font-bold p-2 transition-colors"
+            >
+                ✕
+            </button>
+
+            <h2 className="text-2xl font-bold mb-4 text-[#f0645a] whitespace-pre-line leading-snug">
+                {draft.title}
+            </h2>
+
+            <div className="text-gray-600 mb-8 leading-relaxed max-h-[60vh] overflow-y-auto text-right text-sm px-2 scrollbar-thin scrollbar-thumb-gray-200">
+                <p className="whitespace-pre-line">{draft.content}</p>
+            </div>
+
             <button
                 onClick={handleAgree}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="bg-[#f0645a] text-white px-12 py-2.5 rounded-full hover:bg-[#d95248] font-bold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-lg"
             >
                 {draft.btnText}
             </button>
-        </>
+        </div>
     );
 
-    if (!isOpen) return null;
+    if (!isTermsOpen && !editMode) return null;
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50 p-6">
-            <div className="bg-white rounded-lg w-full max-w-lg relative shadow-lg p-6">
-                <button
-                    onClick={handleClose}
-                    className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-                >
-                    ❌
-                </button>
-
-                {isAdmin && (
-                    <AdminControls
-                        isAdmin={isAdmin}
-                        editMode={editMode}
-                        previewContent={EditContent}
-                        adminControls={adminControls}
-                    >
-                        {ViewContent}
-                    </AdminControls>
-                )}
-            </div>
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-[60] p-4 animate-fade-in">
+            <AdminControls
+                editMode={editMode}
+                previewContent={EditContent}
+                adminControls={adminControls}
+            >
+                {ViewContent}
+            </AdminControls>
         </div>
     );
 }
