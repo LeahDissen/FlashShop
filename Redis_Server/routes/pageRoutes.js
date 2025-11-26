@@ -10,6 +10,8 @@ import {
     updateTermsPage,
     getHomePage,
     updateHomePage,
+    getTipsPage,
+    updateTipsPage
 } from "../controllers/pageController.js";
 
 const router = express.Router();
@@ -29,6 +31,10 @@ router.put("/about", updateAboutPage);
 // Terms Page Routes
 router.get("/terms", getTermsPage);
 router.put("/terms", updateTermsPage);
+
+// Tips Page Routes
+router.get("/tips", getTipsPage);
+router.put("/tips", updateTipsPage);
 
 // Footer Page Routes
 router.get("/footer", getFooterPage);

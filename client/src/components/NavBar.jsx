@@ -22,11 +22,6 @@ export default function NavBar() {
                     </Link>
                 </li>
                 <li>
-                    <Link to="/about" className="hover:underline">
-                        בלוג
-                    </Link>
-                </li>
-                <li>
                     <Link to="/terms" className="hover:underline">
                         הצטרפות למועדון
                     </Link>

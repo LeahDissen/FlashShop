@@ -52,5 +52,8 @@ export const updateAboutPage = createUpdateHandler("about");
 export const getTermsPage = createGetHandler("terms");
 export const updateTermsPage = createUpdateHandler("terms");
 
+export const getTipsPage = createGetHandler("tips");
+export const updateTipsPage = createUpdateHandler("tips");
+
 export const getFooterPage = createGetHandler("footer");
 export const updateFooterPage = createUpdateHandler("footer");

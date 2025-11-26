@@ -34,8 +34,8 @@ export default function LoginPage() {
     signIn(email, password)
       .then((response) => {
         // Save admin status in localStorage - need to fix that
-        localStorage.setItem('admin', false);
-        Navigate('/about');
+        localStorage.setItem('admin', true);
+        Navigate('/home');
       })
       .catch((error) => {
         alert('Login failed. Please check your credentials and try again.');

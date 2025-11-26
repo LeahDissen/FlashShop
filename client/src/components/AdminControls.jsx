@@ -1,6 +1,6 @@
-const AdminControls = ({ 
+const AdminControls = ({
     isAdmin,
-    editMode, 
+    editMode,
     children,
     previewContent,
     adminControls,
@@ -14,7 +14,7 @@ const AdminControls = ({
             ) : (
                 children
             )}
-            
+
             <div className="mt-4">
                 {!editMode ? (
                     <button onClick={() => adminControls.setEditMode(true)}>
@@ -28,8 +28,8 @@ const AdminControls = ({
                         <button onClick={adminControls.cancelEdit} className="ml-2">
                             ❌ Cancel
                         </button>
-                        <button 
-                            onClick={() => adminControls.setPreviewMode(!adminControls.previewMode)} 
+                        <button
+                            onClick={() => adminControls.setPreviewMode(!adminControls.previewMode)}
                             className="ml-2"
                         >
                             👁 {adminControls.previewMode ? "Edit" : "Preview"}
