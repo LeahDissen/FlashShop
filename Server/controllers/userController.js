@@ -157,7 +157,9 @@ exports.myEmail = async (req, res) => {
 
 exports.myInfo = async (req, res) => {
   try {
+    console.log("into myInfo");
     let user = await UserModel.findOne({ _id: req.tokenData._id }, { password: 0 });
+    console.log("what happen?");
     res.json(user);
   } catch (err) {
     console.log(err);

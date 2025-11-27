@@ -5,7 +5,7 @@ const { login, signup, logout, requestPasswordReset, resetPassword, myInfo } = r
 
 router.post('/login', login);
 router.post('/signup', signup);
-router.get('/myInfo', auth, myInfo);
+router.get('/myInfo', myInfo);
 // Route to request password reset
 router.post('/requestPasswordReset', requestPasswordReset);
 // router.post('/logout', logout);
