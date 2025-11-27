@@ -5,64 +5,64 @@ const { Token } = require("../models/tokenModel");
 const crypto = require("crypto");
 const { sendEmail } = require("../utils/sendEmail");
 const { config } = require("../config/secret");
-const clientURL = "http://localhost:3001";
+const clientURL = "http://localhost:5173";
 //change to async func needed
 //'/signup'
-exports.signup = async (req, res,next) => {
-    try {
-        let validateBody = validateUser(req.body);
-        if (validateBody.error) {
-            console.log(validateBody.error.details);
-            return res.status(400).json(validateBody.error.details);
-        }
-        let user = new UserModel(req.body);
-        console.log(user);
-        user.password = await bcrypt.hash(user.password, 10);
-        await user.save();
-        user.password = "******"
-        res.status(201).json(user);
-    } catch (err) {
-        if (err.code == 11000) {
-            return res.status(500).json({ msg: "Email already in system, try to log in", code: 11000 })
-        }
-        console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+exports.signup = async (req, res, next) => {
+  try {
+    let validateBody = validateUser(req.body);
+    if (validateBody.error) {
+      console.log(validateBody.error.details);
+      return res.status(400).json(validateBody.error.details);
     }
+    let user = new UserModel(req.body);
+    console.log(user);
+    user.password = await bcrypt.hash(user.password, 10);
+    await user.save();
+    user.password = "******"
+    res.status(201).json(user);
+  } catch (err) {
+    if (err.code == 11000) {
+      return res.status(500).json({ msg: "Email already in system, try to log in", code: 11000 })
+    }
+    console.log(err);
+    res.status(500).json({ msg: "There was an error, try again later", err });
+  }
 };
 //'/login'
-exports.login = async (req, res,next) => {
-    let validBody = validateLogin(req.body);
-    if (validBody.error) {
-        console.log(validBody.error.details);
-        return res.status(400).json(validBody.error.details);
-    }
-    try {
-        let user = await UserModel.findOne({ email: req.body.email });
+exports.login = async (req, res, next) => {
+  let validBody = validateLogin(req.body);
+  if (validBody.error) {
+    console.log(validBody.error.details);
+    return res.status(400).json(validBody.error.details);
+  }
+  try {
+    let user = await UserModel.findOne({ email: req.body.email });
 
-        if (!user) {
-            return res.status(401).json({ msg: "User or password not match" });
-        }
-        let passOk = await bcrypt.compare(req.body.password, user.password);
-        if (!passOk) {
-            return res.status(401).json({ msg: "User or password not match" });
-        }
-        let token = createToken(user._id);
-        res.json({ token });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+    if (!user) {
+      return res.status(401).json({ msg: "User or password not match" });
     }
+    let passOk = await bcrypt.compare(req.body.password, user.password);
+    if (!passOk) {
+      return res.status(401).json({ msg: "User or password not match" });
+    }
+    let token = createToken(user._id);
+    res.json({ token });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ msg: "There was an error, try again later", err });
+  }
 };
 //'/forgot-password'
-exports.requestPasswordReset = async (req,res,next) => {
-   try { 
-  const user = await UserModel.findOne({ email: req.body.email });
-  if (!user) throw new Error("Email does not exist");
+exports.requestPasswordReset = async (req, res, next) => {
+  try {
+    const user = await UserModel.findOne({ email: req.body.email });
+    if (!user) throw new Error("Email does not exist");
 
-  await Token.findOneAndDelete({ userId: user._id });
+    await Token.findOneAndDelete({ userId: user._id });
 
-  let resetToken = crypto.randomBytes(32).toString("hex");
-  const hash = await bcrypt.hash(resetToken, Number(config.BCRYPT_SALT));
+    let resetToken = crypto.randomBytes(32).toString("hex");
+    const hash = await bcrypt.hash(resetToken, Number(config.BCRYPT_SALT));
 
     await new Token({
       userId: user._id,
@@ -89,37 +89,41 @@ exports.requestPasswordReset = async (req,res,next) => {
   }
 };
 
-exports.resetPassword = async (user_Id, token, password) => {
-  console.log(user_Id);
-  let passwordResetToken = await findOne(Token, { userId: user_Id });
-  console.log("passwordResetToken" + passwordResetToken);
-  console.log("yoken" + token);
-  if (!passwordResetToken.token) {
-    throw new Error("Invalid or expired password reset token");
-  }
-  console.log(passwordResetToken.token, token);
-  const isValid = await bcrypt.compare(token, passwordResetToken.token);
-  if (!isValid) {
-    throw new Error("Invalid or expired password reset token");
-  }
-  const hash = await bcrypt.hash(password, Number(bcryptSalt));
+exports.resetPassword = async (req, res, next) => {
+  try {
+    console.log(req.params.id);
+    let passwordResetToken = await Token.findOne({ userId: req.params.id });
 
-  await   UserModel.updateOne(
-    { _id: user_Id },
-    { $set: { password: hash } },
-    { new: true }
-  );
-  const user = await UserModel.findById(user_Id);
-  sendEmail(
-    user.email,
-    "Password Reset Successfully",
-    {
-      name: user.name,
-    },
-    "./template/resetPassword.handlebars"
-  );
-  await passwordResetToken.deleteOne();
-  return { success: "Password reset was successful" };
+    if (!passwordResetToken.token) {
+      throw new Error("Invalid or expired password reset token");
+    }
+    console.log(passwordResetToken.token, req.body.token);
+    const isValid = await bcrypt.compare(req.body.token, passwordResetToken.token);
+    if (!isValid) {
+      throw new Error("Invalid or expired password reset token");
+    }
+    const hash = await bcrypt.hash(req.body.password, Number(config.BCRYPT_SALT));
+
+    await UserModel.updateOne(
+      { _id: user_Id },
+      { $set: { password: hash } },
+      { new: true }
+    );
+    const user = await UserModel.findById(user_Id);
+    sendEmail(
+      user.email,
+      "Password Reset Successfully",
+      {
+        name: user.name,
+      },
+      "./template/resetPassword.handlebars"
+    );
+    await passwordResetToken.deleteOne();
+    res.status(200).json({ msg: "Password reset was successful" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Error resetting password", error: error.message });
+  }
 };
 
 exports.myEmail = async (req, res) => {

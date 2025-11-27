@@ -25,6 +25,7 @@ app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/tips", tipsRoutes);
 app.use("/club", clubRoutes);
+app.use("/messages", contactRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);

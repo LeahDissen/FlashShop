@@ -5,6 +5,7 @@ import { useAdminControl } from "../hooks/useAdminControl";
 
 
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
+import { sendMessageRequest } from "../api/messages";
 
 export default function Footer() {
     const adminControls = useAdminControl(
@@ -58,9 +59,7 @@ export default function Footer() {
 
             // בצע POST לשרת - החלף את הכתובת בהתאם לאן תרצי לשלוח
             // אפשר לבחור: http://localhost:5000/contact או http://localhost:4000/api/contact
-            const res = await axios.post('http://localhost:5000/contact', contactForm, {
-                headers: { 'Content-Type': 'application/json' }
-            });
+            const res = await sendMessageRequest(contactForm)
 
             if (res.status === 200 || res.status === 201) {
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });
@@ -89,7 +88,7 @@ export default function Footer() {
     };
 
     useEffect(() => {
-        getPage("terms").then((data) => {
+        getPage("footer").then((data) => {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });
@@ -221,7 +220,7 @@ export default function Footer() {
                         <button
                             type="submit"
                             disabled={sending}
-className="bg-white text-[#f2665e] px-6 py-2 rounded hover:bg-gray-100 font-semibold transition-colors"                            style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
+                            className="bg-white text-[#f2665e] px-6 py-2 rounded hover:bg-gray-100 font-semibold transition-colors" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
                             {sending ? 'שולח...' : 'שלח'}
                         </button>
                     </form>

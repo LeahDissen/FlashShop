@@ -8,7 +8,7 @@ exports.receiveContact = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing fields' });
     }
 
-    const adminEmail = config.EMAIL_USER 
+    const adminEmail = config.USER 
     const subject = `Contact form: ${name}`;
     const payload = { name, email, message }; // השתמש בתבנית או במספר שורות HTML
 
