@@ -5,6 +5,7 @@ import { useAdminControl } from "../hooks/useAdminControl";
 
 
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
+import { sendMessageRequest } from "../api/messages";
 
 export default function Footer() {
     const adminControls = useAdminControl(
@@ -49,9 +50,10 @@ export default function Footer() {
         try {
             setSending(true);
             setStatusMsg(null);
-            const res = await axios.post('http://localhost:5000/contact', contactForm, {
-                headers: { 'Content-Type': 'application/json' }
-            });
+
+            // בצע POST לשרת - החלף את הכתובת בהתאם לאן תרצי לשלוח
+            // אפשר לבחור: http://localhost:5000/contact או http://localhost:4000/api/contact
+            const res = await sendMessageRequest(contactForm)
 
             if (res.status === 200 || res.status === 201) {
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });

@@ -7,3 +7,11 @@ export const joinClubRequest = async (userData) => {
     console.log("api is correct: " + response.data);
     return response.data;
 };
+
+export const sendBroadcastEmail = async (formData) => {
+    const response = await axios.post(`${API_URL}/broadcast`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true
+    });
+    return response.data;
+};

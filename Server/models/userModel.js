@@ -9,14 +9,11 @@ let userSchema = new mongoose.Schema({
     role: {
         type: String, default: "user"
     },
-    date_created: {
-        type: Date,
-        default: Date.now
-    }
-});
+   
+},{timestamps:true  });
 exports.UserModel = mongoose.model("users", userSchema);
 exports.createToken = (_userId, _role) => {
-    let token = jwt.sign({ _id: _userId, role: _role }, config.JWT_SECRET, { expiresIn: "60mins" });
+    let token = jwt.sign({ _id: _userId, role: _role }, config.JWT_SECRET, { expiresIn: "7d" });
     return token;
 };
 exports.validateUser = (_reqBody) => {

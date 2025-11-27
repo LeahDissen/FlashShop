@@ -1,6 +1,6 @@
 const { sendEmail } = require('../utils/sendEmail'); // יש קובץ sendEmail.js בפרויקט
 const { config } = require('../config/secret'); // קונפיג/env
-
+const { ContactModel } = require('../models/contactModel'); 
 exports.receiveContact = async (req, res) => {
   try {
     const { name, email, message } = req.body;
@@ -8,14 +8,43 @@ exports.receiveContact = async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing fields' });
     }
 
-    const adminEmail = process.env.CONTACT_EMAIL || config.EMAIL_USER || process.env.USER;
+    const adminEmail = config.USER 
     const subject = `Contact form: ${name}`;
     const payload = { name, email, message }; // השתמש בתבנית או במספר שורות HTML
 
     await sendEmail(adminEmail, subject, payload, '../utils/template/contact.handlebars'); // החלף בתבנית משלך
 
+    const contact = new ContactModel({ name, email, message });
+    await contact.save();
 
     res.status(200).json({ ok: true, message: 'Sent' });
+  } catch (err) {
+    console.error('contact controller error', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+};
+exports.getContacts = async (req, res) => {
+  try {
+    const contacts = await ContactModel.find({});
+    res.json(contacts);
+  } catch (err) {
+    console.error('contact controller error', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+};
+exports.deleteContact = async (req, res) => {
+  try {
+    const contact = await ContactModel.deleteOne({ _id: req.params.id });
+    res.json(contact);
+  } catch (err) {
+    console.error('contact controller error', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+};
+exports.updateContactStatus = async (req, res) => {
+  try {
+    const contact = await ContactModel.updateOne({ _id: req.params.id }, { $set: { status: req.body.status } });
+    res.json(contact);
   } catch (err) {
     console.error('contact controller error', err);
     res.status(500).json({ ok: false, error: 'Server error' });

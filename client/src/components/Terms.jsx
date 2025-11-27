@@ -42,7 +42,7 @@ export default function Terms() {
     );
 
     const ViewContent = (
-        <div className="bg-white rounded-xl shadow-2xl p-8 relative flex flex-col items-center text-center max-w-sm w-full mx-auto border border-gray-100" dir="rtl">
+        <div className="bg-white rounded-xl shadow-2xl p-8 relative flex flex-col items-center text-center max-w-sm w-full mx-auto border border-gray-100">
 
             <button
                 onClick={handleClose}

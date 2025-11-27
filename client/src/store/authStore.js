@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchUserInfo, signOut } from '../api/auth';
 
 const useAuthStore = create((set) => ({
     userId: null,
@@ -46,7 +47,5 @@ const useAuthStore = create((set) => ({
         return useAuthStore.getState().role === 'admin';
     },
 }));
-
-useAuthStore.getState().initialize();
 
 export default useAuthStore;

@@ -1,5 +1,9 @@
+
+const { config } = require("./config/secret");
+require("./db/mongoConnection");
 const express = require("express");
 const cors = require("cors");
+
 const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/ordersRoutes");
@@ -7,8 +11,7 @@ const tipsRoutes = require("./routes/tipsRoutes.js");
 const apiRateLimiter = require("./middlewares/apiRate");
 const clubRoutes = require("./routes/clubRoutes");
 const contactRoutes = require("./routes/contactRoutes");
-require("./db/mongoConnection");
-const { config } = require("./config/secret")
+
 const PORT = config.PORT;
 const HOST_NAME = config.HOST_NAME;
 const app = express();
@@ -26,6 +29,7 @@ app.use('/contact', contactRoutes);
 app.use(cookieParser());
 app.use("/tips", tipsRoutes);
 app.use("/club", clubRoutes);
+app.use("/messages", contactRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);
