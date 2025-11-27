@@ -4,7 +4,7 @@ import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 
-import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
+// import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
 
 export default function Footer() {
     const adminControls = useAdminControl(
@@ -51,7 +51,7 @@ export default function Footer() {
     };
 
     useEffect(() => {
-        getPage("terms").then((data) => {
+        getPage("footer").then((data) => {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });
@@ -137,6 +137,7 @@ export default function Footer() {
                 <div className="sendANote">
                     <h2 className="text-2xl font-semibold mb-4">{draft.noteTitle}</h2>
                     <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+                        {console.log(draft)}
                         <input
                             type="text"
                             placeholder={draft.notePlaceholderName}
