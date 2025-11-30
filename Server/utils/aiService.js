@@ -1,93 +1,64 @@
-const sharp = require('sharp');
-const axios = require('axios');
+const { spawn } = require('child_process');
+const path = require('path');
+const { config } = require('../config/secret');
 
-const PRODUCT_CONFIG = {
-    // --- ביגוד ---
-    'T-shirt': {
-        url: 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872&auto=format&fit=crop',
-        printArea: { width: 280, height: 350, top: 320, left: 296 }
-    },
-    'Hoodie': {
-        url: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80',
-        printArea: { width: 200, height: 250, top: 220, left: 200 }
-    },
-    // --- אביזרים ---
-    'Tote Bag': {
-        url: 'https://images.unsplash.com/photo-1622560417282-3f66d0d21d66?w=600&q=80',
-        printArea: { width: 220, height: 280, top: 300, left: 190 }
-    },
-    'Phone Case': {
-        url: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&q=80',
-        printArea: { width: 180, height: 320, top: 160, left: 210 }
-    },
-
-    // --- שונות ---
-    'Notebook': {
-        url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&q=80',
-        printArea: { width: 230, height: 320, top: 210, left: 185 }
-    },
-    'Jigsaw Puzzle': {
-        url: 'https://plus.unsplash.com/premium_photo-1664113038676-e41c46342894?w=600&q=80',
-        printArea: { width: 380, height: 280, top: 110, left: 110 }
-    },
-    'Heart Puzzle': {
-        url: 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&q=80',
-        printArea: { width: 220, height: 220, top: 210, left: 190 }
-    },
-
-    // ברירת מחדל
-    'default': {
-        url: 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872',
-        printArea: { width: 300, height: 300, top: 300, left: 286 }
-    }
+const PRODUCT_URLS = {
+    'T-shirt': 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872&auto=format&fit=crop',
+    'Hoodie': 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80',
+    'Baseball Cap': 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?q=80&w=600&auto=format&fit=crop',
+    'Coffee Mug': 'https://images.unsplash.com/photo-1650959858546-d09833d5317b?q=80&w=600&auto=format&fit=crop',
+    'Travel Tumbler': 'https://images.unsplash.com/photo-1596483569424-9b87053e160a?w=600&q=80',
+    'Tote Bag': 'https://images.unsplash.com/photo-1622560417282-3f66d0d21d66?w=600&q=80',
+    'Phone Case': 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&q=80',
+    'Notebook': 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&q=80',
+    'Jigsaw Puzzle': 'https://plus.unsplash.com/premium_photo-1664113038676-e41c46342894?w=600&q=80',
+    'Heart Puzzle': 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&q=80',
+    'default': 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872'
 };
 
-async function fetchImageBuffer(url) {
-    try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
-        return Buffer.from(response.data);
-    } catch (error) {
-        const base64Data = userDesignDataUrl.replace(/^data:image\/\w+;base64,/, "");
-        const designBuffer = Buffer.from(base64Data, 'base64');
+async function generatePersonalizedProduct(productName, userDesignDataUrl) {
+    return new Promise((resolve, reject) => {
+        const productUrl = PRODUCT_URLS[productName] || PRODUCT_URLS['default'];
+        
+        console.log(`[AI Service] Starting Smart Mockup for: ${productName}`);
 
-        // 2. עיבוד העיצוב (ללא trim!)
-        // שינוי גודל כדי שיתאים לאזור ההדפסה (מכיל את הכל)
-        let resizedDesign = await sharp(designBuffer)
-            .resize({
-                width: printArea.width,
-                height: printArea.height,
-                fit: 'fill', // מותח כדי למלא את כל השטח (פותר בעיית רווחים)
-                background: { r: 0, g: 0, b: 0, alpha: 0 } // רקע שקוף אם יש רווחים
-            })
-            .toBuffer();
+        const inputData = {
+            productName: productName,
+            productUrl: productUrl,
+            designImage: userDesignDataUrl
+        };
 
-        // החלת מסכה (אם מוגדרת) - לעיגול פינות
-        if (config.mask) {
-            resizedDesign = await sharp(resizedDesign)
-                .composite([{ input: config.mask, blend: 'dest-in' }])
-                .toBuffer();
-        }
+        const scriptPath = path.join(__dirname, '../python_scripts/mockup_genai.py');
+        const pythonProcess = spawn('python', [scriptPath], {
+            env: { ...process.env, GEMINI_API_KEY: config.GEMINI_API_KEY }
+        });
 
-        // 3. הרכבה
-        console.log(`   [AI Service] Compositing image...`);
-        const finalImageBuffer = await sharp(baseBuffer)
-            .composite([
-                {
-                    input: resizedDesign,
-                    top: printArea.top,
-                    left: printArea.left,
-                    blend: 'multiply'
-                }
-            ])
-            .toBuffer();
+        let resultData = '';
+        let errorData = '';
 
-        console.log(`✅ [AI Service] Mockup generated successfully!`);
-        return `data:image/jpeg;base64,${finalImageBuffer.toString('base64')}`;
+        pythonProcess.stdin.write(JSON.stringify(inputData));
+        pythonProcess.stdin.end();
 
-    } catch (error) {
-        console.error("❌ [AI Service] Error creating mockup with Sharp:", error);
-        throw new Error(`Failed to generate mockup: ${error.message}`);
-    }
+        pythonProcess.stdout.on('data', (data) => {
+            resultData += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorData += data.toString();
+            console.log(`[Python Log]: ${data.toString()}`);
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                return reject(new Error(`Python script failed: ${errorData}`));
+            }
+            if (!resultData) {
+                return reject(new Error("Python script returned empty result"));
+            }
+            console.log("✅ Mockup created successfully!");
+            resolve(resultData.trim());
+        });
+    });
 }
 
 async function generateGiftIdea(prompt) {
