@@ -4,25 +4,26 @@ const fs = require("fs");
 const path = require("path");
 const { config } = require("../config/secret");
 
-exports.sendEmail = async (email, subject, payload, template) => {
+exports.sendEmail = async (email, subject, payload, template, attachments = []) => {
   try {
-    console.log("inside send email");
-
-
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
-        user: config.EMAIL_USER,
-        pass: config.EMAIL_PASS, // App password
+        user: config.USER,
+        pass: config.PASS,
       },
       tls: {
-        rejectUnauthorized: false // Only for development
+        rejectUnauthorized: false
       }
     });
 
-    console.log('sending to:', email);
+    if (Array.isArray(email)) {
+      console.log(`Sending broadcast email to ${email.length} recipients`);
+    } else {
+      console.log('Sending email to:', email);
+    }
 
     const templatePath = path.resolve(__dirname, template);
     if (!fs.existsSync(templatePath)) {
@@ -34,19 +35,22 @@ exports.sendEmail = async (email, subject, payload, template) => {
 
     const mailOptions = {
       from: process.env.USER,
-      to: email,
       subject,
       html: compiledTemplate(payload),
+      attachments: attachments
     };
 
-    // sendMail returns a promise in modern nodemailer versions
+    if (Array.isArray(email)) {
+      mailOptions.bcc = email;
+    } else {
+      mailOptions.to = email;
+    }
+
     const info = await transporter.sendMail(mailOptions);
-    console.log('email sent:', info && info.messageId);
+    console.log('Email sent successfully:', info && info.messageId);
     return { success: true, info };
   } catch (error) {
     console.error('sendEmail error:', error);
-    // rethrow so callers can handle the error and respond appropriately
     throw error;
   }
 };
-

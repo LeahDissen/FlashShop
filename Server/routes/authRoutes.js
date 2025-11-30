@@ -1,9 +1,11 @@
 const router = require("express").Router();
+const { auth } = require("../middlewares/auth");
 
-const { login, signup, logout, requestPasswordReset, resetPassword } = require('../controllers/userController.js');
+const { login, signup, logout, requestPasswordReset, resetPassword, myInfo } = require('../controllers/userController.js');
 
 router.post('/login', login);
 router.post('/signup', signup);
+router.get('/myInfo', auth, myInfo);
 // Route to request password reset
 router.post('/requestPasswordReset', requestPasswordReset);
 router.post('/logout', logout);

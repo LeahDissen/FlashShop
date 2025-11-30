@@ -1,4 +1,3 @@
-const { auth, authAdmin } = require("../middlewares/auth");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
@@ -42,14 +41,14 @@ exports.login = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ msg: "User or password not match" });
     }
-    let passOk = await bcrypt.compare(req.body.password, user.password);
+    let passOk = bcrypt.compare(req.body.password, user.password);
     if (!passOk) {
       return res.status(401).json({ msg: "User or password not match" });
     }
     let token = createToken(user._id, user.role);
     res.cookie("authToken", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, //process.env.NODE_ENV === 'dev',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       sameSite: 'Lax'
     });
@@ -68,7 +67,7 @@ exports.login = async (req, res, next) => {
 exports.logout = async (req, res) => {
   res.clearCookie('authToken', {
     httpOnly: true,
-    secure: config.NODE_ENV === 'production',
+    secure: false,//config.NODE_ENV === 'dev',
     sameSite: 'Lax'
   });
   res.json({ msg: "Logout successful" });
