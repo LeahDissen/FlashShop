@@ -22,7 +22,42 @@ export default function NavBar() {
             <ul
                 dir="rtl"
                 className="flex justify-start items-center gap-6 p-4"
-            >
+            >{isAuthenticated ? (
+                    <li className="relative">
+                        <Link
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className="flex items-center justify-center transition-transform hover:scale-105 focus:outline-none"
+                            title="אזור אישי"
+                        >
+                            <FaUserCircle className="text-[#f2665e] text-4xl bg-white rounded-full shadow-sm cursor-pointer" />
+                        </Link>
+                        {isMenuOpen && (
+                            <div
+                                className="absolute top-full right-0 mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+                                <div className="absolute -top-2 right-5 w-4 h-4 bg-white transform rotate-45 border-l border-t border-gray-100"></div>
+                                <div className="relative z-10">
+                                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 text-right">
+                                        <p className="text-xs text-gray-500 mb-1">שלום,</p>
+                                        <p className="text-base font-bold text-gray-800">לקוח יקר</p>
+                                    </div>
+                                    <button
+                                        onClick={logout}
+                                        className="w-full text-right px-5 py-3 text-gray-600 hover:bg-red-50 hover:text-[#f2665e] transition-colors flex items-center gap-3 justify-start text-sm font-medium"
+                                    >
+                                        <FaSignOutAlt className="text-lg" />
+                                        <span>התנתק מהמערכת</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </li>
+                ) : (
+                    <li>
+                        <Link to="/login" className="text-red-500 hover:text-red-600 font-bold text-sm">
+                            כניסה
+                        </Link>
+                    </li>
+                )}
                 <li>
                     <Link to="/products" className="hover:underline">
                         מוצרים

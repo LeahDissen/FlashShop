@@ -4,7 +4,7 @@ import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 
-// import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
+import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
 
 export default function Footer() {
     const adminControls = useAdminControl(

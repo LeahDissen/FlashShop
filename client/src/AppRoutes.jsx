@@ -5,10 +5,19 @@ import HomePage from "./pages/HomePage";
 import BlogPage from "./pages/BlogPage"
 import Terms from "./components/Terms";
 import LoginPage from "./pages/LoginPage";
-import Tips from "./pages/Tips";
+import TipsPage from "./pages/TipsPage";
 import ProductsPage from "./pages/productsPage";
 import EditorPage from "./pages/EditorPage";
 import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
+import SignUpPage from "./pages/SignUpPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import AdminDashboardPage from "./adminPage/AdminDashboardPage";
+import EditPages from "./adminPage/EditPages";
+import OrdersManagement from "./adminPage/OrdersManagement";
+import ProductsManagement from "./adminPage/ProductsManagement";
+import SendMailToClub from "./adminPage/SendMailToClub";
+import UpdateCatalog from "./adminPage/UpdateCatalog";
+import ViewMessages from "./adminPage/ViewMessages";
 
 // Wrapper to provide navigation prop to ProductsPage if needed, 
 // though ProductsPage could also use useNavigate directly.

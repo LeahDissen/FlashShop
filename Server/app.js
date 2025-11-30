@@ -10,7 +10,6 @@ const tipsRoutes = require("./routes/tipsRoutes.js");
 const apiRateLimiter = require("./middlewares/apiRate");
 const clubRoutes = require("./routes/clubRoutes");
 require("./db/mongoConnection");
-const { config } = require("./config/secret")
 const PORT = config.PORT;
 const HOST_NAME = config.HOST_NAME;
 const app = express();
