@@ -1,12 +1,11 @@
 import AdminControls from '../components/AdminControls.jsx';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import { useEffect } from "react";
-import axios from "axios";
 import { useNavigate } from 'react-router-dom';
+import useAppStore from '../store/appStore';
+import { getPage } from '../api/pages';
 
 export default function HomePage() {
-    // Check admin status from localStorage - need to fix that
-    const isAdmin = localStorage.getItem("admin");
     const adminControls = useAdminControl({
         title: "",
         mainImg: "",
@@ -16,12 +15,13 @@ export default function HomePage() {
         textAbout: "",
         goToTips: ""
     }, "home");
-    const { draft, updateDraft, editMode, previewMode } = adminControls;
+    const { draft, updateDraft, editMode } = adminControls;
+    const setClubOpen = useAppStore(state => state.setClubOpen);
     const Navigate = useNavigate();
 
     useEffect(() => {
-        axios.get("http://localhost:4000/api/page/home").then((res) => {
-            const data = res.data;
+        setClubOpen(true);
+        getPage("home").then((data) => {
             if (typeof data.products === "string") {
                 try {
                     const fixedJson = data.products.trim();
@@ -166,17 +166,13 @@ export default function HomePage() {
 
     return (
         <div style={{ padding: "20px", maxWidth: 800, margin: "auto" }}>
-            {/* Admin Controls */}
-            {isAdmin && (
-                <AdminControls
-                    isAdmin={isAdmin}
-                    editMode={editMode}
-                    previewContent={EditContent}
-                    adminControls={adminControls}
-                >
-                    {ViewContent}
-                </AdminControls>
-            )}
+            <AdminControls
+                editMode={editMode}
+                previewContent={EditContent}
+                adminControls={adminControls}
+            >
+                {ViewContent}
+            </AdminControls>
         </div>
     );
 }

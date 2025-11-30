@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const productController = require("../controllers/productController");
-
 // --- Multer setup ---
 const upload = multer(); // store file in memory as Buffer
 

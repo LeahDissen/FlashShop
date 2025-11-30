@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { signUp } from '../api/auth';
+import { Link, useNavigate } from 'react-router-dom';
+import { joinClubRequest } from '../api/club';
+
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -9,6 +12,7 @@ export default function SignUpPage() {
         confirmPassword: ''
     });
     const [errors, setErrors] = useState({});
+    const [joinClub, setJoinClub] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -17,6 +21,7 @@ export default function SignUpPage() {
             [name]: value
         }));
     };
+    const Navigate = useNavigate();
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -54,7 +59,22 @@ export default function SignUpPage() {
         setErrors({});
         //api call to submit async 
         signUp(formData.fullName, formData.email, formData.password)
-            .then(response => {
+            .then(async (response) => {
+                if (joinClub) {
+                    try {
+                        const newUser = response.data;
+
+                        await joinClubRequest({
+                            user_id: newUser._id,
+                            email: formData.email,
+                            name: formData.fullName,
+                        });
+                        console.log("User automatically added to club");
+                    } catch (clubError) {
+                        alert('הרישום למועדון נכשל, אם זאת הכניסה לאתר הושלמה\nאפשר לנסות להצטרף למועדון מאוחר יותר')
+                        console.error('Failed to join club automatically:', clubError);
+                    }
+                }
                 alert('Account created successfully!');
                 setFormData({
                     fullName: '',
@@ -62,6 +82,7 @@ export default function SignUpPage() {
                     password: '',
                     confirmPassword: ''
                 });
+                Navigate('/logIn');
             })
             .catch(error => {
                 console.error('Error creating account:', error);
@@ -72,8 +93,6 @@ export default function SignUpPage() {
 
     const handleSocialSignUp = (provider) => {
         //add sign up with google
-
-       
     };
 
     return (
@@ -83,7 +102,8 @@ export default function SignUpPage() {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '20px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            // UPDATED: Theme color gradient
+            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
         }}>
             <style>{`
         @keyframes slide-up {
@@ -100,7 +120,8 @@ export default function SignUpPage() {
           animation: slide-up 0.5s ease-out;
         }
         .gradient-text {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          /* UPDATED: Theme color gradient for text */
+          background: linear-gradient(135deg, #f2665e 0%, #d95248 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -167,8 +188,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.fullName) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -219,8 +241,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.email) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -271,8 +294,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.password) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -323,8 +347,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.confirmPassword) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -343,13 +368,41 @@ export default function SignUpPage() {
                             </p>
                         )}
                     </div>
-
+                    <div style={{
+                        marginBottom: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        direction: 'rtl'
+                    }}>
+                        <input
+                            type="checkbox"
+                            id="joinClub"
+                            checked={joinClub}
+                            onChange={(e) => setJoinClub(e.target.checked)}
+                            style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: '#667eea'
+                            }}
+                        />
+                        <label htmlFor="joinClub" style={{
+                            fontSize: '14px',
+                            color: '#333',
+                            cursor: 'pointer',
+                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                        }}>
+                            אני רוצה להצטרף למועדון הלקוחות ולקבל הטבות 🎁
+                        </label>
+                    </div>
                     <button
                         onClick={handleSubmit}
                         style={{
                             width: '100%',
                             padding: '16px',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            // UPDATED: Button gradient
+                            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
                             color: 'white',
                             border: 'none',
                             borderRadius: '12px',
@@ -357,16 +410,17 @@ export default function SignUpPage() {
                             fontWeight: 600,
                             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                            // UPDATED: Button shadow
+                            boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
                             transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
                             e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+                            e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
                         }}
                         onMouseLeave={(e) => {
                             e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                            e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
                         }}
                     >
                         Create Account
@@ -416,7 +470,8 @@ export default function SignUpPage() {
                             transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#667eea';
+                            // UPDATED: Border color
+                            e.currentTarget.style.borderColor = '#f2665e';
                             e.currentTarget.style.transform = 'translateY(-2px)';
                         }}
                         onMouseLeave={(e) => {
@@ -442,19 +497,21 @@ export default function SignUpPage() {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                 }}>
                     Already have an account?{' '}
-                    <a
-                        href="#login"
+                    <Link
+                        to="/login"
                         style={{
-                            color: '#667eea',
+                            // UPDATED: Link color
+                            color: '#f2665e',
                             textDecoration: 'none',
                             fontWeight: 600,
                             transition: 'color 0.3s ease'
                         }}
-                        onMouseEnter={(e) => e.target.style.color = '#764ba2'}
-                        onMouseLeave={(e) => e.target.style.color = '#667eea'}
+                        // UPDATED: Link hover color
+                        onMouseEnter={(e) => e.target.style.color = '#d95248'}
+                        onMouseLeave={(e) => e.target.style.color = '#f2665e'}
                     >
                         Login
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

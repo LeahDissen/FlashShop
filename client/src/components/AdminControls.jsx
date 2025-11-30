@@ -1,11 +1,13 @@
+import useAuthStore from '../store/authStore';
+
 const AdminControls = ({
-    isAdmin,
     editMode,
     children,
     previewContent,
     adminControls,
 }) => {
-    if (!isAdmin || isAdmin !== "true") return children;
+    const isAdmin = useAuthStore(state => state.isAdmin());
+    if (!isAdmin) return children;
 
     return (
         <div>

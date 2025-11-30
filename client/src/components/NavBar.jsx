@@ -1,7 +1,19 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaDownload } from 'react-icons/fa'
+import { FaDownload, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import useAppStore from '../store/appStore';
+import useAuthStore from '../store/authStore';
 
 export default function NavBar() {
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const setClubOpen = useAppStore(state => state.setClubOpen);
+    const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+    const logout = useAuthStore(state => state.logout);
+    const userRole = useAuthStore(state => state.role);
+
+    const isAdmin = userRole === 'admin';
+
     return (
         <nav
             className="w-full bg-white shadow-sm"
@@ -23,26 +35,20 @@ export default function NavBar() {
                     
                 </li>
                 <li>
-                    <Link to="/terms" className="hover:underline">
+                    <Link
+                        onClick={() => setClubOpen(true)}
+                        className="hover:text-[#f2665e] transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
+                    >
                         הצטרפות למועדון
                     </Link>
                 </li>
+                <li><Link to="/tips" className="hover:text-[#f2665e] transition-colors">טיפים לצילום</Link></li>
                 <li>
-                    <Link to="/tips" className="hover:underline">
-                        טיפים לצילום
+                    <Link to="/My-Product-Catalog.pdf" download="Our-Catalog-2025.pdf" className="flex items-center gap-2 hover:text-[#f2665e] transition-colors">
+                        קטלוג <FaDownload size={12} />
                     </Link>
-                </li>
-                <li>
-                    <a
-                        href="/My-Product-Catalog.pdf"
-                        download="Our-Catalog-2025.pdf"
-                        className="flex items-center gap-2 hover:underline"
-                    >
-                        קטלוג
-                        <FaDownload />
-                    </a>
                 </li>
             </ul>
         </nav>
-    )
+    );
 }

@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 
-import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
+// import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
 
 export default function Footer() {
-    const isAdmin = localStorage.getItem("admin");
     const adminControls = useAdminControl(
         {
             noteTitle: "",
@@ -90,9 +89,9 @@ export default function Footer() {
     };
 
     useEffect(() => {
-        axios.get("http://localhost:4000/api/page/footer").then((res) => {
-            adminControls.setPage(res.data);
-            adminControls.setDraft(res.data);
+        getPage("footer").then((data) => {
+            adminControls.setPage(data);
+            adminControls.setDraft(data);
         });
     }, []);
 
@@ -284,18 +283,13 @@ className="bg-white text-[#f2665e] px-6 py-2 rounded hover:bg-gray-100 font-semi
 
     return (
         <>
-            {isAdmin ? (
-                <AdminControls
-                    isAdmin={isAdmin}
-                    editMode={editMode}
-                    previewContent={EditContent}
-                    adminControls={adminControls}
-                >
-                    {ViewContent}
-                </AdminControls>
-            ) : (
-                ViewContent
-            )}
+            <AdminControls
+                editMode={editMode}
+                previewContent={EditContent}
+                adminControls={adminControls}
+            >
+                {ViewContent}
+            </AdminControls>
         </>
     );
 }
