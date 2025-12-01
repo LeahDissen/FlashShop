@@ -102,7 +102,8 @@ export default function SignUpPage() {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '20px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            // UPDATED: Theme color gradient
+            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
         }}>
             <style>{`
         @keyframes slide-up {
@@ -119,7 +120,8 @@ export default function SignUpPage() {
           animation: slide-up 0.5s ease-out;
         }
         .gradient-text {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          /* UPDATED: Theme color gradient for text */
+          background: linear-gradient(135deg, #f2665e 0%, #d95248 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -186,8 +188,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.fullName) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -238,8 +241,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.email) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -290,8 +294,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.password) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -342,8 +347,9 @@ export default function SignUpPage() {
                             }}
                             onFocus={(e) => {
                                 if (!errors.confirmPassword) {
-                                    e.target.style.borderColor = '#667eea';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                                    // UPDATED: Focus color
+                                    e.target.style.borderColor = '#f2665e';
+                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                                 }
                             }}
                             onBlur={(e) => {
@@ -395,7 +401,8 @@ export default function SignUpPage() {
                         style={{
                             width: '100%',
                             padding: '16px',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            // UPDATED: Button gradient
+                            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
                             color: 'white',
                             border: 'none',
                             borderRadius: '12px',
@@ -403,16 +410,17 @@ export default function SignUpPage() {
                             fontWeight: 600,
                             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                            // UPDATED: Button shadow
+                            boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
                             transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
                             e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+                            e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
                         }}
                         onMouseLeave={(e) => {
                             e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                            e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
                         }}
                     >
                         Create Account
@@ -462,7 +470,8 @@ export default function SignUpPage() {
                             transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#667eea';
+                            // UPDATED: Border color
+                            e.currentTarget.style.borderColor = '#f2665e';
                             e.currentTarget.style.transform = 'translateY(-2px)';
                         }}
                         onMouseLeave={(e) => {
@@ -491,13 +500,15 @@ export default function SignUpPage() {
                     <Link
                         to="/login"
                         style={{
-                            color: '#667eea',
+                            // UPDATED: Link color
+                            color: '#f2665e',
                             textDecoration: 'none',
                             fontWeight: 600,
                             transition: 'color 0.3s ease'
                         }}
-                        onMouseEnter={(e) => e.target.style.color = '#764ba2'}
-                        onMouseLeave={(e) => e.target.style.color = '#667eea'}
+                        // UPDATED: Link hover color
+                        onMouseEnter={(e) => e.target.style.color = '#d95248'}
+                        onMouseLeave={(e) => e.target.style.color = '#f2665e'}
                     >
                         Login
                     </Link>

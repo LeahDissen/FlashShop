@@ -35,8 +35,13 @@ export default function Footer() {
         setContactForm((prev) => ({ ...prev, [field]: value }));
     };
 
+    // inside Footer.jsx component (replace the current handleSubmit)
+
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // basic validation
         if (!contactForm.name?.trim() || !contactForm.email?.trim() || !contactForm.message?.trim()) {
             setStatusMsg({ type: 'error', text: 'מלא/י שם, אימייל והודעה.' });
             return;
@@ -232,6 +237,19 @@ export default function Footer() {
                         <FaMapMarkerAlt className="inline-block w-4 h-4 ml-2" />
                         {draft.contactAddress}
                     </address>
+//                     {/* כתובת: הקטנתי גופן, תיקנתי יישור והפכתי סדר אייקון */}
+//                     <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-4 flex items-center justify-start">
+//                         {/* תיקון יישור: justify-start (במקום end) עובד נכון ב-RTL
+//                           תיקון סדר: האייקון עכשיו *לפני* הטקסט ב-JSX
+//                           תיקון גודל: w-4 h-4 (במקום w-5 h-5) ו-ml-2 (במקום mr-2)
+//                         */}
+//                         <FaMapMarkerAlt className="inline-block w-4 h-4 ml-2" />
+//                         {draft.contactAddress}
+//                     </address>
+
+
+
+                    {/* הקטנתי גופן (text-sm) והוספתי text-right */}
                     <p className="[font-family:'Noto_Sans_Hebrew',Helvetica] font-normal text-sm tracking-[0] leading-[normal] [direction:rtl] mb-4 text-right">
                         <span className="flex items-center justify-start mb-1">
                             <FaClock className="inline-block w-4 h-4 ml-2" />
@@ -255,7 +273,6 @@ export default function Footer() {
                     <p className="font-normal text-sm text-center [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] mt-auto pt-4">
                         {draft.creditNote}
                     </p>
-
                 </div>
 
             </div>

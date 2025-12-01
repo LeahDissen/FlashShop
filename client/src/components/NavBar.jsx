@@ -15,9 +15,14 @@ export default function NavBar() {
     const isAdmin = userRole === 'admin';
 
     return (
-        <nav className="w-full bg-white shadow-sm relative z-40" aria-label="תפריט ראשי">
-            <ul className="flex justify-start items-center gap-6 p-4 text-gray-700 font-medium">
-                {isAuthenticated ? (
+        <nav
+            className="w-full bg-white shadow-sm"
+            aria-label="תפריט ראשי"
+        >
+            <ul
+                dir="rtl"
+                className="flex justify-start items-center gap-6 p-4"
+            >{isAuthenticated ? (
                     <li className="relative">
                         <Link
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -53,16 +58,17 @@ export default function NavBar() {
                         </Link>
                     </li>
                 )}
-                {isAdmin && (
-                    <li>
-                        <Link to="/admindashboard" className="text-red-500 hover:text-red-600 font-bold text-sm">
-                            ניהול
-                        </Link>
-                    </li>
-                )}
-
-                <li><Link to="/home" className="hover:text-[#f2665e] transition-colors">מוצרים</Link></li>
-                <li><Link to="/home" className="hover:text-[#f2665e] transition-colors">פיתוח תמונות</Link></li>
+                <li>
+                    <Link to="/products" className="hover:underline">
+                        מוצרים
+                    </Link>
+                </li>
+                <li>
+                    <Link to="/photo-development" className="hover:underline">
+                        פיתוח תמונות
+                    </Link>
+                    
+                </li>
                 <li>
                     <Link
                         onClick={() => setClubOpen(true)}

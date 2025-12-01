@@ -41,7 +41,8 @@ export default function ForgotPasswordPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      // UPDATED: Theme color gradient
+      background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
     }}>
       <style>{`
         @keyframes slide-up {
@@ -58,7 +59,8 @@ export default function ForgotPasswordPage() {
           animation: slide-up 0.5s ease-out;
         }
         .gradient-text {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          /* UPDATED: Theme color gradient for text */
+          background: linear-gradient(135deg, #f2665e 0%, #d95248 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -79,7 +81,8 @@ export default function ForgotPasswordPage() {
             width: '64px',
             height: '64px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            // UPDATED: Circle background
+            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -170,8 +173,10 @@ export default function ForgotPasswordPage() {
             }}
             onFocus={(e) => {
               if (!error) {
-                e.target.style.borderColor = '#667eea';
-                e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
+                // UPDATED: Focus border color
+                e.target.style.borderColor = '#f2665e';
+                // UPDATED: Focus shadow color
+                e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
               }
             }}
             onBlur={(e) => {
@@ -198,7 +203,8 @@ export default function ForgotPasswordPage() {
           style={{
             width: '100%',
             padding: '16px',
-            background: resetSuccess ? '#d1d5db' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            // UPDATED: Button gradient
+            background: resetSuccess ? '#d1d5db' : 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
             color: 'white',
             border: 'none',
             borderRadius: '12px',
@@ -206,20 +212,21 @@ export default function ForgotPasswordPage() {
             fontWeight: 600,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             cursor: resetSuccess ? 'not-allowed' : 'pointer',
-            boxShadow: resetSuccess ? 'none' : '0 4px 15px rgba(102, 126, 234, 0.4)',
+            // UPDATED: Button shadow
+            boxShadow: resetSuccess ? 'none' : '0 4px 15px rgba(242, 102, 94, 0.4)',
             transition: 'all 0.3s ease',
             marginBottom: '16px'
           }}
           onMouseEnter={(e) => {
             if (!resetSuccess) {
               e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+              e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
             }
           }}
           onMouseLeave={(e) => {
             if (!resetSuccess) {
               e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+              e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
             }
           }}
         >
@@ -233,7 +240,8 @@ export default function ForgotPasswordPage() {
             width: '100%',
             padding: '16px',
             background: 'transparent',
-            color: '#667eea',
+            // UPDATED: Text color
+            color: '#f2665e',
             border: 'none',
             borderRadius: '12px',
             fontSize: '14px',
@@ -278,13 +286,15 @@ export default function ForgotPasswordPage() {
             <Link
               to="/login"
               style={{
-                color: '#667eea',
+                // UPDATED: Link color
+                color: '#f2665e',
                 textDecoration: 'none',
                 fontWeight: 600,
                 transition: 'color 0.3s ease'
               }}
-              onMouseEnter={(e) => e.target.style.color = '#764ba2'}
-              onMouseLeave={(e) => e.target.style.color = '#667eea'}
+              // UPDATED: Hover colors
+              onMouseEnter={(e) => e.target.style.color = '#d95248'}
+              onMouseLeave={(e) => e.target.style.color = '#f2665e'}
             >
               Sign in
             </Link>
