@@ -94,7 +94,6 @@ export default function Footer() {
     );
 
     const ViewContent = (
-        // שינוי 1: הקטנת ה-Padding הכללי מ-py-12 ל-py-6
         <footer className="w-full bg-[#f2665e] py-6 px-4 sm:px-8 text-white mt-auto">
             <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 px-4 lg:px-8 items-start" dir="rtl">
 
@@ -103,8 +102,6 @@ export default function Footer() {
                     <h2 dir="rtl" className="text-lg font-semibold mb-2 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
                         {draft.noteTitle}
                     </h2>
-
-                    {/* שינוי 2: צמצום המרווחים בטופס (gap-2) */}
                     <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
                         <div className="relative">
                             <input
@@ -128,7 +125,6 @@ export default function Footer() {
                             />
                         </div>
                         <div className="relative">
-                            {/* שינוי 3: הקטנת גובה תיבת הטקסט ל-h-16 */}
                             <textarea
                                 placeholder={draft.notePlaceholderMessage}
                                 value={contactForm.message}
@@ -154,7 +150,6 @@ export default function Footer() {
 
                 {/* עמודה שמאלית - פרטי קשר */}
                 <div className="contactInfo flex flex-col items-center md:items-start">
-                    {/* שינוי 4: הקטנת גובה המפה ל-110 */}
                     <iframe
                         title="map"
                         src={`https://maps.google.com/maps?q=${encodeURIComponent(draft.contactAddress)}&output=embed&t=m`}
@@ -164,8 +159,6 @@ export default function Footer() {
                         loading="lazy"
                         className="w-full max-w-[260px] mx-auto md:mx-0 mb-3 rounded shadow-md opacity-90 hover:opacity-100 transition-opacity"
                     ></iframe>
-
-                    {/* שינוי 5: צמצום המרווח התחתון mb-2 */}
                     <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-2 flex items-center justify-start">
                         <FaMapMarkerAlt className="inline-block w-3 h-3 ml-2" />
                         {draft.contactAddress}
@@ -192,8 +185,6 @@ export default function Footer() {
                 </div>
 
             </div>
-
-            {/* שינוי 6: צמצום המרווח העליון של הקרדיט mt-4 */}
             <p className="w-full text-center font-normal text-xs [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] mt-4 pt-3 border-t border-white/20 opacity-80">
                 © {draft.creditNote}
             </p>
