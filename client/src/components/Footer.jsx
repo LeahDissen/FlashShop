@@ -60,7 +60,7 @@ export default function Footer() {
             // אפשר לבחור: http://localhost:5000/contact או http://localhost:4000/api/contact
             const res = await sendMessageRequest(contactForm)
 
-            if (res.status === 200 || res.status === 201) {
+            if (res.ok === 200 || res.ok === 201) {
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });
                 setContactForm({ name: '', email: '', message: '' });
             } else {
@@ -167,10 +167,10 @@ export default function Footer() {
     const ViewContent = (
         <footer className="w-full bg-[#f2665e] py-12 px-4 sm:px-8 text-white">
 
-            <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 px-4 lg:px-8 items-start" dir="rtl">
+            <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 px-4 lg:px-8 items-start">
 
-                <div className="sendANote pr-0 md:pr-8">
-                    <h2 dir="rtl" className="text-xl font-semibold mb-4 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
+                <div className="pr-0 md:pr-8">
+                    <h2 className="text-xl font-semibold mb-4 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
                         {draft.noteTitle}
                     </h2>
 
@@ -233,21 +233,11 @@ export default function Footer() {
                         loading="lazy"
                         className="w-full max-w-[260px] mx-auto md:mx-0 mb-4 rounded shadow-md"
                     ></iframe>
+
                     <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-4 flex items-center justify-start">
                         <FaMapMarkerAlt className="inline-block w-4 h-4 ml-2" />
                         {draft.contactAddress}
                     </address>
-//                     {/* כתובת: הקטנתי גופן, תיקנתי יישור והפכתי סדר אייקון */}
-//                     <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-4 flex items-center justify-start">
-//                         {/* תיקון יישור: justify-start (במקום end) עובד נכון ב-RTL
-//                           תיקון סדר: האייקון עכשיו *לפני* הטקסט ב-JSX
-//                           תיקון גודל: w-4 h-4 (במקום w-5 h-5) ו-ml-2 (במקום mr-2)
-//                         */}
-//                         <FaMapMarkerAlt className="inline-block w-4 h-4 ml-2" />
-//                         {draft.contactAddress}
-//                     </address>
-
-
 
                     {/* הקטנתי גופן (text-sm) והוספתי text-right */}
                     <p className="[font-family:'Noto_Sans_Hebrew',Helvetica] font-normal text-sm tracking-[0] leading-[normal] [direction:rtl] mb-4 text-right">
@@ -268,14 +258,14 @@ export default function Footer() {
                             {draft.contactEmail}
                         </a>
                     </p>
-
-                    {/* הקטנתי גופן (text-sm) */}
-                    <p className="font-normal text-sm text-center [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] mt-auto pt-4">
-                        {draft.creditNote}
-                    </p>
                 </div>
 
             </div>
+            {/* הקטנתי גופן (text-sm) */}
+            <p className="w-full text-center font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] mt-8 pt-4 border-t border-white/20">
+                &copy; {draft.creditNote}
+            </p>
+
         </footer>
     );
 
