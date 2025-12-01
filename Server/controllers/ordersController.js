@@ -68,15 +68,29 @@ exports.updateOrderStatus = async (req, res) => {
 };
 
 // Create a new order
+// ... existing imports
+
 exports.createOrder = async (req, res) => {
     try {
         const { user_id, items, total_price, status } = req.body;
+        
+        // Map the incoming cart items to the new schema format
+        const formattedItems = items.map(item => ({
+            productId: item.productId || null, // null for custom photos
+            name: item.name,
+            size: item.size || null,           // Save the size
+            quantity: item.quantity,
+            price: item.price,
+            image: item.image                  // Save the Cloudinary URL
+        }));
+
         const newOrder = new OrderModel({
             user_id,
-            items: items || [],
+            items: formattedItems,
             total_price: total_price || 0,
             status: status || "pending",
         });
+
         const saved = await newOrder.save();
         res.status(201).json(saved);
     } catch (err) {
