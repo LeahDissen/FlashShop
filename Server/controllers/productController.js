@@ -157,14 +157,14 @@ exports.getProductById = async (req, res) => {
 exports.addProduct = async (req, res) => {
   try {
     const data = req.body;
-    let imageData = [];
-    if (req.file) {
-      imageData.push({
-        data: req.file.buffer,
-        contentType: req.file.mimetype,
-      });
-    }
-    const dataWithImage = { ...data, image: imageData };
+//     let imageData = [];
+//     if (req.file) {
+//       imageData.push({
+//         data: req.file.buffer,
+//         contentType: req.file.mimetype,
+//       });
+//     }
+//     const dataWithImage = { ...data, image: imageData };
     const product = new ProductModel(dataWithImage);
     await product.save();
     res.json(product);

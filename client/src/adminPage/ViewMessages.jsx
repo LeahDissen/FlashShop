@@ -76,7 +76,7 @@ export default function ViewMessages() {
                                         </h3>
                                         <p className="text-sm text-gray-500 flex items-center gap-2 mt-1">
                                             <FaClock size={12} />
-                                            {formatDate(msg.date_created)}
+                                            {formatDate(msg.createdAt)}
                                         </p>
                                     </div>
                                     <button
