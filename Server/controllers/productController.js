@@ -1,144 +1,11 @@
-// const {ProductModel} = require("../models/productModel");
-// exports.getProducts = async (req, res) => {
-//   try {
-//     let products = await ProductModel.find({});
-//     res.json(products);
-//     } catch (err) {
-//     console.log(err);
-//     res.status(500).json({ msg: "There was an error, try again later", err });
-//   }
-// };
-// //'/product/:id'
-// exports.getProductById = async (req, res) => {
-//   try {
-//     let product = await ProductModel.findOne({ _id: req.params.id });
-//     res.json(product);
-//   } catch (err) {
-//     console.log(err);
-//     res.status(500).json({ msg: "There was an error, try again later", err });
-//   }
-// };
-
-// exports.addProduct = async (req, res) => {
-//   try {
-//     const data = req.body;
-//     console.log('Received product data:', data);
-//     // handle uploaded image if present
-//     let imageData = [];
-//     if (req.file) {
-//       imageData.push({
-//         data: req.file.buffer,
-//         contentType: req.file.mimetype,
-//       });
-//     }
-//     const dataWithImage = { ...data, image: imageData };
-//     const product = new ProductModel(dataWithImage);
-//     await product.save();
-
-//     console.log('Product saved:', product);
-//     res.json(product);
-//   } catch (err) {
-//     console.log(err);
-//     res.status(500).json({ msg: "There was an error, try again later", err });
-//   }
-// };
-
-// exports.updateProduct = async (req, res) => {
-//   try {
-//     const id = req.params.id;
-//     const data = req.body;
-
-//     // Prepare update object
-//     const updateData = { ...data };
-
-//     // If user uploaded a new image, replace the old one
-//     if (req.file) {
-//       updateData.image = [
-//         {
-//           data: req.file.buffer,
-//           contentType: req.file.mimetype,
-//         },
-//       ];
-//     }
-
-//     // Use findByIdAndUpdate for a clean partial update
-//     const updatedProduct = await ProductModel.findByIdAndUpdate(
-//       id,
-//       { $set: updateData },
-//       { new: true } // return the updated document
-//     );
-
-//     if (!updatedProduct) {
-//       return res.status(404).json({ msg: "Product not found" });
-//     }
-
-//     res.json(updatedProduct);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ msg: "There was an error, try again later", err });
-//   }
-// };
-
-// exports.deleteProduct = async (req, res) => {
-//   try {
-//     let id = req.params.id; 
-//     let product = await ProductModel.deleteOne({ _id: id });
-//     res.json(product);
-//   } catch (err) {       
-//     console.log(err);
-//     res.status(500).json({ msg: "There was an error, try again later", err });
-//   }
-// };
-
-// exports.getProductImage = async (req, res) => {
-//   try {
-//     const product = await ProductModel.findById(req.params.id);
-
-//     if (!product || !product.image || product.image.length === 0) {
-//       return res.status(404).json({ msg: "Image not found" });
-//     }
-
-//     const image = product.image[0];
-//     res.set("Content-Type", image.contentType);
-//     res.send(image.data);
-//   } catch (err) {
-//     console.log(err);
-//     res.status(500).json({ msg: "There was an error, try again later", err });
-//   }
-// };
-// const { generatePersonalizedProduct } = require("../utils/aiService");
-
-// // exports.generateMockup = async (req, res) => {
-// //     try {
-// //         const { productName, designImage } = req.body;
-// //         const result = await generatePersonalizedProduct(productName, designImage);
-// //         res.json({ result });
-// //     } catch (error) {
-// //         res.status(500).json({ error: error.message });
-// //     }
-// // };
-
-// exports.generateMockup = async (req, res) => {
-//     try {
-//         const { productName, designImage } = req.body;
-//         // קורא לפונקציה ב-Service
-//         const result = await aiService.generatePersonalizedProduct(productName, designImage);
-//         res.json({ result });
-//     } catch (error) {
-//         res.status(500).json({ error: error.message });
-//     }
-// };
-
-////////////////////////////////
 const { ProductModel } = require("../models/productModel");
-// וודאי שהנתיב הזה נכון לקובץ ה-aiService שלך
 const { generatePersonalizedProduct, generateGiftIdea } = require("../utils/aiService");
 
 exports.getProducts = async (req, res) => {
   try {
     let products = await ProductModel.find({});
     res.json(products);
-    } catch (err) {
+  } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
@@ -157,15 +24,8 @@ exports.getProductById = async (req, res) => {
 exports.addProduct = async (req, res) => {
   try {
     const data = req.body;
-//     let imageData = [];
-//     if (req.file) {
-//       imageData.push({
-//         data: req.file.buffer,
-//         contentType: req.file.mimetype,
-//       });
-//     }
-//     const dataWithImage = { ...data, image: imageData };
-    const product = new ProductModel(dataWithImage);
+    // We assume 'image' is sent as a URL string in the body
+    const product = new ProductModel(data);
     await product.save();
     res.json(product);
   } catch (err) {
@@ -178,18 +38,9 @@ exports.updateProduct = async (req, res) => {
   try {
     const id = req.params.id;
     const data = req.body;
-    const updateData = { ...data };
-    if (req.file) {
-      updateData.image = [
-        {
-          data: req.file.buffer,
-          contentType: req.file.mimetype,
-        },
-      ];
-    }
     const updatedProduct = await ProductModel.findByIdAndUpdate(
       id,
-      { $set: updateData },
+      { $set: data },
       { new: true }
     );
     if (!updatedProduct) {
@@ -213,41 +64,34 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
+// This function is likely not needed if images are URLs, but kept for compatibility
 exports.getProductImage = async (req, res) => {
   try {
     const product = await ProductModel.findById(req.params.id);
-    if (!product || !product.image || product.image.length === 0) {
-      return res.status(404).json({ msg: "Image not found" });
-    }
-    const image = product.image[0];
-    res.set("Content-Type", image.contentType);
-    res.send(image.data);
+    // If image is a URL string, we just return the product object in getProducts/ById
+    // If you were storing binary data, this would be relevant.
+    if (!product) return res.status(404).json({ msg: "Product not found" });
+    res.json({ imageUrl: product.image }); 
   } catch (err) {
     console.log(err);
-    res.status(500).json({ msg: "There was an error, try again later", err });
+    res.status(500).json({ msg: "Error fetching image", err });
   }
 };
 
-// --- כאן השינוי החשוב: הוספת לוגים לפונקציה של ה-AI ---
 exports.generateMockup = async (req, res) => {
-    console.log("Controller: Received request for generateMockup"); // הדפסה 1
+    console.log("Controller: Received request for generateMockup");
     try {
         const { productName, designImage } = req.body;
         
-        // בדיקה שהמידע הגיע
         if (!productName) console.log("Controller Warning: productName is missing");
-        if (!designImage) console.log("Controller Warning: designImage is missing (length: 0)");
-        else console.log(`Controller: designImage received (length: ${designImage.length})`);
+        if (!designImage) console.log("Controller Warning: designImage is missing");
 
-        console.log("Controller: Calling aiService.generatePersonalizedProduct...");
-        
         const result = await generatePersonalizedProduct(productName, designImage);
         
         console.log("Controller: Success! Sending result back to client.");
         res.json({ result });
 
     } catch (error) {
-        // הדפסה קריטית של השגיאה
         console.error("❌ Controller Error Caught:", error); 
         res.status(500).json({ error: error.message });
     }
@@ -256,7 +100,6 @@ exports.generateMockup = async (req, res) => {
 exports.generateGiftIdeaController = async (req, res) => {
     try {
         const { prompt } = req.body;
-        console.log("Controller: Generating gift idea for:", prompt);
         const result = await generateGiftIdea(prompt);
         res.json({ result });
     } catch (error) {
@@ -264,4 +107,3 @@ exports.generateGiftIdeaController = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
-

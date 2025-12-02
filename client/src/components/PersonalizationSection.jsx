@@ -1,61 +1,24 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { SparklesIcon } from './icons';
-
-// These URLs strictly match the PRODUCT_BASE_IMAGES in geminiService.js to ensure WYSIWYG consistency
-const products = [
-    {
-        name: 'T-shirt',
-        hebrew: 'חולצת טי',
-        image: 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-    },
-    {
-        name: 'Hoodie',
-        hebrew: 'סווטשירט',
-        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80'
-    },
-    {
-        name: 'Baseball Cap',
-        hebrew: 'כובע בייסבול',
-        image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-    },
-    {
-        name: 'Coffee Mug',
-        hebrew: 'ספל קפה',
-        image: 'https://images.unsplash.com/photo-1650959858546-d09833d5317b?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-    },
-    {
-        name: 'Travel Tumbler',
-        hebrew: 'כוס נסיעה',
-        image: 'https://images.unsplash.com/photo-1596483569424-9b87053e160a?w=600&q=80'
-    },
-    {
-        name: 'Tote Bag',
-        hebrew: 'תיק בד',
-        image: 'https://images.unsplash.com/photo-1622560417282-3f66d0d21d66?w=600&q=80'
-    },
-    {
-        name: 'Phone Case',
-        hebrew: 'כיסוי לטלפון',
-        image: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&q=80'
-    },
-    {
-        name: 'Notebook',
-        hebrew: 'מחברת',
-        image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&q=80'
-    },
-    {
-        name: 'Jigsaw Puzzle',
-        hebrew: 'פאזל',
-        image: 'https://www.vecteezy.com/photo/6660857-white-blank-jigsaw-puzzle-with-shadows-on-a-wood-floor-with-cracks-3d-rendering'
-    },
-    {
-        name: 'Heart Puzzle',
-        hebrew: 'פאזל לב',
-        image: 'https://www.vecteezy.com/photo/71737630-heart-shaped-jigsaw-puzzle-on-white-surface-symbolizing-love-and-connection-with-bright-lighting'
-    }
-];
+import { getProducts } from '../api/products'; // Import API function
 
 const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct }) => {
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const data = await getProducts();
+                setProducts(data);
+            } catch (error) {
+                console.error("Failed to load products", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProducts();
+    }, []);
 
     const handleStartDesigning = () => {
         if (selectedProduct) {
@@ -71,22 +34,29 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     בחר את המוצר המושלם עבור המתנה שלך והתחל לעצב אותו בעורך המתקדם שלנו.
                 </p>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
-                    {products.map(product => (
-                        <div
-                            key={product.name}
-                            onClick={() => onSelectProduct(product.name)}
-                            className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 ${selectedProduct === product.name ? 'border-red-400 ring-4 ring-red-100 shadow-xl' : 'border-transparent shadow-md hover:shadow-xl'}`}
-                        >
-                            <div className="h-48 bg-white flex items-center justify-center overflow-hidden">
-                                <img src={product.image} alt={product.hebrew} className="w-full h-full object-cover" />
+                {loading ? (
+                    <p className="text-gray-500">טוען מוצרים...</p>
+                ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+                        {products.map(product => (
+                            <div
+                                key={product._id}
+                                // We pass product.category because that matches the keys in aiService (e.g. 'T-shirt')
+                                onClick={() => onSelectProduct(product.category)}
+                                className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 
+                                    ${selectedProduct === product.category ? 'border-red-400 ring-4 ring-red-100 shadow-xl' : 'border-transparent shadow-md hover:shadow-xl'}`}
+                            >
+                                <div className="h-48 bg-white flex items-center justify-center overflow-hidden">
+                                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                </div>
+                                <div className={`p-3 ${selectedProduct === product.category ? 'bg-red-400 text-white' : 'bg-white'}`}>
+                                    <h3 className="font-bold text-sm md:text-base">{product.name}</h3>
+                                    <p className={`text-xs mt-1 ${selectedProduct === product.category ? 'text-red-100' : 'text-gray-500'}`}>₪{product.price}</p>
+                                </div>
                             </div>
-                            <div className={`p-3 ${selectedProduct === product.name ? 'bg-red-400 text-white' : 'bg-white'}`}>
-                                <h3 className="font-bold text-sm md:text-base">{product.hebrew}</h3>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
 
                 <button
                     onClick={handleStartDesigning}
