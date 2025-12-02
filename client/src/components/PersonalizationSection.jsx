@@ -1,5 +1,5 @@
-import React from 'react';
 import { SparklesIcon } from './icons';
+
 
 // These URLs strictly match the PRODUCT_BASE_IMAGES in geminiService.js to ensure WYSIWYG consistency
 const products = [
@@ -56,7 +56,7 @@ const products = [
 ];
 
 const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct }) => {
-
+    
     const handleStartDesigning = () => {
         if (selectedProduct) {
             onNavigateToEditor();
