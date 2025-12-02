@@ -120,8 +120,7 @@ export default function Club() {
         <div className="relative w-[500px] h-[500px] flex items-center justify-center animate-fade-in-up">
             <button
                 onClick={() => setClubOpen(false)}
-                className="absolute top-4 right-4 text-gray-600 text-2xl font-thin z-50 hover:text-black"
-            >
+                className="absolute top-4 right-4 z-50 hover:text-black text-[#f0645a] font-bold text-xl">
                 X
             </button>
 
