@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Hero from '../components/Hero';
 import Gallery from '../components/Gallery';
 
@@ -31,11 +31,11 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
             <Hero 
                 onStartEditor={onNavigateToEditor}
                 onFilesSelected={handleFilesSelected}
-                backgroundImage="https://images.unsplash.com/photo-1519331379826-fda8feb021d5?auto=format&fit=crop&q=80&w=1920"
-                title="העלה את התמונות שלך"
-                subtitle="הדפסת תמונות איכותית שתשמור על הרגעים היפים שלך"
-                primaryButtonText="העלה תמונות"
-                secondaryButtonText={null}
+                backgroundImage="https://res.cloudinary.com/dwqywo11u/image/upload/v1764668010/a3b33323-3745-44b6-a4c0-a6749513d957.png"
+                title="גרירת תמונות לכאן"
+                subtitle="צור מתנות מרגשות עם התמונות שאתה אוהב" 
+                primaryButtonText="בחירת קבצים"
+                secondaryButtonText=""
             />
             <Gallery 
                 images={images}

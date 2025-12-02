@@ -9,20 +9,17 @@ const ProductsPage = ({ onNavigate }) => {
 
     return (
         <div className="min-h-screen bg-white">
-            {/* Header Section - כמו בעמוד הטיפים */}
             <div className="w-full relative">
                 <div
                     className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
                     style={{ backgroundImage: `url(${headerImage})` }}
                 >
-                    {/* שכבת הצללה כדי שהטקסט יבלוט */}
                     <div className="absolute inset-0 bg-black/20"></div>
 
                     <h1 className="relative z-10 text-5xl sm:text-6xl font-bold text-center drop-shadow-lg tracking-wide">
                         המוצרים שלנו
                     </h1>
 
-                    {/* הגל הלבן בתחתית */}
                     <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] rotate-180">
                         <svg
                             className="relative block w-[calc(100%+1.3px)] h-[50px] md:h-[70px]"
