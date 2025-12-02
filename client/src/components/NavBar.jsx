@@ -13,7 +13,7 @@ export default function NavBar() {
 
     return (
         <nav className="w-full h-full flex items-center justify-between pl-4" aria-label="תפריט ראשי">
-            
+
             {/* אזור הקישורים (סדר הפוך: מוצרים מימין, קטלוג משמאל) */}
             <ul className="flex items-center gap-4 text-base" dir="rtl">
                 <li><Link to="/products" className={linkStyle}>מוצרים</Link></li>
@@ -26,22 +26,22 @@ export default function NavBar() {
                 </li>
                 <li>
                     <Link to="/My-Product-Catalog.pdf" download="Our-Catalog-2025.pdf" className={linkStyle}>
-                        <FaDownload size={14} />
                         קטלוג
+                        <FaDownload size={14} />
                     </Link>
                 </li>
             </ul>
 
             {/* אזור האייקונים */}
             <div className="flex items-center gap-5">
-                
+
                 <button className="text-[#f2665e] hover:text-[#d95248] transition-colors p-2 rounded-full hover:bg-[#f2665e]/10">
                     <FaShoppingCart size={22} />
                 </button>
                 <div className="relative">
                     {isAuthenticated ? (
                         <>
-                            <button 
+                            <button
                                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                                 className="w-7 h-7 rounded-full bg-[#f2665e] flex items-center justify-center text-white hover:bg-[#d95248] transition-all shadow-md"
                             >
