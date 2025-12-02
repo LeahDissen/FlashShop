@@ -13,6 +13,7 @@ export default function NavBar() {
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const logout = useAuthStore(state => state.logout);
+    const isAdmin = useAuthStore(state => state.isAdmin());
     
     // Get Cart Count
     const cartItems = useCartStore(state => state.cartItems);
@@ -38,6 +39,13 @@ export default function NavBar() {
 
             {/* אזור הקישורים (סדר הפוך: מוצרים מימין, קטלוג משמאל) */}
             <ul className="flex items-center gap-4 text-base" dir="rtl">
+                {isAdmin &&
+                    <li>
+                        <Link to="/admindashboard" className={linkStyle}>
+                            ניהול מערכת
+                        </Link>
+                    </li>
+                }
                 <li><Link to="/products" className={linkStyle}>מוצרים</Link></li>
                 <li><Link to="/photo-development" className={linkStyle}>פיתוח תמונות</Link></li>
                 <li><Link to="/tips" className={linkStyle}>בלוג</Link></li>
