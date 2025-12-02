@@ -1,7 +1,16 @@
 import React from 'react';
 import ImageCard from './ImageCard';
 
-const Gallery = ({ images, onQuantityChange, onRemove, onImageSelect, selectedImageId, onSendOrder, onSizeChange }) => {
+const Gallery = ({ 
+    images, 
+    onQuantityChange, 
+    onRemove, 
+    onImageSelect, 
+    selectedImageId, 
+    onSendOrder, 
+    onSizeChange, 
+    availableSizes // NEW: Receive sizes from the page
+}) => {
   return (
     <section className="py-16 bg-white min-h-[400px]">
       <div className="container mx-auto px-6">
@@ -18,8 +27,9 @@ const Gallery = ({ images, onQuantityChange, onRemove, onImageSelect, selectedIm
                     onQuantityChange={onQuantityChange}
                     onRemove={onRemove}
                     onImageSelect={onImageSelect}
-                    onSizeChange={onSizeChange} // Pass the handler
+                    onSizeChange={onSizeChange}
                     isSelected={image.id === selectedImageId}
+                    availableSizes={availableSizes} // NEW: Pass it down to the card
                 />
             ))}
             </div>

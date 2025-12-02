@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // 1. Import useNavigate
 import CartItem from "../components/CartItem";
 import CartSummary from "../components/CartSummary";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useCartStore } from "../store/cartStore";
+import useAuthStore from "../store/authStore"; // 2. Import Auth Store
+import { checkCouponRequest } from "../api/club";
 
 const RECOMMENDED_PRODUCTS = [
   {
@@ -27,17 +30,23 @@ const RECOMMENDED_PRODUCTS = [
 ];
 
 export default function ShoppingCartPage() {
-  // Use global store
   const cartItems = useCartStore((state) => state.cartItems);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   
+  // 3. Get Auth state and navigate function
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const navigate = useNavigate();
+
+  const [discount, setDiscount] = useState(0); 
+  const [appliedCoupon, setAppliedCoupon] = useState("");
   const [recommendedProducts] = useState(RECOMMENDED_PRODUCTS);
 
-  const totalPrice = cartItems.reduce(
+  const subtotal = cartItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
   );
 
+  const totalPrice = Math.max(0, subtotal - discount);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleRemoveItem = (itemId) => {
@@ -45,11 +54,55 @@ export default function ShoppingCartPage() {
   };
 
   const handleCheckout = () => {
-    console.log("Proceed to checkout");
+    if (cartItems.length === 0) {
+        alert("העגלה ריקה!");
+        return;
+    }
+
+    // 4. Check if logged in
+    if (!isAuthenticated) {
+        // Redirect to login, but remember we came from '/cart'
+        if (confirm("עליך להתחבר כדי להמשיך לתשלום. לעבור להתחברות?")) {
+            navigate('/login', { state: { from: '/cart' } });
+        }
+        return;
+    }
+
+    // Proceed to checkout logic
+    console.log("Proceeding to checkout...", { 
+        items: cartItems, 
+        total: totalPrice, 
+        coupon: appliedCoupon 
+    });
+    alert("מעבר לתשלום...");
   };
 
-  const handleCoupon = (couponCode) => {
-    console.log(`Apply coupon: ${couponCode}`);
+  const handleCoupon = async (code) => {
+    if (!code) return { success: false, msg: "נא להזין קוד" };
+    
+    if (appliedCoupon === code) return { success: false, msg: "קופון זה כבר הוזן" };
+
+    const result = await checkCouponRequest(code);
+
+    if (result.valid) {
+        let discountAmount = 0;
+
+        if (result.discountType === 'percent') {
+            discountAmount = subtotal * (result.discountValue / 100);
+        } else if (result.discountType === 'fixed') {
+            discountAmount = result.discountValue;
+        }
+
+        discountAmount = Math.min(discountAmount, subtotal);
+
+        setDiscount(discountAmount);
+        setAppliedCoupon(code);
+        return { success: true, msg: result.msg || `קופון התקבל! חסכת ${discountAmount.toFixed(2)} ש"ח` };
+    } else {
+        setDiscount(0);
+        setAppliedCoupon("");
+        return { success: false, msg: result.msg || "קופון לא תקין" };
+    }
   };
 
   return (
@@ -93,7 +146,7 @@ export default function ShoppingCartPage() {
                   />
                 ))
               ) : (
-                <p className="p-8 text-center text-gray-500">
+                <p className="p-12 text-center text-gray-500 text-lg">
                   העגלה שלך ריקה.
                 </p>
               )}
@@ -102,6 +155,8 @@ export default function ShoppingCartPage() {
 
           <aside className="lg:w-1/3">
             <CartSummary
+              subtotal={subtotal}
+              discount={discount}
               totalPrice={totalPrice}
               onCheckout={handleCheckout}
               onCoupon={handleCoupon}
@@ -109,8 +164,13 @@ export default function ShoppingCartPage() {
           </aside>
         </div>
 
-        {/* ... Rest of the component (Recommended Products, etc.) ... */}
-        <section className="mt-16">
+        <img
+          className="absolute w-full top-1/2 left-0 -z-10 opacity-60 pointer-events-none"
+          alt="Wavy background"
+          src="https://c.animaapp.com/ssXwMPGd/img/vector.svg"
+        />
+
+        <section className="mt-16 mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-[#f2665e] mb-8">
             אולי תאהבו גם את אלה...
           </h2>

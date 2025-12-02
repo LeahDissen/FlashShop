@@ -7,6 +7,7 @@ const authRoutes = require("./routes/authRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/ordersRoutes");
 const tipsRoutes = require("./routes/tipsRoutes.js");
+const photoPriceRoutes = require("./routes/photoPriceRoutes.js");
 const apiRateLimiter = require("./middlewares/apiRate");
 const clubRoutes = require("./routes/clubRoutes");
 require("./db/mongoConnection");
@@ -21,14 +22,16 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use("/auth",apiRateLimiter ,authRoutes);
-app.use(cookieParser());
 
+app.use(cookieParser()); 
+
+app.use("/auth", apiRateLimiter, authRoutes);
 
 app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/tips", tipsRoutes);
 app.use("/club", clubRoutes);
+app.use("/photo-prices", photoPriceRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);

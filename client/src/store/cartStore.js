@@ -1,19 +1,60 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { saveCartToDB, fetchCartFromDB } from '../api/cart'; // Import the API helpers
+import useAuthStore from './authStore'; // We need to check if user is logged in
 
-export const useCartStore = create((set) => ({
-  cartItems: [],
-  
-  // Add items to cart
-  addToCart: (newItems) => set((state) => {
-    // You can add logic here to merge duplicates if needed
-    return { cartItems: [...state.cartItems, ...newItems] };
-  }),
+export const useCartStore = create(
+  persist(
+    (set, get) => ({
+      cartItems: [],
 
-  // Remove item from cart
-  removeFromCart: (itemId) => set((state) => ({
-    cartItems: state.cartItems.filter((item) => item.id !== itemId),
-  })),
+      // --- NEW: Action to load cart from DB (call this on Login) ---
+      loadCart: async (userId) => {
+          const dbItems = await fetchCartFromDB(userId);
+          if (dbItems && dbItems.length > 0) {
+              set({ cartItems: dbItems });
+          }
+      },
 
-  // Clear cart
-  clearCart: () => set({ cartItems: [] }),
-}));
+      addToCart: (newItems) => {
+          set((state) => {
+              const updatedCart = [...state.cartItems, ...newItems];
+              
+              // Sync with DB if user is logged in
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
+              
+              return { cartItems: updatedCart };
+          });
+      },
+
+      removeFromCart: (itemId) => {
+          set((state) => {
+              const updatedCart = state.cartItems.filter((item) => item.id !== itemId && item._id !== itemId);
+              
+              // Sync with DB if user is logged in
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
+
+              return { cartItems: updatedCart };
+          });
+      },
+
+      clearCart: () => {
+          set({ cartItems: [] });
+          // Optional: Clear DB pending order too if you want
+          const userId = useAuthStore.getState().userId;
+          if (userId) {
+              saveCartToDB(userId, []); 
+          }
+      },
+    }),
+    {
+      name: 'cart-storage',
+    }
+  )
+);
