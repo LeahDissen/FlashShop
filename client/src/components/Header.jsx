@@ -27,17 +27,17 @@ export default function Header() {
     );
 
     const ViewContent = (
-        <div className="preview-content">
+        <div className="flex items-center justify-start h-full">
             <img
                 src={draft.logo}
                 alt="Flash Logo"
-                style={{ maxWidth: "100%", marginBottom: "10px" }}
+                className="h-14 w-auto object-contain transition-all hover:opacity-90"
             />
         </div>
     );
 
     return (
-        <div style={{ padding: "20px", maxWidth: 800, margin: "auto" }}>
+        <div className="h-full flex items-center">
             <AdminControls
                 editMode={editMode}
                 previewContent={EditContent}

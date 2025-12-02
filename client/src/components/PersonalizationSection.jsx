@@ -1,5 +1,5 @@
-import React from 'react';
 import { SparklesIcon } from './icons';
+
 
 // These URLs strictly match the PRODUCT_BASE_IMAGES in geminiService.js to ensure WYSIWYG consistency
 const products = [
@@ -11,7 +11,7 @@ const products = [
     {
         name: 'Hoodie',
         hebrew: 'סווטשירט',
-        image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=600&q=80'
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764665297/46b286ce-72e3-41cf-a944-aee7b2d7a6cf.png'
     },
     {
         name: 'Baseball Cap',
@@ -26,37 +26,37 @@ const products = [
     {
         name: 'Travel Tumbler',
         hebrew: 'כוס נסיעה',
-        image: 'https://images.unsplash.com/photo-1596483569424-9b87053e160a?w=600&q=80'
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764664548/c78a3697-1a3f-4dbe-a1fd-7313906d7acc.png'
     },
     {
         name: 'Tote Bag',
         hebrew: 'תיק בד',
-        image: 'https://images.unsplash.com/photo-1622560417282-3f66d0d21d66?w=600&q=80'
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764665384/0a2a71bd-9b22-40ca-b51d-a3618e1aeac2.png'
     },
     {
         name: 'Phone Case',
-        hebrew: 'כיסוי לטלפון',
-        image: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&q=80'
+        hebrew: 'מגן סיליקון לטלפון',
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764664147/79cbbfc1-c774-4f4e-ba40-f3556189c42d.png'
     },
     {
         name: 'Notebook',
         hebrew: 'מחברת',
-        image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=600&q=80'
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764664450/b7972b7a-bcd6-42a7-abff-5d8d78020380.png'
     },
     {
         name: 'Jigsaw Puzzle',
         hebrew: 'פאזל',
-        image: 'https://www.vecteezy.com/photo/6660857-white-blank-jigsaw-puzzle-with-shadows-on-a-wood-floor-with-cracks-3d-rendering'
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764660525/%D7%A6%D7%99%D7%9C%D7%95%D7%9D_%D7%9E%D7%A1%D7%9A_2025-12-02_092438_onulbc.png'
     },
     {
         name: 'Heart Puzzle',
         hebrew: 'פאזל לב',
-        image: 'https://www.vecteezy.com/photo/71737630-heart-shaped-jigsaw-puzzle-on-white-surface-symbolizing-love-and-connection-with-bright-lighting'
+        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764660525/%D7%A6%D7%99%D7%9C%D7%95%D7%9D_%D7%9E%D7%A1%D7%9A_2025-12-02_092545_lspvtv.png'
     }
 ];
 
 const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct }) => {
-
+    
     const handleStartDesigning = () => {
         if (selectedProduct) {
             onNavigateToEditor();
@@ -64,9 +64,9 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
     };
 
     return (
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-white">
             <div className="container mx-auto px-6 text-center">
-                <h2 className="text-3xl font-bold text-gray-800 mb-4">בחר מוצר לעיצוב</h2>
+                <h2 className="text-3xl font-bold text-[#f2665e] mb-4">בחר מוצר לעיצוב</h2>
                 <p className="text-gray-600 mb-12 max-w-2xl mx-auto">
                     בחר את המוצר המושלם עבור המתנה שלך והתחל לעצב אותו בעורך המתקדם שלנו.
                 </p>
@@ -81,7 +81,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                             <div className="h-48 bg-white flex items-center justify-center overflow-hidden">
                                 <img src={product.image} alt={product.hebrew} className="w-full h-full object-cover" />
                             </div>
-                            <div className={`p-3 ${selectedProduct === product.name ? 'bg-red-400 text-white' : 'bg-white'}`}>
+                            <div className={`p-3 ${selectedProduct === product.name ? 'bg-red-400 text-white' : 'bg-white text-[#f0645a]'}`}>
                                 <h3 className="font-bold text-sm md:text-base">{product.hebrew}</h3>
                             </div>
                         </div>

@@ -1,89 +1,67 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaDownload, FaUserCircle, FaSignOutAlt } from 'react-icons/fa';
+import { FaShoppingCart, FaUser, FaDownload, FaSignOutAlt } from 'react-icons/fa';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 
 export default function NavBar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const logout = useAuthStore(state => state.logout);
-    const userRole = useAuthStore(state => state.role);
-
-    const isAdmin = userRole === 'admin';
+    const linkStyle = "text-[#f2665e] font-bold px-4 py-2 rounded-full hover:bg-[#f2665e]/10 transition-all duration-200 flex items-center gap-2";
 
     return (
-        <nav
-            className="w-full bg-white shadow-sm"
-            aria-label="תפריט ראשי"
-        >
-            <ul
-                dir="rtl"
-                className="flex justify-start items-center gap-6 p-4"
-            >{isAuthenticated ? (
-                    <li className="relative">
-                        <Link
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="flex items-center justify-center transition-transform hover:scale-105 focus:outline-none"
-                            title="אזור אישי"
-                        >
-                            <FaUserCircle className="text-[#f2665e] text-4xl bg-white rounded-full shadow-sm cursor-pointer" />
-                        </Link>
-                        {isMenuOpen && (
-                            <div
-                                className="absolute top-full right-0 mt-3 w-56 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
-                                <div className="absolute -top-2 right-5 w-4 h-4 bg-white transform rotate-45 border-l border-t border-gray-100"></div>
-                                <div className="relative z-10">
-                                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 text-right">
-                                        <p className="text-xs text-gray-500 mb-1">שלום,</p>
-                                        <p className="text-base font-bold text-gray-800">לקוח יקר</p>
-                                    </div>
-                                    <button
-                                        onClick={logout}
-                                        className="w-full text-right px-5 py-3 text-gray-600 hover:bg-red-50 hover:text-[#f2665e] transition-colors flex items-center gap-3 justify-start text-sm font-medium"
-                                    >
-                                        <FaSignOutAlt className="text-lg" />
-                                        <span>התנתק מהמערכת</span>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </li>
-                ) : (
-                    <li>
-                        <Link to="/login" className="text-red-500 hover:text-red-600 font-bold text-sm">
-                            כניסה
-                        </Link>
-                    </li>
-                )}
+        <nav className="w-full h-full flex items-center justify-between pl-4" aria-label="תפריט ראשי">
+
+            {/* אזור הקישורים (סדר הפוך: מוצרים מימין, קטלוג משמאל) */}
+            <ul className="flex items-center gap-4 text-base" dir="rtl">
+                <li><Link to="/products" className={linkStyle}>מוצרים</Link></li>
+                <li><Link to="/photo-development" className={linkStyle}>פיתוח תמונות</Link></li>
+                <li><Link to="/tips" className={linkStyle}>בלוג</Link></li>
                 <li>
-                    <Link to="/products" className="hover:underline">
-                        מוצרים
-                    </Link>
-                </li>
-                <li>
-                    <Link to="/photo-development" className="hover:underline">
-                        פיתוח תמונות
-                    </Link>
-                    
-                </li>
-                <li>
-                    <Link
-                        onClick={() => setClubOpen(true)}
-                        className="hover:text-[#f2665e] transition-colors cursor-pointer bg-transparent border-none p-0 font-inherit"
-                    >
+                    <button onClick={() => setClubOpen(true)} className={`${linkStyle} bg-transparent border-none font-inherit cursor-pointer`}>
                         הצטרפות למועדון
-                    </Link>
+                    </button>
                 </li>
-                <li><Link to="/tips" className="hover:text-[#f2665e] transition-colors">טיפים לצילום</Link></li>
                 <li>
-                    <Link to="/My-Product-Catalog.pdf" download="Our-Catalog-2025.pdf" className="flex items-center gap-2 hover:text-[#f2665e] transition-colors">
-                        קטלוג <FaDownload size={12} />
+                    <Link to="/My-Product-Catalog.pdf" download="Our-Catalog-2025.pdf" className={linkStyle}>
+                        קטלוג
+                        <FaDownload size={14} />
                     </Link>
                 </li>
             </ul>
+
+            {/* אזור האייקונים */}
+            <div className="flex items-center gap-5">
+
+                <button className="text-[#f2665e] hover:text-[#d95248] transition-colors p-2 rounded-full hover:bg-[#f2665e]/10">
+                    <FaShoppingCart size={22} />
+                </button>
+                <div className="relative">
+                    {isAuthenticated ? (
+                        <>
+                            <button
+                                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                className="w-7 h-7 rounded-full bg-[#f2665e] flex items-center justify-center text-white hover:bg-[#d95248] transition-all shadow-md"
+                            >
+                                <FaUser size={12} />
+                            </button>
+                            {isMenuOpen && (
+                                <div className="absolute top-full left-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 text-right" dir="rtl">
+                                    <button onClick={logout} className="w-full px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors">
+                                        <FaSignOutAlt /> התנתק
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <Link to="/login" className="w-7 h-7 rounded-full bg-[#f2665e] flex items-center justify-center text-white hover:bg-[#d95248] transition-all shadow-md">
+                            <FaUser size={12} />
+                        </Link>
+                    )}
+                </div>
+            </div>
         </nav>
     );
 }

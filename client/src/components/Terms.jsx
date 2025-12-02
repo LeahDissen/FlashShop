@@ -46,9 +46,8 @@ export default function Terms() {
 
             <button
                 onClick={handleClose}
-                className="absolute top-3 right-3 text-gray-400 hover:text-[#f0645a] text-xl font-bold p-2 transition-colors"
-            >
-                ✕
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-700">
+                ❌
             </button>
 
             <h2 className="text-2xl font-bold mb-4 text-[#f0645a] whitespace-pre-line leading-snug">

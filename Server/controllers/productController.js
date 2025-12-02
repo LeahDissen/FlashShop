@@ -138,7 +138,7 @@ exports.getProducts = async (req, res) => {
   try {
     let products = await ProductModel.find({});
     res.json(products);
-    } catch (err) {
+  } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
@@ -157,14 +157,14 @@ exports.getProductById = async (req, res) => {
 exports.addProduct = async (req, res) => {
   try {
     const data = req.body;
-//     let imageData = [];
-//     if (req.file) {
-//       imageData.push({
-//         data: req.file.buffer,
-//         contentType: req.file.mimetype,
-//       });
-//     }
-//     const dataWithImage = { ...data, image: imageData };
+    //     let imageData = [];
+    //     if (req.file) {
+    //       imageData.push({
+    //         data: req.file.buffer,
+    //         contentType: req.file.mimetype,
+    //       });
+    //     }
+    //     const dataWithImage = { ...data, image: imageData };
     const product = new ProductModel(dataWithImage);
     await product.save();
     res.json(product);
@@ -204,10 +204,10 @@ exports.updateProduct = async (req, res) => {
 
 exports.deleteProduct = async (req, res) => {
   try {
-    let id = req.params.id; 
+    let id = req.params.id;
     let product = await ProductModel.deleteOne({ _id: id });
     res.json(product);
-  } catch (err) {       
+  } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
@@ -230,38 +230,38 @@ exports.getProductImage = async (req, res) => {
 
 // --- כאן השינוי החשוב: הוספת לוגים לפונקציה של ה-AI ---
 exports.generateMockup = async (req, res) => {
-    console.log("Controller: Received request for generateMockup"); // הדפסה 1
-    try {
-        const { productName, designImage } = req.body;
-        
-        // בדיקה שהמידע הגיע
-        if (!productName) console.log("Controller Warning: productName is missing");
-        if (!designImage) console.log("Controller Warning: designImage is missing (length: 0)");
-        else console.log(`Controller: designImage received (length: ${designImage.length})`);
+  console.log("Controller: Received request for generateMockup"); // הדפסה 1
+  try {
+    const { productName, designImage } = req.body;
 
-        console.log("Controller: Calling aiService.generatePersonalizedProduct...");
-        
-        const result = await generatePersonalizedProduct(productName, designImage);
-        
-        console.log("Controller: Success! Sending result back to client.");
-        res.json({ result });
+    // בדיקה שהמידע הגיע
+    if (!productName) console.log("Controller Warning: productName is missing");
+    if (!designImage) console.log("Controller Warning: designImage is missing (length: 0)");
+    else console.log(`Controller: designImage received (length: ${designImage.length})`);
 
-    } catch (error) {
-        // הדפסה קריטית של השגיאה
-        console.error("❌ Controller Error Caught:", error); 
-        res.status(500).json({ error: error.message });
-    }
+    console.log("Controller: Calling aiService.generatePersonalizedProduct...");
+
+    const result = await generatePersonalizedProduct(productName, designImage);
+
+    console.log("Controller: Success! Sending result back to client.");
+    res.json({ result });
+
+  } catch (error) {
+    // הדפסה קריטית של השגיאה
+    console.error("❌ Controller Error Caught:", error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 exports.generateGiftIdeaController = async (req, res) => {
-    try {
-        const { prompt } = req.body;
-        console.log("Controller: Generating gift idea for:", prompt);
-        const result = await generateGiftIdea(prompt);
-        res.json({ result });
-    } catch (error) {
-        console.error("❌ Controller Gift Error:", error);
-        res.status(500).json({ error: error.message });
-    }
+  try {
+    const { prompt } = req.body;
+    console.log("Controller: Generating gift idea for:", prompt);
+    const result = await generateGiftIdea(prompt);
+    res.json({ result });
+  } catch (error) {
+    console.error("❌ Controller Gift Error:", error);
+    res.status(500).json({ error: error.message });
+  }
 };
 

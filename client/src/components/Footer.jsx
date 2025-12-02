@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
-
-
 import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
 import { sendMessageRequest } from "../api/messages";
 
@@ -31,17 +29,13 @@ export default function Footer() {
     });
     const [sending, setSending] = useState(false);
     const [statusMsg, setStatusMsg] = useState(null);
+
     const handleContactFormChange = (field, value) => {
         setContactForm((prev) => ({ ...prev, [field]: value }));
     };
 
-    // inside Footer.jsx component (replace the current handleSubmit)
-
-
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // basic validation
         if (!contactForm.name?.trim() || !contactForm.email?.trim() || !contactForm.message?.trim()) {
             setStatusMsg({ type: 'error', text: 'מלא/י שם, אימייל והודעה.' });
             return;
@@ -55,20 +49,17 @@ export default function Footer() {
         try {
             setSending(true);
             setStatusMsg(null);
-
-            // בצע POST לשרת - החלף את הכתובת בהתאם לאן תרצי לשלוח
-            // אפשר לבחור: http://localhost:5000/contact או http://localhost:4000/api/contact
             const res = await sendMessageRequest(contactForm)
 
-            if (res.ok === 200 || res.ok === 201) {
+            if (res.ok === 200 || res.ok === 201 || res.msg) { // התאמה לתשובת שרת גמישה
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });
                 setContactForm({ name: '', email: '', message: '' });
             } else {
-                setStatusMsg({ type: 'error', text: 'אירעה שגיאה בשליחת ההודעה. נסה/י שנית.' });
+                setStatusMsg({ type: 'error', text: 'אירעה שגיאה בשליחת ההודעה.' });
             }
         } catch (err) {
             console.error('contact send error', err);
-            setStatusMsg({ type: 'error', text: 'שגיאה ברשת או בשרת. נא לנסות שוב מאוחר יותר.' });
+            setStatusMsg({ type: 'error', text: 'שגיאה ברשת או בשרת.' });
         } finally {
             setSending(false);
         }
@@ -92,98 +83,32 @@ export default function Footer() {
     }, []);
 
     const EditContent = (
-
-        <>
-            <div className="sendANote">
-                <input
-                    type="text"
-                    value={draft.noteTitle}
-                    onChange={(e) => updateDraft({ noteTitle: e.target.value })}
-                    placeholder="Note Title"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="text"
-                    value={draft.notePlaceholderName}
-                    onChange={(e) => updateDraft({ notePlaceholderName: e.target.value })}
-                    placeholder="Name Placeholder"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="text"
-                    value={draft.notePlaceholderEmail}
-                    onChange={(e) => updateDraft({ notePlaceholderEmail: e.target.value })}
-                    placeholder="Email Placeholder"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="text"
-                    value={draft.notePlaceholderMessage}
-                    onChange={(e) => updateDraft({ notePlaceholderMessage: e.target.value })}
-                    placeholder="Message Placeholder"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-            </div>
-            <div className="contactInfo" style={{ marginTop: "30px" }}>
-                <input
-                    type="text"
-                    value={draft.contactAddress}
-                    onChange={(e) => updateDraft({ contactAddress: e.target.value })}
-                    placeholder="Contact Address"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="text"
-                    value={draft.contactInfo}
-                    onChange={(e) => updateDraft({ contactInfo: e.target.value })}
-                    placeholder="Contact Information"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="text"
-                    value={draft.contactPhone}
-                    onChange={(e) => updateDraft({ contactPhone: e.target.value })}
-                    placeholder={draft.contactPhone}
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="email"
-                    value={draft.contactEmail}
-                    onChange={(e) => updateDraft({ contactEmail: e.target.value })}
-                    placeholder={draft.contactEmail}
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-                <input
-                    type="text"
-                    value={draft.creditNote}
-                    onChange={(e) => updateDraft({ creditNote: e.target.value })}
-                    placeholder="Credit Note"
-                    style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                />
-            </div>
-        </>
+        <div className="bg-white p-4 rounded text-black space-y-2">
+            <input type="text" value={draft.noteTitle} onChange={(e) => updateDraft({ noteTitle: e.target.value })} className="border p-1 w-full" placeholder="כותרת טופס" />
+            <input type="text" value={draft.contactAddress} onChange={(e) => updateDraft({ contactAddress: e.target.value })} className="border p-1 w-full" placeholder="כתובת" />
+            <input type="text" value={draft.contactInfo} onChange={(e) => updateDraft({ contactInfo: e.target.value })} className="border p-1 w-full" placeholder="שעות פעילות" />
+            <input type="text" value={draft.contactPhone} onChange={(e) => updateDraft({ contactPhone: e.target.value })} className="border p-1 w-full" placeholder="טלפון" />
+            <input type="text" value={draft.contactEmail} onChange={(e) => updateDraft({ contactEmail: e.target.value })} className="border p-1 w-full" placeholder="אימייל" />
+            <input type="text" value={draft.creditNote} onChange={(e) => updateDraft({ creditNote: e.target.value })} className="border p-1 w-full" placeholder="קרדיט" />
+        </div>
     );
 
     const ViewContent = (
-        <footer className="w-full bg-[#f2665e] py-12 px-4 sm:px-8 text-white">
+        <footer className="w-full bg-[#f2665e] py-6 px-4 sm:px-8 text-white mt-auto">
+            <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 px-4 lg:px-8 items-start" dir="rtl">
 
-            <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 px-4 lg:px-8 items-start">
-
-                <div className="pr-0 md:pr-8">
-                    <h2 className="text-xl font-semibold mb-4 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
+                {/* עמודה ימנית - טופס */}
+                <div className="sendANote pr-0 md:pr-8">
+                    <h2 dir="rtl" className="text-lg font-semibold mb-2 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
                         {draft.noteTitle}
                     </h2>
-
-                    <form
-                        className="flex flex-col gap-3"
-                        onSubmit={handleSubmit}
-                    >
+                    <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
                         <div className="relative">
                             <input
                                 type="text"
                                 placeholder={draft.notePlaceholderName}
                                 value={contactForm.name}
-                                className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm"
+                                className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
                                 onChange={(e) => handleContactFormChange("name", e.target.value)}
                             />
@@ -193,7 +118,7 @@ export default function Footer() {
                                 type="email"
                                 placeholder={draft.notePlaceholderEmail}
                                 value={contactForm.email}
-                                className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm"
+                                className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
                                 onChange={(e) => handleContactFormChange("email", e.target.value)}
                                 aria-label="אימייל"
@@ -203,14 +128,14 @@ export default function Footer() {
                             <textarea
                                 placeholder={draft.notePlaceholderMessage}
                                 value={contactForm.message}
-                                className="w-full h-24 bg-white/70 px-3 py-2 rounded resize-none text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm"
+                                className="w-full h-16 bg-white/70 px-3 py-2 rounded resize-none text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
                                 onChange={(e) => handleContactFormChange("message", e.target.value)}
                                 aria-label="ההודעה שלי"
                             />
                         </div>
                         {statusMsg && (
-                            <div className={`mt-3 ${statusMsg.type === 'error' ? 'text-red-200' : 'text-green-200'}`}>
+                            <div className={`text-xs ${statusMsg.type === 'error' ? 'text-red-200' : 'text-green-200'}`}>
                                 {statusMsg.text}
                             </div>
                         )}
@@ -223,62 +148,57 @@ export default function Footer() {
                     </form>
                 </div>
 
+                {/* עמודה שמאלית - פרטי קשר */}
                 <div className="contactInfo flex flex-col items-center md:items-start">
                     <iframe
                         title="map"
                         src={`https://maps.google.com/maps?q=${encodeURIComponent(draft.contactAddress)}&output=embed&t=m`}
-                        height="140"
+                        height="110"
                         style={{ border: 0 }}
                         allowFullScreen=""
                         loading="lazy"
-                        className="w-full max-w-[260px] mx-auto md:mx-0 mb-4 rounded shadow-md"
+                        className="w-full max-w-[260px] mx-auto md:mx-0 mb-3 rounded shadow-md opacity-90 hover:opacity-100 transition-opacity"
                     ></iframe>
-
-                    <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-4 flex items-center justify-start">
-                        <FaMapMarkerAlt className="inline-block w-4 h-4 ml-2" />
+                    <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-2 flex items-center justify-start">
+                        <FaMapMarkerAlt className="inline-block w-3 h-3 ml-2" />
                         {draft.contactAddress}
                     </address>
 
-                    {/* הקטנתי גופן (text-sm) והוספתי text-right */}
-                    <p className="[font-family:'Noto_Sans_Hebrew',Helvetica] font-normal text-sm tracking-[0] leading-[normal] [direction:rtl] mb-4 text-right">
+                    <p className="[font-family:'Noto_Sans_Hebrew',Helvetica] font-normal text-sm tracking-[0] leading-[normal] [direction:rtl] mb-2 text-right">
                         <span className="flex items-center justify-start mb-1">
-                            <FaClock className="inline-block w-4 h-4 ml-2" />
+                            <FaClock className="inline-block w-3 h-3 ml-2" />
                             <span>{draft.contactInfo}</span>
                         </span>
-                        <br />
+                        
+                        <div className="flex flex-col gap-1 mt-1">
+                            <a href={`tel:${formatPhoneForLink(draft.contactPhone)}`} className="hover:underline flex items-center justify-start" style={{ color: '#ffffff' }}>
+                                <FaPhoneAlt className="inline-block w-3 h-3 ml-2" />
+                                {draft.contactPhone}
+                            </a>
 
-                        <a href={`tel:${formatPhoneForLink(draft.contactPhone)}`} className="hover:underline flex items-center justify-start" style={{ color: '#ffffff' }}>
-                            <FaPhoneAlt className="inline-block w-4 h-4 ml-2" />
-                            {draft.contactPhone}
-                        </a>
-                        <br />
-
-                        <a href={`mailto:${formatEmailForLink(draft.contactEmail)}`} className="hover:underline flex items-center justify-start" style={{ color: '#ffffff' }}>
-                            <FaEnvelope className="inline-block w-4 h-4 ml-2" />
-                            {draft.contactEmail}
-                        </a>
+                            <a href={`mailto:${formatEmailForLink(draft.contactEmail)}`} className="hover:underline flex items-center justify-start" style={{ color: '#ffffff' }}>
+                                <FaEnvelope className="inline-block w-3 h-3 ml-2" />
+                                {draft.contactEmail}
+                            </a>
+                        </div>
                     </p>
                 </div>
 
             </div>
-            {/* הקטנתי גופן (text-sm) */}
-            <p className="w-full text-center font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] mt-8 pt-4 border-t border-white/20">
-                &copy; {draft.creditNote}
+            <p className="w-full text-center font-normal text-xs [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] mt-4 pt-3 border-t border-white/20 opacity-80">
+                © {draft.creditNote}
             </p>
 
         </footer>
     );
 
-
     return (
-        <>
-            <AdminControls
-                editMode={editMode}
-                previewContent={EditContent}
-                adminControls={adminControls}
-            >
-                {ViewContent}
-            </AdminControls>
-        </>
+        <AdminControls
+            editMode={editMode}
+            previewContent={EditContent}
+            adminControls={adminControls}
+        >
+            {ViewContent}
+        </AdminControls>
     );
 }
