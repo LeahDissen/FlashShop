@@ -1,0 +1,20 @@
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2 style="color: #667eea;">New Customer Message</h2>
+    <p>Hi ,</p>
+    <p>You have received a new message from your FlashShop contact form. Please see the details below and respond to the customer as soon as possible.</p>
+    
+    <div style="margin: 25px 0; padding: 15px; border-left: 4px solid #667eea; background-color: #f9f9f9; border-radius: 4px;">
+        <p style="margin: 5px 0;"><strong>From:</strong> {{name}}</p>
+        <p style="margin: 5px 0;"><strong>Email:</strong> <a href="mailto:{{email}}" style="color: #667eea;">{{email}}</a></p>
+        <p style="margin: 15px 0 5px 0;"><strong>Message:</strong></p>
+        <p style="margin: 0; font-style: italic;">{{message}}</p>
+    </div>
+
+        <a href="mailto:{{email}}" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; text-decoration: none; border-radius: 8px; margin: 20px 0;">
+        Reply to {{name}}
+    </a>
+    
+    <p>This is an automated notification from your website.</p>
+    <p>Thanks,<br>FlashShop System</p>
+</div>
