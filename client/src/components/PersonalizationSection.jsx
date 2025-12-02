@@ -27,9 +27,9 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
     };
 
     return (
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-white">
             <div className="container mx-auto px-6 text-center">
-                <h2 className="text-3xl font-bold text-gray-800 mb-4">בחר מוצר לעיצוב</h2>
+                <h2 className="text-3xl font-bold text-[#f2665e] mb-4">בחר מוצר לעיצוב</h2>
                 <p className="text-gray-600 mb-12 max-w-2xl mx-auto">
                     בחר את המוצר המושלם עבור המתנה שלך והתחל לעצב אותו בעורך המתקדם שלנו.
                 </p>

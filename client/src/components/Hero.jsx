@@ -3,14 +3,13 @@ import React, { useRef } from 'react';
 const Hero = ({ 
     onStartEditor, 
     onFilesSelected,
-    backgroundImage = "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&q=80&w=1920",
-    title = "גרור את התמונות שלך לכאן",
-    subtitle = "צור מתנות מרגשות עם התמונות שאתה אוהב",
-    primaryButtonText = "בחר קבצים",
-    secondaryButtonText = "פתח עורך"
+    backgroundImage,
+    title,
+    subtitle,
+    primaryButtonText,
+    secondaryButtonText
 }) => {
     const fileInputRef = useRef(null);
-
     const handleButtonClick = () => {
         fileInputRef.current?.click();
     };
@@ -20,8 +19,6 @@ const Hero = ({
             if (onFilesSelected) {
                 onFilesSelected(event.target.files);
             } else {
-                console.log('Files selected:', event.target.files);
-                // In a full implementation, we would pass these files to the editor
                 onStartEditor();
             }
         }
@@ -29,32 +26,38 @@ const Hero = ({
 
   return (
     <section 
-      className="relative bg-cover bg-center py-32 md:py-48" 
-      style={{ backgroundImage: `url('${backgroundImage}')` }}
+      className="relative bg-cover bg-center bg-no-repeat py-8 md:py-15"
+      style={{ backgroundImage: `url("${backgroundImage}")` }}
     >
-      <div className="absolute inset-0 bg-white bg-opacity-40"></div>
-      <div className="relative container mx-auto px-6 text-center">
-        <div className="border-2 border-dashed border-red-400 bg-white/80 backdrop-blur-sm p-8 md:p-16 max-w-3xl mx-auto rounded-xl shadow-xl">
-          <h1 className="text-3xl md:text-5xl font-bold text-gray-800 mb-4">
+      <div className="absolute inset-0 bg-black/10"></div>
+      
+      <div className="relative container mx-auto px-6 text-center z-10">
+        <div className="border-2 border-dashed border-[#f2665e]/60 bg-white/80 backdrop-blur-md p-10 md:p-20 max-w-4xl mx-auto rounded-[30px] shadow-lg flex flex-col items-center justify-center min-h-[300px]">
+          
+          <h1 className="text-3xl md:text-4xl font-bold text-[#f2665e] mb-2 drop-shadow-sm">
             {title}
           </h1>
-          <p className="text-gray-600 mb-8 text-lg font-medium">{subtitle}</p>
-          <div className="flex flex-col md:flex-row justify-center gap-4">
+          
+          {subtitle && <p className="text-gray-600 mb-6 font-medium">{subtitle}</p>}
+          
+          <div className="flex flex-col sm:flex-row gap-4">
             <button 
-                onClick={handleButtonClick}
-                className="bg-red-500 text-white font-bold py-3 px-10 rounded-full hover:bg-red-600 transition-all transform hover:scale-105 shadow-lg text-xl"
-            >
-                {primaryButtonText}
+                    onClick={handleButtonClick}
+                    className="bg-[#f2665e] text-white font-bold py-3 px-10 rounded-full hover:bg-[#d95248] transition-all transform hover:scale-105 shadow-md text-lg"
+                >
+                    {primaryButtonText}
             </button>
-             {secondaryButtonText && (
+
+            {secondaryButtonText && (
                 <button 
                     onClick={onStartEditor}
-                    className="bg-white text-red-500 font-bold py-3 px-10 rounded-full border-2 border-red-500 hover:bg-red-50 transition-all transform hover:scale-105 shadow-lg text-xl"
+                    className="bg-white text-[#f2665e] border-2 border-[#f2665e] font-bold py-3 px-10 rounded-full hover:bg-red-50 transition-all transform hover:scale-105 shadow-sm text-lg"
                 >
                     {secondaryButtonText}
                 </button>
-             )}
+            )}
           </div>
+          
           <input 
             type="file"
             multiple

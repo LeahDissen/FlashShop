@@ -8,7 +8,7 @@ import { getPage } from '../api/pages';
 import { getAllTips, createTip } from '../api/tips';
 
 export default function TipsPage() {
-    const TIPS_PER_PAGE = 9;
+    const TIPS_PER_PAGE = 6;
     const isAdmin = useAuthStore(state => state.isAdmin());
     const adminControls = useAdminControl({ title: "", img: "" }, "tips");
     const { currentTip, setCurrentTip, tipsList, setTipsList } = useTipsStore();
@@ -67,16 +67,10 @@ export default function TipsPage() {
     };
     const totalPages = Math.ceil(totalTipsCount / TIPS_PER_PAGE);
 
-    // const currentTips = useMemo(() => {
-    //     const startIndex = (currentPage - 1) * TIPS_PER_PAGE;
-    //     const endIndex = startIndex + TIPS_PER_PAGE;
-    //     return tipsList.slice(startIndex, endIndex);
-    // }, [tipsList, currentPage]);
-
     const handlePageChange = (pageNumber) => {
         if (pageNumber >= 1 && pageNumber <= totalPages) {
             setCurrentPage(pageNumber);
-            // אפשר להוסיף כאן גלילה אוטומטית למעלה: window.scrollTo(0, 0);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
 
@@ -100,15 +94,26 @@ export default function TipsPage() {
     );
 
     const ViewContent = (
-        <div className="w-full">
+        <div className="w-full relative">
             <div
-                className="relative h-[300px] sm:h-[400px] bg-cover bg-center flex items-end justify-center text-white p-6"
+                // שינוי 1: הקטנתי את הגובה ל-240px במובייל ו-320px במסכים גדולים (היה 300 ו-400)
+                className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
                 style={{ backgroundImage: `url(${draft.img})` }}
             >
-                <div className="absolute inset-0 bg-black opacity-40"></div>
-                <h1 className="relative z-10 text-4xl sm:text-5xl font-bold text-center drop-shadow-lg">
+                {/* הצללה עדינה */}
+                <div className="absolute inset-0 bg-black/20"></div>
+
+                <h1 className="relative z-10 text-5xl sm:text-6xl font-bold text-center drop-shadow-lg tracking-wide">
                     {draft.title}
                 </h1>
+
+                {/* הגל בתחתית */}
+                <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] rotate-180">
+                    <svg className="relative block w-[calc(100%+1.3px)] h-[50px] md:h-[70px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                        {/* שינוי 2: שיניתי את ה-fill ל-#f9fafb (הצבע של bg-gray-50) כדי שיתמזג עם הרקע */}
+                        <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="#f9fafb"></path>
+                    </svg>
+                </div>
             </div>
         </div>
     );
@@ -118,7 +123,8 @@ export default function TipsPage() {
         const pageNumbers = [...Array(totalPages).keys()].map(i => i + 1);
 
         return (
-            <div className="flex justify-center items-center mt-8 space-x-2 rtl:space-x-reverse">
+            // שינוי 1: הוספת gap-4 לריווח טוב יותר בין החיצים למספרים
+            <div className="flex justify-center items-center mt-12 gap-4 rtl:space-x-reverse">
                 <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
@@ -133,8 +139,8 @@ export default function TipsPage() {
                         key={number}
                         onClick={() => handlePageChange(number)}
                         className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${number === currentPage
-                            ? "!bg-pink-500 text-white shadow-md"
-                            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                            ? "!bg-[#f2665e] text-white shadow-md border border-[#f2665e]"
+                            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                             }`}
                         aria-current={number === currentPage ? "page" : undefined}
                     >
@@ -163,38 +169,44 @@ export default function TipsPage() {
             >
                 {ViewContent}
             </AdminControls>
-            <div className="container mx-auto px-4 py-12">
+
+            <div className="container mx-auto px-6 py-16">
                 {tipsList.length === 0 ? (
                     <p className="text-center text-xl text-gray-600">טוען טיפים...</p>
                 ) : (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {tipsList.map(tip => (
-                                <div
+                                <Link
+                                    to={`/tips/tip_page`}
                                     key={tip._id}
-                                    className="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                                    onClick={() => useTipsStore.getState().setCurrentTip(tip)}
+                                    className="group flex flex-col bg-[#f2665e] rounded-2xl shadow-md hover:shadow-xl overflow-hidden transform transition-all duration-300 hover:-translate-y-2 border border-gray-100"
                                 >
-                                    <img
-                                        src={tip.img}
-                                        alt={tip.title}
-                                        className="w-full h-48 object-cover"
-                                    />
-                                    <div className="p-6 text-right">
-                                        <h4 className="text-2xl font-bold mb-3 text-gray-800">
+                                    <div className="h-56 overflow-hidden relative">
+                                        <img
+                                            src={tip.img}
+                                            alt={tip.title}
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+                                    </div>
+
+                                    <div className="p-6 text-right flex flex-col flex-grow">
+                                        <h4 className="text-xl font-bold mb-3 text-white transition-colors">
                                             {tip.title}
                                         </h4>
-                                        <p className="text-gray-600 text-base mb-4 leading-relaxed">
+                                        <p className="text-gray-900 text-sm mb-4 leading-relaxed line-clamp-3 flex-grow font-medium">
                                             {tip.summary}
                                         </p>
-                                        <Link
-                                            to={`/tips/tip_page`}
-                                            onClick={() => useTipsStore.getState().setCurrentTip(tip)}
-                                            className="inline-block px-6 py-2 bg-pink-500 text-white font-semibold rounded-full hover:bg-pink-600 transition-colors duration-300"
-                                        >
-                                            קרא עוד
-                                        </Link>
+                                        <div className="mt-auto pt-4 border-t border-white/20">
+                                            <span className="text-white font-bold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+                                                קרא עוד
+                                                <span className="text-lg leading-none transform translate-y-[1px]">&larr;</span>
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
 
@@ -204,12 +216,12 @@ export default function TipsPage() {
             </div>
 
             {editModeTip && isAdmin && (
-                <div className="container mx-auto px-4 py-12 bg-gray-50 rounded-lg shadow-inner mt-4">
+                <div className="container mx-auto px-4 py-12 bg-gray-50 rounded-lg shadow-inner mt-4 border border-gray-200">
                     <h2 className="text-3xl font-bold mb-6 text-right text-gray-800 border-b pb-2">➕ הוספת טיפ חדש</h2>
                     <input
                         type="text"
                         onChange={(e) => setTipDraft({ ...tipDraft, title: e.target.value })}
-                        className="text-4xl md:text-5xl font-extrabold text-gray-900 w-full bg-transparent border-b-2 border-pink-500 focus:outline-none placeholder-gray-500 drop-shadow-lg mb-4 text-right p-2"
+                        className="text-3xl font-bold text-gray-900 w-full bg-transparent border-b-2 border-[#f2665e] focus:outline-none placeholder-gray-400 mb-4 text-right p-2"
                         placeholder="כותרת הטיפ"
                     />
                     <input
@@ -220,26 +232,26 @@ export default function TipsPage() {
                     />
                     <textarea
                         onChange={(e) => setTipDraft({ ...tipDraft, summary: e.target.value })}
-                        className="text-xl font-semibold text-gray-700 whitespace-pre-wrap w-full border-b-2 border-pink-500 focus:outline-none h-24 mb-6 text-right p-2"
+                        className="text-lg text-gray-700 whitespace-pre-wrap w-full border border-gray-300 rounded focus:border-[#f2665e] focus:outline-none h-24 mb-6 text-right p-2"
                         placeholder="סיכום / פתיח הטיפ"
                     />
                     <textarea
                         onChange={(e) => setTipDraft({ ...tipDraft, content: e.target.value })}
-                        className="text-lg leading-relaxed text-gray-700 whitespace-pre-wrap w-full border-2 border-pink-500 rounded-lg p-4 focus:outline-none h-96 text-right"
+                        className="text-base leading-relaxed text-gray-700 whitespace-pre-wrap w-full border border-gray-300 rounded p-4 focus:border-[#f2665e] focus:outline-none h-64 text-right"
                         placeholder="תוכן הטיפ המלא"
                     />
                 </div>
             )}
 
             {isAdmin && (
-                <div className="mt-12 flex justify-center space-x-2">
+                <div className="mt-12 flex justify-center space-x-2 pb-12">
                     {editModeTip ? (
                         <>
-                            <button onClick={handleSave} className="!bg-blue-600 !text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition shadow-xl font-bold text-lg">💾 שמור טיפ חדש</button>
-                            <button onClick={() => setEditModeTip(false)} className="!bg-red-500 !text-white px-6 py-3 rounded-xl hover:bg-red-600 transition shadow-xl font-bold text-lg">❌ בטל הוספה</button>
+                            <button onClick={handleSave} className="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-lg font-bold">💾 שמור טיפ חדש</button>
+                            <button onClick={() => setEditModeTip(false)} className="bg-gray-500 text-white px-6 py-3 rounded-full hover:bg-gray-600 transition shadow-lg font-bold">❌ בטל</button>
                         </>
                     ) : (
-                        <button onClick={enterEditMode} className="!bg-green-600 !text-white px-6 py-3 rounded-xl hover:bg-green-700 transition shadow-xl font-bold text-lg">➕ הוסף טיפ</button>
+                        <button onClick={enterEditMode} className="bg-[#f2665e] text-white px-8 py-3 rounded-full hover:bg-[#d95248] transition shadow-lg font-bold transform hover:-translate-y-1">➕ הוסף טיפ</button>
                     )}
                 </div>
             )}
