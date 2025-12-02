@@ -53,41 +53,6 @@ export default function ShoppingCartPage() {
     removeFromCart(itemId);
   };
 
-  // --- NEW FUNCTION ---
-  /**
-   * Handles adding a recommended product to the cart.
-   * It also removes that product from the recommended list.
-   */
-  const handleAddRecommendedToCart = (productToAdd) => {
-    // 1. Add item to cart (or update quantity if it already exists)
-    setCartItems((prevCart) => {
-      const existingItem = prevCart.find(
-        (item) => item.id === productToAdd.id
-      );
-
-      if (existingItem) {
-        // Item already in cart, just increase quantity
-        return prevCart.map((item) =>
-          item.id === productToAdd.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        // New item, add it to the cart with quantity 1
-        return [...prevCart, { ...productToAdd, quantity: 1 }];
-      }
-      // Note: You would also send a POST/PUT request to your API here
-    });
-
-    // 2. Remove the item from the recommended products list
-    setRecommendedProducts((prevRecs) =>
-      prevRecs.filter((product) => product.id !== productToAdd.id)
-    );
-
-    console.log(`Added ${productToAdd.name} to cart.`);
-  };
-  // --- END NEW FUNCTION ---
-
   const handleCheckout = () => {
     if (cartItems.length === 0) {
         alert("העגלה ריקה!");
@@ -140,18 +105,9 @@ export default function ShoppingCartPage() {
     }
   };
 
-  if (isLoading) {
-    /* ... loading JSX ... */
-  }
-  if (error) {
-    /* ... error JSX ... */
-  }
-
   return (
     <div className="bg-white min-h-screen relative overflow-x-hidden">
       
-    <div className="bg-white min-h-screen relative overflow-x-hidden" dir="rtl">
-      {/* ... Header ... */}
       <header className="relative h-48 md:h-64 flex items-center justify-center mb-8">
         <img
           src="https://c.animaapp.com/ssXwMPGd/img/vector-6.png"
@@ -220,12 +176,7 @@ export default function ShoppingCartPage() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {recommendedProducts.map((product) => (
-              <RecommendedProduct
-                key={product.id}
-                product={product}
-                // --- PASS THE NEW FUNCTION AS A PROP ---
-                onAddToCart={handleAddRecommendedToCart}
-              />
+              <RecommendedProduct key={product.id} product={product} />
             ))}
           </div>
         </section>
