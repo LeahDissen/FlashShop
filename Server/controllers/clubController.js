@@ -1,4 +1,5 @@
 const { ClubModel } = require("../models/clubModel");
+const { CouponModel } = require("../models/couponModel");
 const crypto = require("crypto");
 const { sendEmail } = require("../utils/sendEmail");
 
@@ -50,14 +51,52 @@ exports.joinClub = async (req, res) => {
 exports.checkGiftCode = async (req, res) => {
     try {
         const { code } = req.params;
+        const { userId } = req.query; // Get userId from query string
+
+        // 1. Check General Coupon
+        const generalCoupon = await CouponModel.findOne({ code: code });
+        
+        if (generalCoupon) {
+            // A. Check Active Status
+            if (!generalCoupon.isActive) {
+                return res.json({ valid: false, msg: "הקופון אינו פעיל" });
+            }
+
+            // B. Check Expiration (Time Limit)
+            if (generalCoupon.expirationDate && new Date() > new Date(generalCoupon.expirationDate)) {
+                return res.json({ valid: false, msg: "תוקף הקופון פג" });
+            }
+
+            // C. Check if User already used it (One time per user)
+            if (userId && generalCoupon.usedBy.includes(userId)) {
+                return res.json({ valid: false, msg: "כבר השתמשת בקופון זה בעבר" });
+            }
+            
+            return res.json({ 
+                valid: true, 
+                msg: "קופון התקבל!", 
+                discountType: generalCoupon.type,
+                discountValue: generalCoupon.value 
+            });
+        }
+
+        // 2. Check Member Gift Code (Existing logic)
         const member = await ClubModel.findOne({ giftCode: code });
-        if (!member) {
-            return res.json({ msg: "קוד לא נמצא", valid: false });
+        if (member) {
+            if (member.isUsed) {
+                return res.json({ valid: false, msg: "הקוד הזה כבר נוצל בעבר" });
+            }
+            return res.json({ 
+                valid: true, 
+                msg: "קוד חבר מועדון התקבל! קיבלת 15% הנחה", 
+                discountType: 'percent', 
+                discountValue: 15,
+                isMemberCode: true 
+            });
         }
-        if (member.isUsed) {
-            return res.json({ msg: "הקוד הזה כבר נוצל בעבר", valid: false });
-        }
-        res.json({ msg: "קוד תקין! מגיע לך מתנה", valid: true });
+
+        return res.json({ valid: false, msg: "קוד לא נמצא" });
+
     } catch (err) {
         console.log(err);
         res.status(500).json({ msg: "שגיאה בבדיקת הקוד", err });

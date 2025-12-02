@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { signIn } from '../api/auth';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom'; // 1. Import useLocation
 import useAuthStore from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -9,7 +10,13 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
 
   const Navigate = useNavigate();
+  const location = useLocation(); // 2. Get location hook
   const login = useAuthStore(state => state.login);
+  const loadCart = useCartStore(state => state.loadCart);
+
+  // 3. Determine where to redirect (default to home '/')
+  // If 'state.from' exists (e.g. passed from ShoppingCartPage), use that.
+  const from = location.state?.from || '/';
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -33,11 +40,22 @@ export default function LoginPage() {
     }
 
     setErrors({});
+    
     signIn(email, password)
-      .then((response) => {
+      .then(async (response) => {
         const { user } = response.data;
         login(user);
-        Navigate('/home');
+        
+        if (user && user._id) {
+            try {
+                await loadCart(user._id);
+            } catch (err) {
+                console.error("Failed to load cart:", err);
+            }
+        }
+
+        // 4. Navigate to the dynamic destination
+        Navigate(from);
       })
       .catch((error) => {
         console.log(error);
@@ -56,7 +74,6 @@ export default function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
-      // UPDATED: Theme color gradient
       background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
     }}>
       <style>{`
@@ -74,7 +91,6 @@ export default function LoginPage() {
           animation: slide-up 0.5s ease-out;
         }
         .gradient-text {
-          /* UPDATED: Theme color gradient for text */
           background: linear-gradient(135deg, #f2665e 0%, #d95248 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
@@ -90,7 +106,6 @@ export default function LoginPage() {
         width: '100%',
         maxWidth: '440px'
       }}>
-        {/* Logo Section */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h1 className="gradient-text" style={{
             fontSize: '36px',
@@ -109,7 +124,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Login Form */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ marginBottom: '24px' }}>
             <label htmlFor="email" style={{
@@ -141,7 +155,6 @@ export default function LoginPage() {
               }}
               onFocus={(e) => {
                 if (!errors.email) {
-                  // UPDATED: Focus color
                   e.target.style.borderColor = '#f2665e';
                   e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                 }
@@ -193,7 +206,6 @@ export default function LoginPage() {
               }}
               onFocus={(e) => {
                 if (!errors.password) {
-                  // UPDATED: Focus color
                   e.target.style.borderColor = '#f2665e';
                   e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
                 }
@@ -219,14 +231,12 @@ export default function LoginPage() {
             <a
               href="/forgot"
               style={{
-                // UPDATED: Link color
                 color: '#f2665e',
                 textDecoration: 'none',
                 fontSize: '13px',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
                 transition: 'color 0.3s ease'
               }}
-              // UPDATED: Link hover color
               onMouseEnter={(e) => e.target.style.color = '#d95248'}
               onMouseLeave={(e) => e.target.style.color = '#f2665e'}
             >
@@ -239,7 +249,6 @@ export default function LoginPage() {
             style={{
               width: '100%',
               padding: '16px',
-              // UPDATED: Button gradient
               background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
               color: 'white',
               border: 'none',
@@ -248,7 +257,6 @@ export default function LoginPage() {
               fontWeight: 600,
               fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               cursor: 'pointer',
-              // UPDATED: Button shadow
               boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
               transition: 'all 0.3s ease'
             }}
@@ -265,7 +273,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Divider */}
         <div style={{ position: 'relative', margin: '32px 0', textAlign: 'center' }}>
           <div style={{
             position: 'absolute',
@@ -287,7 +294,6 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {/* Social Login */}
         <div style={{ marginBottom: '32px' }}>
           <button
             onClick={() => handleSocialLogin('Google')}
@@ -308,7 +314,6 @@ export default function LoginPage() {
               transition: 'all 0.3s ease'
             }}
             onMouseEnter={(e) => {
-              // UPDATED: Border color on hover
               e.currentTarget.style.borderColor = '#f2665e';
               e.currentTarget.style.transform = 'translateY(-2px)';
             }}
@@ -327,7 +332,6 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {/* Sign Up Link */}
         <div style={{
           textAlign: 'center',
           fontSize: '14px',
@@ -338,13 +342,11 @@ export default function LoginPage() {
           <Link
             to="/signup"
             style={{
-              // UPDATED: Link color
               color: '#f2665e',
               textDecoration: 'none',
               fontWeight: 600,
               transition: 'color 0.3s ease'
             }}
-            // UPDATED: Link hover color
             onMouseEnter={(e) => e.target.style.color = '#d95248'}
             onMouseLeave={(e) => e.target.style.color = '#f2665e'}
           >

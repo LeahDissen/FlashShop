@@ -18,6 +18,7 @@ import ProductsManagement from "./adminPage/ProductsManagement";
 import SendMailToClub from "./adminPage/SendMailToClub";
 import UpdateCatalog from "./adminPage/UpdateCatalog";
 import ViewMessages from "./adminPage/ViewMessages";
+import ShoppingCartPage from "./pages/ShoppingCartPage";
 
 // Wrapper to provide navigation prop to ProductsPage if needed, 
 // though ProductsPage could also use useNavigate directly.
@@ -54,7 +55,7 @@ export default function AppRoutes() {
                 <Route path="/sendmail" element={<AdminRoute><Layout><SendMailToClub /></Layout></AdminRoute>} />
                 <Route path="/updatecatalog" element={<AdminRoute><Layout><UpdateCatalog /></Layout></AdminRoute>} />
                 <Route path="/viewmessages" element={<AdminRoute><Layout><ViewMessages /></Layout></AdminRoute>} />
-
+                <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
                 <Route path="/editor" element={<Layout> <EditorPageWrapper /> </Layout>} />
                 <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />
