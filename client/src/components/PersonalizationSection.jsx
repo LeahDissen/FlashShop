@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+// import { useEffect } from 'react';
 import { SparklesIcon } from './icons';
-import { getPage } from "../api/pages";
-import AdminControls from "./AdminControls.jsx";
-import { useAdminControl } from "../hooks/useAdminControl.jsx";
+// import { getPage } from "../api/pages";
+// import AdminControls from "./AdminControls.jsx";
+// import { useAdminControl } from "../hooks/useAdminControl.jsx";
 
 
 // These URLs strictly match the PRODUCT_BASE_IMAGES in geminiService.js to ensure WYSIWYG consistency
@@ -59,17 +59,7 @@ const products = [
     }
 ];
 
-const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct }) => {
-
-    const adminControls = useAdminControl({
-        title: "",
-        sectionTitle: "",
-        sectionDescription: "",
-        buttonText: "",
-        img: "",
-        msg: ""
-    }, "products");
-    const { draft, updateDraft, editMode } = adminControls;
+const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
 
     const handleStartDesigning = () => {
         if (selectedProduct) {
@@ -77,34 +67,11 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         }
     };
 
-    useEffect(() => {
-        getPage("products").then((data) => {
-            adminControls.setPage(data);
-            adminControls.setDraft(data);
-        });
-    }, []);
-
-    const EditContent = (
-        <>
-            <input type="text" value={draft.title} onChange={(e) => updateDraft({ title: e.target.value })} style={{ width: "100%", marginBottom: "10px", padding: "8px" }} placeholder="כותרת" />
-            <input type="text" value={draft.sectionTitle} onChange={(e) => updateDraft({ sectionTitle: e.target.value })} style={{ width: "100%", marginBottom: "10px", padding: "8px" }} placeholder="כותרת משנית" />
-            <textarea value={draft.sectionDescription} onChange={(e) => updateDraft({ sectionDescription: e.target.value })} style={{ width: "100%", height: "250px", marginBottom: "10px", padding: "8px" }} placeholder="תקציר / הסבר" />
-            <input type="text" value={draft.buttonText} onChange={(e) => updateDraft({ buttonText: e.target.value })} style={{ width: "100%", marginBottom: "10px", padding: "8px" }} placeholder="טקסט כפתור" />
-            <label className="block mb-2 font-semibold">🔗הקישור לתמונה הראשית בעמוד</label>
-            <input
-                type="text"
-                value={draft.img}
-                onChange={(e) => updateDraft({ img: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded"
-            />
-        </>
-    );
-
-    const ViewContent = (
+    return (
         <section className="py-16 bg-white">
             <div className="container mx-auto px-6 text-center">
-                <h2 className="text-3xl font-bold text-[#f2665e] mb-4">{draft.sectionTitle}</h2>
-                <p className="text-gray-600 mb-12 max-w-2xl mx-auto">{draft.sectionDescription}</p>
+                <h2 className="text-3xl font-bold text-[#f2665e] mb-4">{content.sectionTitle}</h2>
+                <p className="text-gray-600 mb-12 max-w-2xl mx-auto">{content.sectionDescription}</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
                     {products.map(product => (
                         <div
@@ -126,25 +93,13 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     disabled={!selectedProduct}
                     className="bg-red-400 text-white font-bold py-4 px-12 rounded-full hover:bg-red-500 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg text-xl flex items-center justify-center mx-auto transform hover:scale-105 disabled:hover:scale-100 disabled:shadow-none"
                 >
-                    <SparklesIcon className="w-6 h-6 ml-2" /> {draft.buttonText}
+                    <SparklesIcon className="w-6 h-6 ml-2" /> {content.buttonText}
                 </button>
                 {!selectedProduct && (
-                    <p className="text-sm text-gray-500 mt-3">{draft.msg}</p>
+                    <p className="text-sm text-gray-500 mt-3">{content.msg}</p>
                 )}
             </div>
         </section>
-    );
-
-    return (
-        <>
-            <AdminControls
-                editMode={editMode}
-                previewContent={EditContent}
-                adminControls={adminControls}
-            >
-                {ViewContent}
-            </AdminControls>
-        </>
     );
 };
 
