@@ -1,15 +1,13 @@
-import { useNavigate, useLocation } from 'react-router-dom'; // שינוי ייבוא
-import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic } from 'react-icons/fa';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic, FaCamera, FaTags } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
 import useAuthStore from '../store/authStore';
-import useAppStore from '../store/appStore'; // ייבוא ה-Store לשליטה בפופ-אפים
+import useAppStore from '../store/appStore';
 
 export default function EditPages() {
     const isAdmin = useAuthStore(state => state.isAdmin());
     const navigate = useNavigate();
     const location = useLocation();
-
-    // שליפה של הפונקציות לפתיחת החלונות הקופצים
     const { setClubOpen, setTermsOpen } = useAppStore();
 
     if (!isAdmin) {
@@ -62,18 +60,36 @@ export default function EditPages() {
             title: "עריכת תקנון",
             description: "עדכון הטקסט המשפטי ותנאי השימוש באתר.",
             icon: <FaScroll className="text-3xl text-white" />,
-            link: null, // אין לינק, נשארים בעמוד
+            link: null,
             targetEndpoint: "terms",
-            type: "popup" // סוג פופ-אפ
+            type: "popup"
         },
         {
             id: 6,
             title: "עריכת פופ-אפ מועדון",
             description: "שינוי הטקסט והעיצוב של חלונית ההצטרפות למועדון הלקוחות.",
             icon: <FaGift className="text-3xl text-white" />,
-            link: null, // אין לינק
+            link: null,
             targetEndpoint: "club",
-            type: "popup" // סוג פופ-אפ
+            type: "popup"
+        },
+        {
+            id: 7,
+            title: "עריכת עמוד מוצרים",
+            description: "עדכון כותרות, תמונת רקע ורשימת המוצרים (תמונות ושמות) בעמוד הבחירה.",
+            icon: <FaTags className="text-3xl text-white" />,
+            link: "/products",
+            targetEndpoint: "products",
+            type: "page"
+        },
+        {
+            id: 8,
+            title: "עריכת עמוד פיתוח תמונות",
+            description: "עדכון כותרות ותמונת הרקע בעמוד העלאת התמונות.",
+            icon: <FaCamera className="text-3xl text-white" />,
+            link: "/photo-development",
+            targetEndpoint: "photos",
+            type: "type"
         },
     ];
 
@@ -81,18 +97,13 @@ export default function EditPages() {
         const stateData = { autoEdit: true, targetEndpoint: page.targetEndpoint };
 
         if (page.type === 'popup') {
-            // לוגיקה עבור פופ-אפים: נשארים בעמוד ופותחים את החלון
             if (page.targetEndpoint === 'club') {
                 setClubOpen(true);
             } else if (page.targetEndpoint === 'terms') {
                 setTermsOpen(true);
             }
-
-            // מעדכנים את ה-State של ה-URL הנוכחי כדי שה-Hook ברכיב הפופ-אפ יקלוט את ה-autoEdit
-            // אנו משתמשים ב-replace: true כדי לא ליצור היסטוריה חדשה סתם
             navigate(location.pathname, { state: stateData, replace: true });
         } else {
-            // לוגיקה עבור דפים רגילים: עוברים לדף היעד
             navigate(page.link, { state: stateData });
         }
     };

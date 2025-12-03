@@ -61,5 +61,8 @@ export const updateClubPage = createUpdateHandler("club");
 export const getProductsPage = createGetHandler("products");
 export const updateProductsPage = createUpdateHandler("products");
 
+export const getPhotosPage = createGetHandler("photos");
+export const updatePhotosPage = createUpdateHandler("photos");
+
 export const getFooterPage = createGetHandler("footer");
 export const updateFooterPage = createUpdateHandler("footer");
