@@ -58,5 +58,8 @@ export const updateTipsPage = createUpdateHandler("tips");
 export const getClubPage = createGetHandler("club");
 export const updateClubPage = createUpdateHandler("club");
 
+export const getProductsPage = createGetHandler("products");
+export const updateProductsPage = createUpdateHandler("products");
+
 export const getFooterPage = createGetHandler("footer");
 export const updateFooterPage = createUpdateHandler("footer");

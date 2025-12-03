@@ -13,7 +13,9 @@ import {
     getTipsPage,
     updateTipsPage,
     getClubPage,
-    updateClubPage
+    updateClubPage,
+    getProductsPage,
+    updateProductsPage
 } from "../controllers/pageController.js";
 
 const router = express.Router();
@@ -41,6 +43,10 @@ router.put("/tips", updateTipsPage);
 // Club Page Routes
 router.get("/club", getClubPage);
 router.put("/club", updateClubPage);
+
+// Products Page Routes
+router.get("/products", getProductsPage);
+router.put("/products", updateProductsPage);
 
 // Footer Page Routes
 router.get("/footer", getFooterPage);
