@@ -225,7 +225,7 @@ export default function TipsPage() {
 
             {editModeTip && isAdmin && (
                 <div className="container mx-auto px-4 py-12 bg-gray-50 rounded-lg shadow-inner mt-4 border border-gray-200">
-                    <h2 className="text-3xl font-bold mb-6 text-right text-gray-800 border-b pb-2">➕ הוספת טיפ חדש</h2>
+                    <h2 className="text-3xl font-bold mb-6 text-right text-gray-800 border-b pb-2">הוספת טיפ חדש</h2>
                     <input
                         type="text"
                         onChange={(e) => setTipDraft({ ...tipDraft, title: e.target.value })}
@@ -254,12 +254,22 @@ export default function TipsPage() {
             {isAdmin && (
                 <div className="mt-12 flex justify-center space-x-2 pb-12">
                     {editModeTip ? (
-                        <>
-                            <button onClick={handleSave} className="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-lg font-bold">💾 שמור טיפ חדש</button>
-                            <button onClick={() => setEditModeTip(false)} className="bg-gray-500 text-white px-6 py-3 rounded-full hover:bg-gray-600 transition shadow-lg font-bold">❌ בטל</button>
-                        </>
+                        <div className="flex gap-4 justify-center mt-8 rtl:space-x-reverse">
+                        <button
+                            onClick={handleSave}
+                            className="bg-[#f2665e] text-white px-8 py-2 rounded-full font-bold hover:bg-[#d95248] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                        >
+                            שמור
+                        </button>
+                        <button
+                            onClick={() => setEditModeTip(false)}
+                            className="bg-gray-200 text-gray-700 px-8 py-2 rounded-full font-bold hover:bg-gray-300 transition-all"
+                        >
+                            בטל
+                        </button>
+                    </div>
                     ) : (
-                        <button onClick={enterEditMode} className="bg-[#f2665e] text-white px-8 py-3 rounded-full hover:bg-[#d95248] transition shadow-lg font-bold transform hover:-translate-y-1">➕ הוסף טיפ</button>
+                        <button onClick={enterEditMode} className="bg-[#f2665e] text-white px-8 py-3 rounded-full hover:bg-[#d95248] transition shadow-lg font-bold transform hover:-translate-y-1"> הוסף טיפ</button>
                     )}
                 </div>
             )}
