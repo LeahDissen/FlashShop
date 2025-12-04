@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic, FaCamera, FaTags } from 'react-icons/fa';
+import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic, FaCamera, FaTags, FaShoppingCart } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
 import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
@@ -90,6 +90,15 @@ export default function EditPages() {
             link: "/photo-development",
             targetEndpoint: "photos",
             type: "type"
+        },
+        {
+            id: 9,
+            title: "עריכת עמוד עגלה",
+            description: "עדכון תמונת הכותרת והטקסטים בעמוד העגלה.",
+            icon: <FaShoppingCart className="text-3xl text-white" />,
+            link: "/cart",
+            targetEndpoint: "cart",
+            type: "page"
         },
     ];
 

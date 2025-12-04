@@ -64,5 +64,8 @@ export const updateProductsPage = createUpdateHandler("products");
 export const getPhotosPage = createGetHandler("photos");
 export const updatePhotosPage = createUpdateHandler("photos");
 
+export const getCartPage = createGetHandler("cart");
+export const updateCartPage = createUpdateHandler("cart");
+
 export const getFooterPage = createGetHandler("footer");
 export const updateFooterPage = createUpdateHandler("footer");
