@@ -37,7 +37,7 @@ export default function Header() {
     );
 
     return (
-        <div className="h-full flex items-center">
+        <div className="h-full flex items-center relative min-w-[200px]">
             <AdminControls
                 editMode={editMode}
                 previewContent={EditContent}
