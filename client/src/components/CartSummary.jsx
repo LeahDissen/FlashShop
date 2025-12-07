@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
-export default function CartSummary({ subtotal, discount, totalPrice, onCheckout, onCoupon }) {
+export default function CartSummary({ subtotal, discount, totalPrice, onCheckout, onCoupon, content }) {
   const [couponCode, setCouponCode] = useState("");
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export default function CartSummary({ subtotal, discount, totalPrice, onCheckout
   return (
     <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6 sticky top-8">
       <h2 className="text-2xl font-semibold mb-4 border-b pb-3 text-gray-800 text-right">
-        סיכום הזמנה
+       {content.endText}
       </h2>
       
       {/* Price Breakdown */}
@@ -44,7 +44,7 @@ export default function CartSummary({ subtotal, discount, totalPrice, onCheckout
         )}
 
         <div className="flex justify-between items-center pt-2">
-            <span className="text-lg text-gray-700">סה"כ לתשלום:</span>
+            <span className="text-lg text-gray-700">{content.paySum}</span>
             <span className="text-2xl font-bold text-[#f2665e]">
             {totalPrice.toFixed(2)} ש"ח
             </span>
@@ -55,14 +55,12 @@ export default function CartSummary({ subtotal, discount, totalPrice, onCheckout
       <button
         onClick={onCheckout}
         className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity text-lg mb-6 shadow-md"
-      >
-        רוצה לשלם
-      </button>
+      >{content.payBtn}</button>
 
       {/* Coupon Area */}
       <div className="space-y-2 text-right">
         <label htmlFor="coupon" className="text-sm font-medium text-gray-600 block">
-          הזן קוד קופון:
+         {content.codeLabel}
         </label>
         <div className="flex gap-2">
           <button
@@ -70,14 +68,14 @@ export default function CartSummary({ subtotal, discount, totalPrice, onCheckout
             disabled={loading}
             className="bg-gray-200 text-gray-700 font-semibold px-4 rounded-md hover:bg-gray-300 transition-colors disabled:opacity-50"
           >
-            {loading ? '...' : 'החל'}
+            {loading ? '...' : content.codeBtn}
           </button>
           <input
             type="text"
             id="coupon"
             value={couponCode}
             onChange={(e) => setCouponCode(e.target.value)}
-            placeholder="יש לי קופון"
+            placeholder={content.codePlaceholder}
             className="flex-grow p-2 border border-gray-300 rounded-md text-right focus:outline-none focus:border-[#f2665e] focus:ring-1 focus:ring-[#f2665e]"
           />
         </div>

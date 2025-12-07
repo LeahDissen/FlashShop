@@ -93,7 +93,7 @@ const EditorHeader = ({
       <div 
         className="flex items-center cursor-pointer hover:text-red-500 transition-colors" 
         onClick={onExit}
-        data-tooltip="חזרה לדף הבית"
+        data-tooltip="חזרה לדף המוצרים"
         data-tooltip-pos="bottom"
       >
         <span className="text-2xl font-bold text-gray-800 hover:text-red-500">FLASH</span>

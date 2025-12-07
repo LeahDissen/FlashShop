@@ -149,7 +149,7 @@ export default function Footer() {
                 </div>
 
                 {/* עמודה שמאלית - פרטי קשר */}
-                <div className="contactInfo flex flex-col items-center md:items-start">
+                <div className="flex flex-col items-center md:items-start">
                     <iframe
                         title="map"
                         src={`https://maps.google.com/maps?q=${encodeURIComponent(draft.contactAddress)}&output=embed&t=m`}
@@ -164,7 +164,7 @@ export default function Footer() {
                         {draft.contactAddress}
                     </address>
 
-                    <p className="[font-family:'Noto_Sans_Hebrew',Helvetica] font-normal text-sm tracking-[0] leading-[normal] [direction:rtl] mb-2 text-right">
+                    <div className="[font-family:'Noto_Sans_Hebrew',Helvetica] font-normal text-sm tracking-[0] leading-[normal] [direction:rtl] mb-2 text-right">
                         <span className="flex items-center justify-start mb-1">
                             <FaClock className="inline-block w-3 h-3 ml-2" />
                             <span>{draft.contactInfo}</span>
@@ -181,7 +181,7 @@ export default function Footer() {
                                 {draft.contactEmail}
                             </a>
                         </div>
-                    </p>
+                    </div>
                 </div>
 
             </div>

@@ -8,10 +8,13 @@ import { getPage } from '../api/pages';
 import { getAllTips, createTip } from '../api/tips';
 
 export default function TipsPage() {
-    const TIPS_PER_PAGE = 6;
     const isAdmin = useAuthStore(state => state.isAdmin());
-    const adminControls = useAdminControl({ title: "", img: "" }, "tips");
-    const { currentTip, setCurrentTip, tipsList, setTipsList } = useTipsStore();
+    const adminControls = useAdminControl({
+        title: "",
+        img: "",
+        tipsPerPage: 6
+    }, "tips");
+    const { setCurrentTip, tipsList } = useTipsStore();
     const { draft, updateDraft, editMode } = adminControls;
     const [editModeTip, setEditModeTip] = useState(false);
     const [tipDraft, setTipDraft] = useState({
@@ -22,6 +25,9 @@ export default function TipsPage() {
     });
     const [currentPage, setCurrentPage] = useState(1);
     const [totalTipsCount, setTotalTipsCount] = useState(0);
+    const limit = (draft?.tipsPerPage && !isNaN(parseInt(draft.tipsPerPage)))
+        ? parseInt(draft.tipsPerPage)
+        : 6;
 
     useEffect(() => {
         getPage("tips").then((data) => {
@@ -31,7 +37,7 @@ export default function TipsPage() {
     }, []);
 
     useEffect(() => {
-        getAllTips(currentPage, TIPS_PER_PAGE).then((data) => {
+        getAllTips(currentPage, limit).then((data) => {
             const { tips, totalCount } = data;
             useTipsStore.getState().setTipsList(tips);
             setTotalTipsCount(totalCount);
@@ -39,7 +45,7 @@ export default function TipsPage() {
             console.error("Error fetching tips list:", error);
             useTipsStore.getState().setTipsList([]);
         });
-    }, [currentPage]);
+    }, [currentPage, limit]);
 
     const enterEditMode = () => {
         if (!isAdmin) {
@@ -55,7 +61,7 @@ export default function TipsPage() {
 
         try {
             const addTip = await createTip(tipDraft);
-            useTipsStore.getState().setTipsList([...tipsList, addTip]);
+            useTipsStore.getState().setTipsList([addTip, ...tipsList]);
             setCurrentTip({});
             setEditModeTip(false);
             setCurrentPage(1);
@@ -65,7 +71,7 @@ export default function TipsPage() {
             alert(error.message);
         }
     };
-    const totalPages = Math.ceil(totalTipsCount / TIPS_PER_PAGE);
+    const totalPages = limit > 0 ? Math.ceil(totalTipsCount / limit) : 0;
 
     const handlePageChange = (pageNumber) => {
         if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -90,27 +96,30 @@ export default function TipsPage() {
                 onChange={(e) => updateDraft({ img: e.target.value })}
                 placeholder="הזן כתובת URL לתמונת הרקע העליונה"
             />
+            <label className="block mb-2 font-semibold">מספר טיפים בעמוד:</label>
+            <input
+                className="w-full p-2 border border-gray-300 rounded"
+                type="text"
+                value={draft.tipsPerPage}
+                onChange={(e) => updateDraft({ tipsPerPage: e.target.value })}
+                placeholder="הזן מספר טיפים בעמוד"
+            />
         </div>
     );
 
     const ViewContent = (
         <div className="w-full relative">
             <div
-                // שינוי 1: הקטנתי את הגובה ל-240px במובייל ו-320px במסכים גדולים (היה 300 ו-400)
                 className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
                 style={{ backgroundImage: `url(${draft.img})` }}
             >
-                {/* הצללה עדינה */}
                 <div className="absolute inset-0 bg-black/20"></div>
 
                 <h1 className="relative z-10 text-5xl sm:text-6xl font-bold text-center drop-shadow-lg tracking-wide">
                     {draft.title}
                 </h1>
-
-                {/* הגל בתחתית */}
                 <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] rotate-180">
                     <svg className="relative block w-[calc(100%+1.3px)] h-[50px] md:h-[70px]" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
-                        {/* שינוי 2: שיניתי את ה-fill ל-#f9fafb (הצבע של bg-gray-50) כדי שיתמזג עם הרקע */}
                         <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="#f9fafb"></path>
                     </svg>
                 </div>
@@ -119,11 +128,10 @@ export default function TipsPage() {
     );
 
     const PaginationControls = () => {
-        if (totalPages <= 1) return null;
+        if (!totalPages || totalPages <= 1) return null;
         const pageNumbers = [...Array(totalPages).keys()].map(i => i + 1);
 
         return (
-            // שינוי 1: הוספת gap-4 לריווח טוב יותר בין החיצים למספרים
             <div className="flex justify-center items-center mt-12 gap-4 rtl:space-x-reverse">
                 <button
                     onClick={() => handlePageChange(currentPage - 1)}
@@ -217,7 +225,7 @@ export default function TipsPage() {
 
             {editModeTip && isAdmin && (
                 <div className="container mx-auto px-4 py-12 bg-gray-50 rounded-lg shadow-inner mt-4 border border-gray-200">
-                    <h2 className="text-3xl font-bold mb-6 text-right text-gray-800 border-b pb-2">➕ הוספת טיפ חדש</h2>
+                    <h2 className="text-3xl font-bold mb-6 text-right text-gray-800 border-b pb-2">הוספת טיפ חדש</h2>
                     <input
                         type="text"
                         onChange={(e) => setTipDraft({ ...tipDraft, title: e.target.value })}
@@ -246,12 +254,22 @@ export default function TipsPage() {
             {isAdmin && (
                 <div className="mt-12 flex justify-center space-x-2 pb-12">
                     {editModeTip ? (
-                        <>
-                            <button onClick={handleSave} className="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-lg font-bold">💾 שמור טיפ חדש</button>
-                            <button onClick={() => setEditModeTip(false)} className="bg-gray-500 text-white px-6 py-3 rounded-full hover:bg-gray-600 transition shadow-lg font-bold">❌ בטל</button>
-                        </>
+                        <div className="flex gap-4 justify-center mt-8 rtl:space-x-reverse">
+                        <button
+                            onClick={handleSave}
+                            className="bg-[#f2665e] text-white px-8 py-2 rounded-full font-bold hover:bg-[#d95248] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-1"
+                        >
+                            שמור
+                        </button>
+                        <button
+                            onClick={() => setEditModeTip(false)}
+                            className="bg-gray-200 text-gray-700 px-8 py-2 rounded-full font-bold hover:bg-gray-300 transition-all"
+                        >
+                            בטל
+                        </button>
+                    </div>
                     ) : (
-                        <button onClick={enterEditMode} className="bg-[#f2665e] text-white px-8 py-3 rounded-full hover:bg-[#d95248] transition shadow-lg font-bold transform hover:-translate-y-1">➕ הוסף טיפ</button>
+                        <button onClick={enterEditMode} className="bg-[#f2665e] text-white px-8 py-3 rounded-full hover:bg-[#d95248] transition shadow-lg font-bold transform hover:-translate-y-1"> הוסף טיפ</button>
                     )}
                 </div>
             )}
