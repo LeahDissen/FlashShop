@@ -1,65 +1,24 @@
-// import { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SparklesIcon } from './icons';
-// import { getPage } from "../api/pages";
-// import AdminControls from "./AdminControls.jsx";
-// import { useAdminControl } from "../hooks/useAdminControl.jsx";
+import { getProducts } from '../api/products'; // Import API function
 
+const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct }) => {
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-// These URLs strictly match the PRODUCT_BASE_IMAGES in geminiService.js to ensure WYSIWYG consistency
-const products = [
-    {
-        name: 'T-shirt',
-        hebrew: 'חולצת טי',
-        image: 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-    },
-    {
-        name: 'Hoodie',
-        hebrew: 'סווטשירט',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764665297/46b286ce-72e3-41cf-a944-aee7b2d7a6cf.png'
-    },
-    {
-        name: 'Baseball Cap',
-        hebrew: 'כובע בייסבול',
-        image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-    },
-    {
-        name: 'Coffee Mug',
-        hebrew: 'ספל קפה',
-        image: 'https://images.unsplash.com/photo-1650959858546-d09833d5317b?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
-    },
-    {
-        name: 'Travel Tumbler',
-        hebrew: 'כוס נסיעה',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764664548/c78a3697-1a3f-4dbe-a1fd-7313906d7acc.png'
-    },
-    {
-        name: 'Tote Bag',
-        hebrew: 'תיק בד',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764665384/0a2a71bd-9b22-40ca-b51d-a3618e1aeac2.png'
-    },
-    {
-        name: 'Phone Case',
-        hebrew: 'מגן סיליקון לטלפון',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764664147/79cbbfc1-c774-4f4e-ba40-f3556189c42d.png'
-    },
-    {
-        name: 'Notebook',
-        hebrew: 'מחברת',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764664450/b7972b7a-bcd6-42a7-abff-5d8d78020380.png'
-    },
-    {
-        name: 'Jigsaw Puzzle',
-        hebrew: 'פאזל',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764660525/%D7%A6%D7%99%D7%9C%D7%95%D7%9D_%D7%9E%D7%A1%D7%9A_2025-12-02_092438_onulbc.png'
-    },
-    {
-        name: 'Heart Puzzle',
-        hebrew: 'פאזל לב',
-        image: 'https://res.cloudinary.com/dwqywo11u/image/upload/v1764660525/%D7%A6%D7%99%D7%9C%D7%95%D7%9D_%D7%9E%D7%A1%D7%9A_2025-12-02_092545_lspvtv.png'
-    }
-];
-
-const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const data = await getProducts();
+                setProducts(data);
+            } catch (error) {
+                console.error("Failed to load products", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProducts();
+    }, []);
 
     const handleStartDesigning = () => {
         if (selectedProduct) {
