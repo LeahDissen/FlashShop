@@ -7,6 +7,6 @@ export const getPage = async (endpoint) => {
 };
 
 export const updatePage = async (endpoint, data) => {
-    const response = await axios.put(`${API_URL}/${endpoint}`, data);
+    const response = await axios.put(`${API_URL}/${endpoint}`, data,{ withCredentials: true });
     return response.data;
 };
