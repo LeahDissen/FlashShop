@@ -1,6 +1,9 @@
-require("dotenv").config()
+import dotenv from "dotenv";
+dotenv.config();
 
-module.exports.config = {
+const config = {
     JWT_SECRET: process.env.JWT_SECRET,
     
 }
+
+export default config;
