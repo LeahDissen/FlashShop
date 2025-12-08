@@ -96,6 +96,13 @@ export default function NavBar() {
                             </button>
                             {isMenuOpen && (
                                 <div className="absolute top-full left-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 text-right" dir="rtl">
+                                   <Link 
+                                        to="/profile" 
+                                        className="w-full px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors border-b border-gray-50"
+                                        onClick={() => setIsMenuOpen(false)}
+                                    >
+                                        <FaUser size={14} /> הפרופיל שלי
+                                    </Link>
                                     <button onClick={logout} className="w-full px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors">
                                         <FaSignOutAlt /> התנתק
                                     </button>
