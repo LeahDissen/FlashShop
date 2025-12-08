@@ -19,6 +19,7 @@ import SendMailToClub from "./adminPage/SendMailToClub";
 import UpdateCatalog from "./adminPage/UpdateCatalog";
 import ViewMessages from "./adminPage/ViewMessages";
 import ShoppingCartPage from "./pages/ShoppingCartPage";
+import ProfilePage from "./pages/profilePage";
 
 // Wrapper to provide navigation prop to ProductsPage if needed, 
 // though ProductsPage could also use useNavigate directly.
@@ -46,7 +47,7 @@ export default function AppRoutes() {
                 <Route path="/tips/*" element={<Layout><BlogPage /></Layout>} />
                 <Route path="/terms" element={<Layout><Terms /></Layout>} />
                 <Route path="/tips" element={<Layout><TipsPage /></Layout>} />
-
+                <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
                 {/* Only admin can see this link */}
                 <Route path="/admindashboard" element={<AdminRoute><Layout><AdminDashboardPage /></Layout></AdminRoute>} />
                 <Route path="/editpages" element={<AdminRoute><Layout><EditPages /></Layout></AdminRoute>} />
