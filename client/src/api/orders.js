@@ -11,6 +11,10 @@ export const getPendingOrderForUser = async (userId) => {
     const response = await axios.get(`${API_URL}/pending/user/${userId}`);
     return response.data;
 }
+export const getUserOrders = async (userId) => {
+    const response = await axios.get(`${API_URL}/user/${userId}`);
+    return response.data;
+}
 export const getOrders = async () => {
     const response = await axios.get(API_URL);
     return response.data;

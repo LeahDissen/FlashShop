@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { signUp, googleLoginAPI } from '../api/auth'; 
 import { useGoogleLogin } from '@react-oauth/google'; 
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { joinClubRequest } from '../api/club';
+
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -10,9 +12,9 @@ export default function SignUpPage() {
         password: '',
         confirmPassword: ''
     });
-    const [errors, setErrors] = useState({});
-    const navigate = useNavigate(); 
-    
+    const [errors, setErrors] = useState({});    
+    const [joinClub, setJoinClub] = useState(false);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -20,6 +22,7 @@ export default function SignUpPage() {
             [name]: value
         }));
     };
+    const Navigate = useNavigate();
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -56,14 +59,30 @@ export default function SignUpPage() {
 
         setErrors({});
         signUp(formData.fullName, formData.email, formData.password)
-            .then(response => {
-                alert('החשבון נוצר בהצלחה!');
+            .then(async (response) => {
+                if (joinClub) {
+                    try {
+                        const newUser = response.data;
+
+                        await joinClubRequest({
+                            user_id: newUser._id,
+                            email: formData.email,
+                            name: formData.fullName,
+                        });
+                        console.log("User automatically added to club");
+                    } catch (clubError) {
+                        alert('הרישום למועדון נכשל, אם זאת הכניסה לאתר הושלמה\nאפשר לנסות להצטרף למועדון מאוחר יותר')
+                        console.error('Failed to join club automatically:', clubError);
+                    }
+                }
+                alert('Account created successfully!');
                 setFormData({
                     fullName: '',
                     email: '',
                     password: '',
                     confirmPassword: ''
                 });
+                Navigate('/logIn');
             })
             .catch(error => {
                 console.error('Error creating account:', error);
@@ -214,7 +233,34 @@ export default function SignUpPage() {
                             </p>
                         )}
                     </div>
-
+                    <div style={{
+                        marginBottom: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        direction: 'rtl'
+                    }}>
+                        <input
+                            type="checkbox"
+                            id="joinClub"
+                            checked={joinClub}
+                            onChange={(e) => setJoinClub(e.target.checked)}
+                            style={{
+                                width: '18px',
+                                height: '18px',
+                                cursor: 'pointer',
+                                accentColor: '#667eea'
+                            }}
+                        />
+                        <label htmlFor="joinClub" style={{
+                            fontSize: '14px',
+                            color: '#333',
+                            cursor: 'pointer',
+                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                        }}>
+                            אני רוצה להצטרף למועדון הלקוחות ולקבל הטבות 🎁
+                        </label>
+                    </div>
                     <button
                         onClick={handleSubmit}
                         className="w-full p-4 bg-gradient-to-br from-[#f2665e] to-[#e1574f] text-white border-none rounded-xl text-base font-semibold font-sans cursor-pointer shadow-[0_4px_15px_rgba(242,102,94,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(242,102,94,0.5)]"

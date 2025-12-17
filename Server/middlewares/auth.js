@@ -1,12 +1,16 @@
 const jwt = require("jsonwebtoken");
-const {config} = require("../config/secret")
+const { config } = require("../config/secret")
+
 exports.auth = (req, res, next) => {
-    let token = req.header("x-api-key");
+    let token = req.cookies.authToken;
+    if (!token) {
+        token = req.header("x-api-key");
+    }
     if (!token) {
         return res.status(401).json({ msg: "You must send token" });
     }
     try {
-        let verified = jwt.verify(token, config.jwtSecret);
+        let verified = jwt.verify(token, config.JWT_SECRET);
         req.tokenData = verified;
         next();
     } catch (err) {
@@ -14,18 +18,18 @@ exports.auth = (req, res, next) => {
         res.status(401).json({ msg: "Invalid token" });
     }
 }
-exports.authAdmin =(rep,res,next)=>{
-    let token = req.header("x-api-key");
+
+exports.authAdmin = (req, res, next) => {
+    let token = req.cookies.authToken || req.header("x-api-key");
     if (!token) {
+       
         return res.status(401).json({ msg: "You must send token" });
     }
     try {
-        let verified = jwt.verify(token, config.jwtSecret);
+        let verified = jwt.verify(token, config.JWT_SECRET);
         req.tokenData = verified;
-
-        if(verified.role!="admin"){
-            return res.status(403).json({ msg: "Invalid token" });
-
+        if (verified.role != "admin") {
+            return res.status(403).json({ msg: "Access denied. Admins only." });
         }
         next();
     } catch (err) {

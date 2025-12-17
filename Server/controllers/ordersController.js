@@ -39,15 +39,23 @@ exports.updateOrder = async (req, res) => {
         const userId = req.params.userId;
         const newItems = req.body.items;
         const newTotalPrice = req.body.total_price;
+
+        // "upsert: true" means: if found, update it. If not found, create a new one.
         let order = await OrderModel.findOneAndUpdate(
             { user_id: userId, status: "pending" },
-            { items: newItems, total_price: newTotalPrice },
-            { new: true }
+            { 
+                $set: { 
+                    items: newItems, 
+                    total_price: newTotalPrice,
+                    date_created: Date.now() // Update timestamp
+                }
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
         );
         res.json(order);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "Error updating cart", err });
     }
 };
 
@@ -68,9 +76,33 @@ exports.updateOrderStatus = async (req, res) => {
 };
 
 // Create a new order
+// ... existing imports
+
 exports.createOrder = async (req, res) => {
     try {
-        const { user_id, items, total_price, status } = req.body;
+        const { user_id, items, total_price, status, couponCode } = req.body; // Add couponCode to body
+
+        // --- NEW: Mark Coupon as Used ---
+        if (couponCode && user_id) {
+            // 1. Try to update General Coupon
+            const coupon = await CouponModel.findOne({ code: couponCode });
+            if (coupon) {
+                // Add user to usedBy array if not already there
+                if (!coupon.usedBy.includes(user_id)) {
+                    coupon.usedBy.push(user_id);
+                    await coupon.save();
+                }
+            } 
+            // 2. Try to update Member Gift Code
+            else {
+                await ClubModel.findOneAndUpdate(
+                    { giftCode: couponCode },
+                    { isUsed: true }
+                );
+            }
+        }
+        // --------------------------------
+
         const newOrder = new OrderModel({
             user_id,
             items: items || [],
@@ -81,7 +113,7 @@ exports.createOrder = async (req, res) => {
         res.status(201).json(saved);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "There was an error", err });
     }
 };
 

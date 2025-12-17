@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { googleLoginAPI, signIn } from '../api/auth';
-import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
+import { useNavigate, Link, useLocation } from 'react-router-dom'; // 1. Import useLocation
+import useAuthStore from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -9,6 +11,13 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
 
   const Navigate = useNavigate();
+  const location = useLocation(); // 2. Get location hook
+  const login = useAuthStore(state => state.login);
+  const loadCart = useCartStore(state => state.loadCart);
+
+  // 3. Determine where to redirect (default to home '/')
+  // If 'state.from' exists (e.g. passed from ShoppingCartPage), use that.
+  const from = location.state?.from || '/';
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -32,14 +41,26 @@ export default function LoginPage() {
     }
 
     setErrors({});
+    
     signIn(email, password)
-      .then((response) => {
-        localStorage.setItem("token", response.data.token);
-        localStorage.setItem('admin', false);
-        Navigate('/about');
+      .then(async (response) => {
+        const { user } = response.data;
+        login(user);
+        
+        if (user && user._id) {
+            try {
+                await loadCart(user._id);
+            } catch (err) {
+                console.error("Failed to load cart:", err);
+            }
+        }
+
+        // 4. Navigate to the dynamic destination
+        Navigate(from);
       })
       .catch((error) => {
-        alert('הכניסה נכשלה. אנא בדוק את הפרטים ונסה שוב.');
+        console.log(error);
+        alert('Login failed. Please check your credentials and try again.');
       });
   };
 
@@ -134,7 +155,7 @@ export default function LoginPage() {
 
           <div className="text-right mb-6">
             <a
-              href="#forgot"
+              href="/forgot"
               // Force pink color with style prop to override global CSS
               style={{ color: '#f2665e' }}
               className="!text-[#f2665e] text-[13px] font-sans transition-colors duration-300 hover:!text-[#e1574f]"
@@ -181,7 +202,7 @@ export default function LoginPage() {
         <div className="text-center text-sm text-gray-500 font-sans">
           אין לך חשבון?{' '}
           <a
-            href="#signup"
+            href="/signup"
             // Force pink color with style prop to override global CSS
             style={{ color: '#f2665e' }}
             className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"

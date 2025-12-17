@@ -1,4 +1,3 @@
-const { auth, authAdmin } = require("../middlewares/auth");
 const bcrypt = require("bcrypt");
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
@@ -7,7 +6,7 @@ const { Token } = require("../models/tokenModel");
 const crypto = require("crypto");
 const { sendEmail } = require("../utils/sendEmail");
 const { config } = require("../config/secret");
-const clientURL = "http://localhost:3001";
+const clientURL = "http://localhost:5173";
 //change to async func needed
 //'/signup'
 exports.signup = async (req, res, next) => {
@@ -17,7 +16,6 @@ exports.signup = async (req, res, next) => {
       console.log(validateBody.error.details);
       return res.status(400).json(validateBody.error.details);
     }
-
     let user = new UserModel(req.body);
     console.log(user);
     user.password = await bcrypt.hash(user.password, 10);
@@ -57,15 +55,35 @@ exports.login = async (req, res, next) => {
     if (!passOk) {
       return res.status(401).json({ msg: "User or password not match" });
     }
-    
-    let token = createToken(user._id, user.role); 
-    res.json({ token });
+
+    let token = createToken(user._id, user.role);
+    res.cookie("authToken", token, {
+      httpOnly: true,
+      secure: false, //process.env.NODE_ENV === 'dev',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'Lax'
+    });
+    const userWithoutPassword = user.toObject();
+    delete userWithoutPassword.password;
+    res.json({
+      msg: "Login successful",
+      user: userWithoutPassword
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
-//'/forgot-password'
+
+exports.logout = async (req, res) => {
+  res.clearCookie('authToken', {
+    httpOnly: true,
+    secure: false, //config.NODE_ENV === 'dev',
+    sameSite: 'Lax'
+  });
+  res.json({ msg: "Logout successful" });
+};
+
 exports.requestPasswordReset = async (req, res, next) => {
   try {
     const user = await UserModel.findOne({ email: req.body.email });
@@ -101,60 +119,43 @@ exports.requestPasswordReset = async (req, res, next) => {
   }
 };
 
-
-exports.resetPassword = async (req, res) => {
+exports.resetPassword = async (req, res, next) => {
   try {
-    const { userId, token, password } = req.body;
+    console.log(req.params.id);
+    let passwordResetToken = await Token.findOne({ userId: req.params.id });
 
-    if (!userId || !token || !password) {
-      return res.status(400).json({ msg: "Missing required fields" });
+    if (!passwordResetToken.token) {
+      throw new Error("Invalid or expired password reset token");
     }
-
-
-    let passwordResetToken = await Token.findOne({ userId: userId });
-
-    if (!passwordResetToken) {
-      return res.status(400).json({ msg: "Invalid or expired password reset token" });
-    }
-
-    const isValid = await bcrypt.compare(token, passwordResetToken.token);
+    console.log(passwordResetToken.token, req.body.token);
+    const isValid = await bcrypt.compare(req.body.token, passwordResetToken.token);
     if (!isValid) {
-      return res.status(400).json({ msg: "Invalid or expired password reset token" });
+      throw new Error("Invalid or expired password reset token");
     }
+    const hash = await bcrypt.hash(req.body.password, Number(config.BCRYPT_SALT));
 
-  
-    const hash = await bcrypt.hash(password, 10);
-
-   
     await UserModel.updateOne(
-      { _id: userId },
-      { $set: { password: hash } }
+      { _id: user_Id },
+      { $set: { password: hash } },
+      { new: true }
     );
-
-    const user = await UserModel.findById(userId);
-
-   
-    await sendEmail(
+    const user = await UserModel.findById(user_Id);
+    sendEmail(
       user.email,
-      "Password Reset Successful",
+      "Password Reset Successfully",
       {
         name: user.name,
-        loginLink: `${clientURL}/login`
       },
-      "./utils/template/passwordReset.handlebars" 
+      "./template/resetPassword.handlebars"
     );
-
-    await Token.deleteOne({ _id: passwordResetToken._id });
-
-    return res.json({ success: true, msg: "Password reset was successful" });
-
-  } catch (err) {
-    console.error("Reset Password Error:", err);
-    return res.status(500).json({ msg: "There was an error, try again later", err: err.message });
+    await passwordResetToken.deleteOne();
+    res.status(200).json({ msg: "Password reset was successful" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ msg: "Error resetting password", error: error.message });
   }
 };
 
-//'/myEmail'
 exports.myEmail = async (req, res) => {
   try {
     let user = await UserModel.findOne({ _id: req.tokenData._id }, { email: 1 });
@@ -207,7 +208,7 @@ exports.myInfo = async (req, res) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
-// //'/usersLIst'
+
 // router.get("/usersLIst", authAdmin, async (req, res) => {
 //     try {
 //         let users = await UserModel.find({}, { password: 0 });
@@ -217,7 +218,3 @@ exports.myInfo = async (req, res) => {
 //         res.status(500).json({ msg: "There was an error, try again later", err });
 //     }
 // });
-
-
-
-

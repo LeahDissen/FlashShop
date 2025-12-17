@@ -1,15 +1,26 @@
-import { useState } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom'; // Import useLocation
+import { updatePage } from '../api/pages';
 
 export const useAdminControl = (initialData, endpoint) => {
     const [page, setPage] = useState(initialData);
     const [editMode, setEditMode] = useState(false);
     const [previewMode, setPreviewMode] = useState(false);
     const [draft, setDraft] = useState(initialData);
+    
+    // הוספת הלוגיקה לפתיחה אוטומטית של מצב עריכה
+    const location = useLocation();
+
+    useEffect(() => {
+        // בדיקה האם הועבר State שמבקש עריכה והאם ה-Endpoint תואם לרכיב הנוכחי
+        if (location.state?.autoEdit && location.state?.targetEndpoint === endpoint) {
+            setEditMode(true);
+        }
+    }, [location.state, endpoint]);
 
     const saveChanges = async () => {
         try {
-            await axios.put(`http://localhost:4000/api/page/${endpoint}`, draft);
+            await updatePage(endpoint, draft);
             setPage(draft);
             setEditMode(false);
             setPreviewMode(false);

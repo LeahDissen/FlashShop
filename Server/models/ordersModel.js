@@ -1,15 +1,15 @@
 const mongoose = require("mongoose");
-const Joi = require("joi");
+
 let orderSchema = new mongoose.Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'users' },
     items: [{
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'products' }
-        , quantity: Number,
-        img: [{
-            data: Buffer,
-            contentType: String
-        }
-        ]
+        // Optional productId for catalog items
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: 'products', required: false },
+        name: String,     
+        size: String,     
+        quantity: Number,
+        price: Number,    
+        image: String     
     }],
     total_price: Number,
     status: {
@@ -20,5 +20,5 @@ let orderSchema = new mongoose.Schema({
         default: Date.now
     }
 });
+
 exports.OrderModel = mongoose.model("orders", orderSchema);
-   
