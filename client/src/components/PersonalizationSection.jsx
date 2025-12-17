@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { SparklesIcon } from './icons';
-import { getProducts } from '../api/products'; // Import API function
+import { getProducts } from '../api/products';
 
-const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct,content }) => {
+// Define your categories here
+const CATEGORIES = ["הכל", "בגדים", "לבית", "מתנות", "הדפסות"];
+
+const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
     const [products, setProducts] = useState([]);
+    const [activeCategory, setActiveCategory] = useState("הכל");
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -20,6 +24,21 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         fetchProducts();
     }, []);
 
+    // 1. Logic to filter products based on the active category
+    const filteredProducts = products.filter(product => {
+        if (activeCategory === "הכל") return true;
+        // Ensure 'product.category' matches your database field name
+        return product.category === activeCategory; 
+    });
+
+    // 2. The Fix: Handle Category Change
+    const handleCategoryChange = (category) => {
+        setActiveCategory(category);
+        // This clears the selection immediately when the user switches tabs
+        // ensuring the button becomes "invalid" (disabled) until a new selection is made.
+        onSelectProduct(null); 
+    };
+
     const handleStartDesigning = () => {
         if (selectedProduct) {
             onNavigateToEditor();
@@ -30,23 +49,58 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         <section className="py-16 bg-white">
             <div className="container mx-auto px-6 text-center">
                 <h2 className="text-3xl font-bold text-[#f2665e] mb-4">{content.sectionTitle}</h2>
-                <p className="text-gray-600 mb-12 max-w-2xl mx-auto">{content.sectionDescription}</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
-                    {products.map(product => (
-                        <div
-                            key={product.name}
-                            onClick={() => onSelectProduct(product.name)}
-                            className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 ${selectedProduct === product.name ? 'border-red-400 ring-4 ring-red-100 shadow-xl' : 'border-transparent shadow-md hover:shadow-xl'}`}
+                <p className="text-gray-600 mb-8 max-w-2xl mx-auto">{content.sectionDescription}</p>
+
+                {/* Category Filter Bar */}
+                <div className="flex flex-wrap justify-center gap-6 mb-10 text-sm font-medium text-gray-500">
+                    {CATEGORIES.map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => handleCategoryChange(cat)}
+                            className={`transition-colors hover:text-[#f2665e] ${
+                                activeCategory === cat 
+                                ? "text-[#f2665e] font-bold border-b-2 border-[#f2665e]" 
+                                : ""
+                            }`}
                         >
-                            <div className="h-48 bg-white flex items-center justify-center overflow-hidden">
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Product Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+                    {filteredProducts.map(product => (
+                        <div
+                            key={product._id || product.name}
+                            onClick={() => onSelectProduct(product.name)}
+                            className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white
+                                ${selectedProduct === product.name 
+                                    ? 'border-red-400 ring-4 ring-red-100 shadow-xl' 
+                                    : 'border-transparent shadow-md hover:shadow-xl'
+                                }`}
+                        >
+                            <div className="h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
                                 <img src={product.image} alt={product.hebrew} className="w-full h-full object-cover" />
                             </div>
-                            <div className={`p-3 ${selectedProduct === product.name ? 'bg-red-400 text-white' : 'bg-white text-[#f0645a]'}`}>
-                                <h3 className="font-bold text-sm md:text-base">{product.hebrew}</h3>
+                            
+                            {/* Card Content (Name + Price) */}
+                            <div className={`p-3 flex flex-col items-center gap-1 ${selectedProduct === product.name ? 'bg-red-50' : 'bg-white'}`}>
+                                <h3 className={`font-bold text-sm md:text-base ${selectedProduct === product.name ? 'text-[#f2665e]' : 'text-gray-800'}`}>
+                                    {product.hebrew}
+                                </h3>
+                                {/* Display Price if available */}
+                                {product.price && (
+                                    <span className="text-gray-500 text-xs">
+                                        ₪{product.price.toFixed(2)}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     ))}
                 </div>
+
+                {/* Action Button */}
                 <button
                     onClick={handleStartDesigning}
                     disabled={!selectedProduct}
@@ -54,6 +108,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                 >
                     <SparklesIcon className="w-6 h-6 ml-2" /> {content.buttonText}
                 </button>
+                
                 {!selectedProduct && (
                     <p className="text-sm text-gray-500 mt-3">{content.msg}</p>
                 )}
