@@ -1,9 +1,12 @@
+import React, { useEffect, useState } from "react";
 import AdminControls from '../components/AdminControls.jsx';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
-import { useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import useAppStore from '../store/appStore';
 import { getPage } from '../api/pages';
+import { getAllTips } from '../api/tips';
+import { useTipsStore } from '../store/tipsStore';
+import Testimonials from '../components/Testimonials';
 
 export default function HomePage() {
     const adminControls = useAdminControl({
@@ -19,9 +22,14 @@ export default function HomePage() {
     const { draft, updateDraft, editMode } = adminControls;
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const Navigate = useNavigate();
+    
+    // State לטיפים
+    const [recentTips, setRecentTips] = useState([]);
+    const setCurrentTip = useTipsStore(state => state.setCurrentTip);
 
     useEffect(() => {
         setClubOpen(true);
+        
         getPage("home").then((data) => {
             if (typeof data.products === "string") {
                 try {
@@ -36,7 +44,20 @@ export default function HomePage() {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });
+
+        // משיכת 2 הטיפים האחרונים
+        getAllTips(1, 2).then((data) => {
+            if (data && data.tips) {
+                setRecentTips(data.tips);
+            }
+        }).catch(err => console.error("Failed to fetch tips:", err));
+
     }, []);
+
+    const truncateText = (text, maxLength) => {
+        if (!text) return "";
+        return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+    };
 
     const EditContent = (
         <>
@@ -132,8 +153,6 @@ export default function HomePage() {
                         {/* 1. COLUMN RIGHT: Image & Red Wave */}
                         {draft.mainImg && (
                             <div className="relative" style={{ width: '32%', flexShrink: 0, minHeight: '500px' }}>
-
-                                {/* SVG CLIP PATH */}
                                 <svg width="0" height="0" style={{ position: 'absolute' }}>
                                     <defs>
                                         <clipPath id="cornerWaveClip" clipPathUnits="objectBoundingBox">
@@ -141,8 +160,6 @@ export default function HomePage() {
                                         </clipPath>
                                     </defs>
                                 </svg>
-
-                                {/* IMAGE ITSELF */}
                                 <div
                                     style={{
                                         width: '100%',
@@ -165,7 +182,7 @@ export default function HomePage() {
                                         right: '0',
                                         width: '120%',
                                         height: '650px',
-                                        background: 'linear-gradient(180deg, #ff5555 0%, #ff9aaa 100%)', // התחלה באדום האתר
+                                        background: 'linear-gradient(180deg, #ff5555 0%, #ff9aaa 100%)',
                                         clipPath: 'url(#cornerWaveClip)',
                                         zIndex: '10',
                                     }}
@@ -175,8 +192,6 @@ export default function HomePage() {
 
                         {/* 2. COLUMN LEFT: Text + Products Grid */}
                         <div className="flex-1 flex flex-col pr-20 pt-10 pl-10 relative z-30">
-
-                            {/* A. TEXT CONTENT */}
                             <div className="text-right mb-8">
                                 <h1
                                     className="text-5xl font-bold mb-4"
@@ -196,8 +211,7 @@ export default function HomePage() {
                                 </button>
                             </div>
 
-                            {/* B. PRODUCTS GRID */}
-                            <div className="w-full max-w-3xl mr-auto mt-5  text-right">
+                            <div className="w-full max-w-3xl mr-auto mt-5 text-right">
                                 <div className="grid grid-cols-3 gap-4">
                                     {Array.isArray(draft.products) &&
                                         draft.products.slice(0, 6).map((prod, index) => (
@@ -217,7 +231,6 @@ export default function HomePage() {
                         </div>
                     </div>
 
-                    {/* Button Centered */}
                     <div className="text-center mt-12 mb-8 w-full">
                         <button
                             onClick={() => Navigate('/products')}
@@ -256,69 +269,65 @@ export default function HomePage() {
                     ></path>
                 </svg>
 
-                {/* TEXT CONTENT ON WAVE */}
                 <div className="absolute inset-0 flex flex-col justify-start items-center pt-32 px-4 text-center">
                     <h3 className="text-xl font-bold mb-4 text-white drop-shadow-md">
                         תראו מה מספרים עלינו
                     </h3>
 
-                    <div
-                        className="rounded-2xl p-4 w-full max-w-sm bg-white shadow-lg flex flex-col items-center"
-                    >
-                        <p className="text-xs text-gray-700 leading-relaxed text-center font-medium mb-2">
-                            "המלצה חמה מלקוח מרוצה על השירות המעולה, המוצרים האיכותיים והחוויה הנפלאה. הכל היה מושלם מההתחלה ועד הסוף."
-                        </p>
-                        <div className="text-xs font-bold text-[#ff5555]">
-                            שם לקוח
-                        </div>
-                    </div>
+                    <Testimonials />
                 </div>
             </div>
 
-            {/* ================= TIPS SECTION ================= */}
-            <section className="w-full py-12 px-6" style={{ background: '#fda49e' }}>
-                {/* שיניתי כאן ל-max-w-3xl כדי להצר את הרוחב הכולל, מה שמקטין את הקלפים */}
-                <div className="max-w-3xl mx-auto">
-                    <div className="grid md:grid-cols-2 gap-6 mb-8">
+            {/* ================= TIPS SECTION (Fixed Design) ================= */}
+            {/* רקע ממש בהיר של אדום/ורוד כפי שביקשת (#fff0f0) */}
+            <section className="w-full py-12 px-6" style={{ backgroundColor: '#fda49e' }}>
+                <div className="max-w-5xl mx-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                        {recentTips.length > 0 ? (
+                            recentTips.map((tip) => (
+                                <Link
+                                    style={{ backgroundColor: '#fff0f0' }}
+                                    to={`/tips/tip_page`}
+                                    key={tip._id}
+                                    onClick={() => setCurrentTip(tip)}
+                                    // Flex כדי שיהיה תמונה בצד אחד וטקסט בצד שני
+                                    className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-all overflow-hidden flex h-48 sm:h-40 cursor-pointer"
+                                >
+                                    {/* תמונה בצד ימין (ראשונה בקוד ב-RTL) */}
+                                    <div className="w-1/3 h-full relative shrink-0">
+                                         <img
+                                            src={tip.img}
+                                            alt={tip.title}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
 
-                        {/* TIP 1 */}
-                        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                            {/* שיניתי ל-h-32 (במקום h-40) כדי להקטין את גובה התמונה */}
-                            <div className="h-32 bg-gray-200 flex items-center justify-center">
-                                <span className="text-gray-400">תמונה של טיפ 1</span>
+                                    {/* טקסט בצד שמאל */}
+                                    <div className="w-2/3 p-5 text-right flex flex-col justify-center">
+                                        <h4 
+                                            className="text-lg font-bold mb-2 line-clamp-1" 
+                                            style={{ color: '#ff5555' }}
+                                        >
+                                            {tip.title}
+                                        </h4>
+                                        <p className="text-black text-sm leading-relaxed line-clamp-3 md:line-clamp-4">
+                                            {truncateText(tip.summary || tip.content, 90)}
+                                        </p>
+                                    </div>
+                                </Link>
+                            ))
+                        ) : (
+                            <div className="col-span-2 text-center text-gray-400 font-medium">
+                                טוען טיפים...
                             </div>
-                            {/* שיניתי ל-p-4 (במקום p-5) כדי להקטין את המרווח הפנימי */}
-                            <div className="p-4">
-                                <h4 className="text-base font-bold mb-2" style={{ color: '#ff5555' }}>
-                                    טיפ חשוב 1
-                                </h4>
-                                <p className="text-xs text-gray-700 leading-relaxed">
-                                    כאן יבוא טיפ שימושי שיעזור ללקוחות להפיק את המקסימום מהמוצרים שלכם. מידע חשוב שכדאי לדעת.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* TIP 2 */}
-                        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                            <div className="h-32 bg-gray-200 flex items-center justify-center">
-                                <span className="text-gray-400">תמונה של טיפ 2</span>
-                            </div>
-                            <div className="p-4">
-                                <h4 className="text-base font-bold mb-2" style={{ color: '#ff5555' }}>
-                                    טיפ חשוב 2
-                                </h4>
-                                <p className="text-xs text-gray-700 leading-relaxed">
-                                    עוד טיפ מועיל שיכול לעזור ללקוחות להבין טוב יותר איך להשתמש במוצרים בצורה הטובה ביותר.
-                                </p>
-                            </div>
-                        </div>
+                        )}
                     </div>
 
                     <div className="text-center">
                         <button
                             onClick={() => Navigate('/tips')}
+                            className="px-12 py-3 rounded-full text-white font-bold shadow-lg hover:shadow-xl transition-all text-lg hover:bg-opacity-90"
                             style={{ backgroundColor: '#ff5555' }}
-                            className="px-12 py-3 rounded-full text-white font-bold shadow-lg hover:shadow-xl transition-all text-lg"
                         >
                             {draft.goToTips}
                         </button>
