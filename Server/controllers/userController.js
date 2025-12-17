@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 const jwt = require("jsonwebtoken");
 const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
 const { Token } = require("../models/tokenModel");
@@ -29,10 +30,12 @@ exports.signup = async (req, res, next) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
+//'/login'
+// Server/controllers/userController.js
+
 exports.login = async (req, res, next) => {
   let validBody = validateLogin(req.body);
   if (validBody.error) {
-    console.log(validBody.error.details);
     return res.status(400).json(validBody.error.details);
   }
   try {
@@ -41,10 +44,18 @@ exports.login = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ msg: "User or password not match" });
     }
-    let passOk = bcrypt.compare(req.body.password, user.password);
+
+    if (!user.password) {
+      return res.status(401).json({ 
+        msg: "User not found with password. Did you sign up with Google?" 
+      });
+    }
+
+    let passOk = await bcrypt.compare(req.body.password, user.password);
     if (!passOk) {
       return res.status(401).json({ msg: "User or password not match" });
     }
+
     let token = createToken(user._id, user.role);
     res.cookie("authToken", token, {
       httpOnly: true,
@@ -155,6 +166,39 @@ exports.myEmail = async (req, res) => {
   }
 };
 
+exports.googleLogin = async (req, res) => {
+  try {
+    const { access_token } = req.body;
+
+    const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${access_token}` }
+    });
+    
+    const { email, name, sub: googleId } = googleResponse.data;
+
+    let user = await UserModel.findOne({ email: email });
+
+    if (user) {
+      const token = createToken(user._id, user.role); 
+      return res.json({ token, user });
+    }
+    user = new UserModel({
+      name: name,
+      email: email,
+      role: "user" 
+    });
+    
+    await user.save();
+    
+    const token = createToken(user._id, user.role);
+    res.json({ token, user });
+
+  } catch (err) {
+    console.error("Google Auth Error:", err);
+    res.status(401).json({ msg: "Google authentication failed", err });
+  }
+};
+//'/myInfo'
 exports.myInfo = async (req, res) => {
   try {
     let user = await UserModel.findOne({ _id: req.tokenData._id }, { password: 0 });

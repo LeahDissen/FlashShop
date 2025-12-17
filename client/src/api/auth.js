@@ -31,10 +31,17 @@ export const forgotPasswordRequest = async (email) => {
     });
     return response;
 }
-export const resetPassword = async (token, newPassword) => {
+export const resetPassword = async (userId, token, newPassword) => {
     const response = await axios.post(`${API_URL}/resetPassword`, {
+        userId,      
         token,
-        newPassword
+        password: newPassword // Matched key to backend expectation
+    });
+    return response;
+};
+export const googleLoginAPI = async (googleAccessToken) => {
+    const response = await axios.post(`${API_URL}/google`, {
+        access_token: googleAccessToken
     });
     return response;
 };

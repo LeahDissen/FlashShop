@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken");
 const { config } = require("../config/secret")
 let userSchema = new mongoose.Schema({
     name: String,
-    email: String,
+    email: {    type: String, unique: true },
     password: String,
     role: {
         type: String, default: "user"
@@ -12,8 +12,8 @@ let userSchema = new mongoose.Schema({
    
 },{timestamps:true  });
 exports.UserModel = mongoose.model("users", userSchema);
-exports.createToken = (_userId, _role) => {
-    let token = jwt.sign({ _id: _userId, role: _role }, config.JWT_SECRET, { expiresIn: "7d" });
+exports.createToken = (_userId,_role) => {
+    let token = jwt.sign({ _id: _userId,role:_role||"user" }, config.JWT_SECRET, { expiresIn: "60mins" });
     return token;
 };
 exports.validateUser = (_reqBody) => {

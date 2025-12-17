@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { signUp } from '../api/auth';
+import React, { useState } from 'react';
+import { signUp, googleLoginAPI } from '../api/auth'; 
+import { useGoogleLogin } from '@react-oauth/google'; 
 import { Link, useNavigate } from 'react-router-dom';
 import { joinClubRequest } from '../api/club';
 
@@ -11,7 +12,7 @@ export default function SignUpPage() {
         password: '',
         confirmPassword: ''
     });
-    const [errors, setErrors] = useState({});
+    const [errors, setErrors] = useState({});    
     const [joinClub, setJoinClub] = useState(false);
 
     const handleChange = (e) => {
@@ -28,27 +29,27 @@ export default function SignUpPage() {
         const newErrors = {};
 
         if (!formData.fullName) {
-            newErrors.fullName = 'Full name is required';
+            newErrors.fullName = 'שם מלא הוא שדה חובה';
         } else if (formData.fullName.length < 2) {
-            newErrors.fullName = 'Name must be at least 2 characters';
+            newErrors.fullName = 'שם מלא חייב להכיל לפחות 2 תווים';
         }
 
         if (!formData.email) {
-            newErrors.email = 'Email is required';
+            newErrors.email = 'כתובת אימייל היא שדה חובה';
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = 'Email is invalid';
+            newErrors.email = 'כתובת אימייל אינה תקינה';
         }
 
         if (!formData.password) {
-            newErrors.password = 'Password is required';
+            newErrors.password = 'סיסמה היא שדה חובה';
         } else if (formData.password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters';
+            newErrors.password = 'סיסמה חייבת להכיל לפחות 6 תווים';
         }
 
         if (!formData.confirmPassword) {
-            newErrors.confirmPassword = 'Please confirm your password';
+            newErrors.confirmPassword = 'יש להזין את הסיסמה שוב';
         } else if (formData.password !== formData.confirmPassword) {
-            newErrors.confirmPassword = 'Passwords do not match';
+            newErrors.confirmPassword = 'הסיסמאות אינן תואמות';
         }
 
         if (Object.keys(newErrors).length > 0) {
@@ -57,7 +58,6 @@ export default function SignUpPage() {
         }
 
         setErrors({});
-        //api call to submit async 
         signUp(formData.fullName, formData.email, formData.password)
             .then(async (response) => {
                 if (joinClub) {
@@ -86,284 +86,149 @@ export default function SignUpPage() {
             })
             .catch(error => {
                 console.error('Error creating account:', error);
-                alert('Failed to create account. Please try again.');
+                alert('היצירת חשבון נכשלה. אנא נסה שוב.');
             });
     };
 
-
-    const handleSocialSignUp = (provider) => {
-        //add sign up with google
-    };
+    const loginWithGoogle = useGoogleLogin({
+        onSuccess: async (tokenResponse) => {
+            try {
+                const response = await googleLoginAPI(tokenResponse.access_token);
+                localStorage.setItem("token", response.data.token); 
+                alert('החיבור עם Google הצליח!');
+                navigate('/home'); 
+            } catch (error) {
+                alert(error.response?.data?.msg || 'החיבור עם Google נכשל. אנא נסה שוב.');
+            }
+        },
+        onError: () => {
+            console.log('Google Login Failed');
+            alert('החיבור עם Google נכשל. אנא נסה שוב.');
+        }
+    });
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            // UPDATED: Theme color gradient
-            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
-        }}>
-            <style>{`
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.5s ease-out;
-        }
-        .gradient-text {
-          /* UPDATED: Theme color gradient for text */
-          background: linear-gradient(135deg, #f2665e 0%, #d95248 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-      `}</style>
+        <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-[#f2665e] to-[#e1574f]">
+            <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] p-10 w-full max-w-md animate-[slideUp_0.5s_ease-out]">
+                
+                <style>{`
+                    @keyframes slideUp {
+                        from { opacity: 0; transform: translateY(30px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                `}</style>
 
-            <div className="animate-slide-up" style={{
-                backgroundColor: 'white',
-                borderRadius: '24px',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-                padding: '48px 40px',
-                width: '100%',
-                maxWidth: '440px'
-            }}>
                 {/* Logo Section */}
-                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                    <h1 className="gradient-text" style={{
-                        fontSize: '36px',
-                        fontWeight: 700,
-                        marginBottom: '8px',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                    }}>
-                        Create Account
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-bold mb-2 font-sans bg-clip-text text-transparent bg-gradient-to-br from-[#f2665e] to-[#e1574f]">
+                        הרשמה
                     </h1>
-                    <p style={{
-                        color: '#666',
-                        fontSize: '14px',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                    }}>
-                        Sign up to get started
+                    <p className="text-gray-500 text-sm font-sans">
+                        הרשם כדי להתחיל
                     </p>
                 </div>
 
                 {/* Sign Up Form */}
-                <div style={{ marginBottom: '24px' }}>
-                    <div style={{ marginBottom: '20px' }}>
-                        <label htmlFor="fullName" style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            color: '#333',
-                            fontWeight: 500,
-                            fontSize: '14px',
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                        }}>
-                            Full Name
+                <div className="mb-6">
+                    <div className="mb-5">
+                        <label 
+                            htmlFor="fullName" 
+                            className="block mb-2 text-gray-800 font-medium text-sm font-sans text-right"
+                        >
+                            שם מלא
                         </label>
                         <input
                             type="text"
                             id="fullName"
                             name="fullName"
+                            dir="rtl"
                             value={formData.fullName}
                             onChange={handleChange}
-                            placeholder="John Doe"
-                            style={{
-                                width: '100%',
-                                padding: '14px 16px',
-                                border: errors.fullName ? '2px solid #ef4444' : '2px solid #e5e7eb',
-                                borderRadius: '12px',
-                                fontSize: '15px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                                outline: 'none',
-                                transition: 'all 0.3s ease',
-                                boxSizing: 'border-box'
-                            }}
-                            onFocus={(e) => {
-                                if (!errors.fullName) {
-                                    // UPDATED: Focus color
-                                    e.target.style.borderColor = '#f2665e';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                                }
-                            }}
-                            onBlur={(e) => {
-                                e.target.style.borderColor = errors.fullName ? '#ef4444' : '#e5e7eb';
-                                e.target.style.boxShadow = 'none';
-                            }}
+                            placeholder="אברם אברמוביץ"
+                            className={`w-full p-3.5 border-2 rounded-xl text-[15px] font-sans outline-none transition-all duration-300 text-right
+                                ${errors.fullName ? 'border-red-500' : 'border-gray-200'}
+                                focus:border-[#f2665e] focus:shadow-[0_0_0_4px_rgba(242,102,94,0.1)]`}
                         />
                         {errors.fullName && (
-                            <p style={{
-                                color: '#ef4444',
-                                fontSize: '12px',
-                                marginTop: '4px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                            }}>
+                            <p className="text-red-500 text-xs mt-1 font-sans text-right">
                                 {errors.fullName}
                             </p>
                         )}
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <label htmlFor="email" style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            color: '#333',
-                            fontWeight: 500,
-                            fontSize: '14px',
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                        }}>
-                            Email Address
+                    <div className="mb-5">
+                        <label 
+                            htmlFor="email" 
+                            className="block mb-2 text-gray-800 font-medium text-sm font-sans text-right"
+                        >
+                            כתובת אימייל
                         </label>
                         <input
                             type="email"
                             id="email"
                             name="email"
+                            dir="ltr"
                             value={formData.email}
                             onChange={handleChange}
                             placeholder="you@example.com"
-                            style={{
-                                width: '100%',
-                                padding: '14px 16px',
-                                border: errors.email ? '2px solid #ef4444' : '2px solid #e5e7eb',
-                                borderRadius: '12px',
-                                fontSize: '15px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                                outline: 'none',
-                                transition: 'all 0.3s ease',
-                                boxSizing: 'border-box'
-                            }}
-                            onFocus={(e) => {
-                                if (!errors.email) {
-                                    // UPDATED: Focus color
-                                    e.target.style.borderColor = '#f2665e';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                                }
-                            }}
-                            onBlur={(e) => {
-                                e.target.style.borderColor = errors.email ? '#ef4444' : '#e5e7eb';
-                                e.target.style.boxShadow = 'none';
-                            }}
+                            className={`w-full p-3.5 border-2 rounded-xl text-[15px] font-sans outline-none transition-all duration-300 text-right
+                                ${errors.email ? 'border-red-500' : 'border-gray-200'}
+                                focus:border-[#f2665e] focus:shadow-[0_0_0_4px_rgba(242,102,94,0.1)]`}
                         />
                         {errors.email && (
-                            <p style={{
-                                color: '#ef4444',
-                                fontSize: '12px',
-                                marginTop: '4px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                            }}>
+                            <p className="text-red-500 text-xs mt-1 font-sans text-right">
                                 {errors.email}
                             </p>
                         )}
                     </div>
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <label htmlFor="password" style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            color: '#333',
-                            fontWeight: 500,
-                            fontSize: '14px',
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                        }}>
-                            Password
+                    <div className="mb-5">
+                        <label 
+                            htmlFor="password" 
+                            className="block mb-2 text-gray-800 font-medium text-sm font-sans text-right"
+                        >
+                            סיסמה
                         </label>
                         <input
                             type="password"
                             id="password"
                             name="password"
+                            dir="rtl"
                             value={formData.password}
                             onChange={handleChange}
                             placeholder="Create a password"
-                            style={{
-                                width: '100%',
-                                padding: '14px 16px',
-                                border: errors.password ? '2px solid #ef4444' : '2px solid #e5e7eb',
-                                borderRadius: '12px',
-                                fontSize: '15px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                                outline: 'none',
-                                transition: 'all 0.3s ease',
-                                boxSizing: 'border-box'
-                            }}
-                            onFocus={(e) => {
-                                if (!errors.password) {
-                                    // UPDATED: Focus color
-                                    e.target.style.borderColor = '#f2665e';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                                }
-                            }}
-                            onBlur={(e) => {
-                                e.target.style.borderColor = errors.password ? '#ef4444' : '#e5e7eb';
-                                e.target.style.boxShadow = 'none';
-                            }}
+                            className={`w-full p-3.5 border-2 rounded-xl text-[15px] font-sans outline-none transition-all duration-300 text-right
+                                ${errors.password ? 'border-red-500' : 'border-gray-200'}
+                                focus:border-[#f2665e] focus:shadow-[0_0_0_4px_rgba(242,102,94,0.1)]`}
                         />
                         {errors.password && (
-                            <p style={{
-                                color: '#ef4444',
-                                fontSize: '12px',
-                                marginTop: '4px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                            }}>
+                            <p className="text-red-500 text-xs mt-1 font-sans text-right">
                                 {errors.password}
                             </p>
                         )}
                     </div>
 
-                    <div style={{ marginBottom: '24px' }}>
-                        <label htmlFor="confirmPassword" style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            color: '#333',
-                            fontWeight: 500,
-                            fontSize: '14px',
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                        }}>
-                            Confirm Password
+                    <div className="mb-6">
+                        <label 
+                            htmlFor="confirmPassword" 
+                            className="block mb-2 text-gray-800 font-medium text-sm font-sans text-right"
+                        >
+                            ודא סיסמה
                         </label>
                         <input
                             type="password"
                             id="confirmPassword"
                             name="confirmPassword"
+                            dir="rtl"
                             value={formData.confirmPassword}
                             onChange={handleChange}
                             placeholder="Confirm your password"
-                            style={{
-                                width: '100%',
-                                padding: '14px 16px',
-                                border: errors.confirmPassword ? '2px solid #ef4444' : '2px solid #e5e7eb',
-                                borderRadius: '12px',
-                                fontSize: '15px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                                outline: 'none',
-                                transition: 'all 0.3s ease',
-                                boxSizing: 'border-box'
-                            }}
-                            onFocus={(e) => {
-                                if (!errors.confirmPassword) {
-                                    // UPDATED: Focus color
-                                    e.target.style.borderColor = '#f2665e';
-                                    e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                                }
-                            }}
-                            onBlur={(e) => {
-                                e.target.style.borderColor = errors.confirmPassword ? '#ef4444' : '#e5e7eb';
-                                e.target.style.boxShadow = 'none';
-                            }}
+                            className={`w-full p-3.5 border-2 rounded-xl text-[15px] font-sans outline-none transition-all duration-300 text-right
+                                ${errors.confirmPassword ? 'border-red-500' : 'border-gray-200'}
+                                focus:border-[#f2665e] focus:shadow-[0_0_0_4px_rgba(242,102,94,0.1)]`}
                         />
                         {errors.confirmPassword && (
-                            <p style={{
-                                color: '#ef4444',
-                                fontSize: '12px',
-                                marginTop: '4px',
-                                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                            }}>
+                            <p className="text-red-500 text-xs mt-1 font-sans text-right">
                                 {errors.confirmPassword}
                             </p>
                         )}
@@ -398,86 +263,25 @@ export default function SignUpPage() {
                     </div>
                     <button
                         onClick={handleSubmit}
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            // UPDATED: Button gradient
-                            background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '12px',
-                            fontSize: '16px',
-                            fontWeight: 600,
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                            cursor: 'pointer',
-                            // UPDATED: Button shadow
-                            boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
-                            transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
-                        }}
+                        className="w-full p-4 bg-gradient-to-br from-[#f2665e] to-[#e1574f] text-white border-none rounded-xl text-base font-semibold font-sans cursor-pointer shadow-[0_4px_15px_rgba(242,102,94,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(242,102,94,0.5)]"
                     >
-                        Create Account
+                        צור חשבון
                     </button>
                 </div>
 
                 {/* Divider */}
-                <div style={{ position: 'relative', margin: '32px 0', textAlign: 'center' }}>
-                    <div style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: '50%',
-                        width: '100%',
-                        height: '1px',
-                        backgroundColor: '#e5e7eb'
-                    }}></div>
-                    <span style={{
-                        backgroundColor: 'white',
-                        padding: '0 16px',
-                        color: '#999',
-                        fontSize: '13px',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                        position: 'relative'
-                    }}>
-                        OR
+                <div className="relative my-8 text-center">
+                    <div className="absolute left-0 top-1/2 w-full h-px bg-gray-200"></div>
+                    <span className="relative bg-white px-4 text-gray-400 text-[13px] font-sans">
+                        או
                     </span>
                 </div>
 
                 {/* Social Sign Up */}
-                <div style={{ marginBottom: '32px' }}>
+                <div className="mb-8">
                     <button
-                        onClick={() => handleSocialSignUp('Google')}
-                        style={{
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            padding: '12px',
-                            border: '2px solid #e5e7eb',
-                            borderRadius: '12px',
-                            backgroundColor: 'white',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                            transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                            // UPDATED: Border color
-                            e.currentTarget.style.borderColor = '#f2665e';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = '#e5e7eb';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                        }}
+                        onClick={() => loginWithGoogle()}
+                        className="w-full flex items-center justify-center gap-2 p-3 border-2 border-gray-200 rounded-xl bg-white cursor-pointer text-sm font-medium font-sans transition-all duration-300 hover:border-[#f2665e] hover:-translate-y-0.5"
                     >
                         <svg width="18" height="18" viewBox="0 0 18 18">
                             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
@@ -485,33 +289,23 @@ export default function SignUpPage() {
                             <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
                             <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" />
                         </svg>
-                        <span>Continue with Google</span>
+                        <span>המשך עם Google</span>
                     </button>
                 </div>
 
                 {/* Login Link */}
-                <div style={{
-                    textAlign: 'center',
-                    fontSize: '14px',
-                    color: '#666',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                }}>
-                    Already have an account?{' '}
-                    <Link
-                        to="/login"
-                        style={{
-                            // UPDATED: Link color
-                            color: '#f2665e',
-                            textDecoration: 'none',
-                            fontWeight: 600,
-                            transition: 'color 0.3s ease'
-                        }}
-                        // UPDATED: Link hover color
-                        onMouseEnter={(e) => e.target.style.color = '#d95248'}
+                <div className="text-center text-sm text-gray-500 font-sans">
+                    כבר יש לך חשבון?{' '}
+                    <a
+                        href="#login"
+                        // Force pink color and handle hover
+                        style={{ color: '#f2665e' }}
+                        className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"
+                        onMouseEnter={(e) => e.target.style.color = '#e1574f'}
                         onMouseLeave={(e) => e.target.style.color = '#f2665e'}
                     >
-                        Login
-                    </Link>
+                        התחבר
+                    </a>
                 </div>
             </div>
         </div>
