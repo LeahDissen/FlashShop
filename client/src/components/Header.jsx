@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
+import { Link } from "react-router-dom";
 
 export default function Header() {
     const adminControls = useAdminControl({ logo: null }, "header");
@@ -28,23 +29,27 @@ export default function Header() {
 
     const ViewContent = (
         <div className="flex items-center justify-start h-full">
-            <img
-                src={draft.logo}
-                alt="Flash Logo"
-                className="h-14 w-auto object-contain transition-all hover:opacity-90"
-            />
+            <Link to="/">
+                <img
+                    src={draft.logo}
+                    alt="Flash Logo"
+                    className="h-14 w-auto object-contain transition-all hover:opacity-90"
+                />
+            </Link>
         </div>
     );
 
     return (
         <div className="h-full flex items-center relative min-w-[200px]">
-            <AdminControls
-                editMode={editMode}
-                previewContent={EditContent}
-                adminControls={adminControls}
-            >
-                {ViewContent}
-            </AdminControls>
+            <div className={editMode ? "absolute top-0 right-0 z-50 min-w-[350px]" : "w-full"}>
+                <AdminControls
+                    editMode={editMode}
+                    previewContent={EditContent}
+                    adminControls={adminControls}
+                >
+                    {ViewContent}
+                </AdminControls>
+            </div>
         </div>
     );
 }
