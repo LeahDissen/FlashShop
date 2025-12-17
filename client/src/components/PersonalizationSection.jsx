@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { SparklesIcon } from './icons';
 import { getProducts } from '../api/products';
 
-// Define your categories here
-const CATEGORIES = ["הכל", "בגדים", "לבית", "מתנות", "הדפסות"];
-
 const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
     const [products, setProducts] = useState([]);
+    // 1. Initialize categories state with just "All" (Hebrew: הכל)
+    const [categories, setCategories] = useState(["הכל"]);
     const [activeCategory, setActiveCategory] = useState("הכל");
     const [loading, setLoading] = useState(true);
 
@@ -15,6 +14,14 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
             try {
                 const data = await getProducts();
                 setProducts(data);
+
+                // 2. Dynamically extract unique categories from the fetched products
+                // We filter out any empty categories just in case
+                const uniqueCategories = [...new Set(data.map(p => p.category).filter(c => c))];
+                
+                // 3. Update the categories list (Starting with "הכל")
+                setCategories(["הכל", ...uniqueCategories]);
+
             } catch (error) {
                 console.error("Failed to load products", error);
             } finally {
@@ -24,19 +31,15 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         fetchProducts();
     }, []);
 
-    // 1. Logic to filter products based on the active category
+    // Filter logic based on the active dynamic category
     const filteredProducts = products.filter(product => {
         if (activeCategory === "הכל") return true;
-        // Ensure 'product.category' matches your database field name
         return product.category === activeCategory; 
     });
 
-    // 2. The Fix: Handle Category Change
     const handleCategoryChange = (category) => {
         setActiveCategory(category);
-        // This clears the selection immediately when the user switches tabs
-        // ensuring the button becomes "invalid" (disabled) until a new selection is made.
-        onSelectProduct(null); 
+        onSelectProduct(null); // Clear selection when switching categories
     };
 
     const handleStartDesigning = () => {
@@ -51,9 +54,9 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                 <h2 className="text-3xl font-bold text-[#f2665e] mb-4">{content.sectionTitle}</h2>
                 <p className="text-gray-600 mb-8 max-w-2xl mx-auto">{content.sectionDescription}</p>
 
-                {/* Category Filter Bar */}
+                {/* 4. Render Dynamic Categories */}
                 <div className="flex flex-wrap justify-center gap-6 mb-10 text-sm font-medium text-gray-500">
-                    {CATEGORIES.map((cat) => (
+                    {categories.map((cat) => (
                         <button
                             key={cat}
                             onClick={() => handleCategoryChange(cat)}
@@ -68,7 +71,6 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     ))}
                 </div>
 
-                {/* Product Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
                     {filteredProducts.map(product => (
                         <div
@@ -81,15 +83,13 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                                 }`}
                         >
                             <div className="h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
-                                <img src={product.image} alt={product.hebrew} className="w-full h-full object-cover" />
+                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                             </div>
                             
-                            {/* Card Content (Name + Price) */}
                             <div className={`p-3 flex flex-col items-center gap-1 ${selectedProduct === product.name ? 'bg-red-50' : 'bg-white'}`}>
                                 <h3 className={`font-bold text-sm md:text-base ${selectedProduct === product.name ? 'text-[#f2665e]' : 'text-gray-800'}`}>
-                                    {product.hebrew}
+                                    {product.name} 
                                 </h3>
-                                {/* Display Price if available */}
                                 {product.price && (
                                     <span className="text-gray-500 text-xs">
                                         ₪{product.price.toFixed(2)}
@@ -100,7 +100,6 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     ))}
                 </div>
 
-                {/* Action Button */}
                 <button
                     onClick={handleStartDesigning}
                     disabled={!selectedProduct}
