@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { FaShoppingCart, FaUser, FaDownload, FaSignOutAlt } from 'react-icons/fa';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
-import { useCartStore } from '../store/cartStore'; // Import Store
-import MiniCart from './miniCart'; // Import MiniCart
+import { useCartStore } from '../store/cartStore';
+import MiniCart from './miniCart';
 
 export default function NavBar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isCartOpen, setIsCartOpen] = useState(false); // Cart Open State
+    const [isCartOpen, setIsCartOpen] = useState(false);
     
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -36,8 +36,6 @@ export default function NavBar() {
 
     return (
         <nav className="w-full h-full flex items-center justify-between pl-4" aria-label="תפריט ראשי">
-
-            {/* אזור הקישורים (סדר הפוך: מוצרים מימין, קטלוג משמאל) */}
             <ul className="flex items-center gap-4 text-base" dir="rtl">
                 {isAdmin &&
                     <li>
@@ -64,8 +62,6 @@ export default function NavBar() {
 
             {/* אזור האייקונים */}
             <div className="flex items-center gap-5">
-
-                {/* Cart Icon Section */}
                 <div className="relative" ref={cartRef}>
                     <button 
                         onClick={() => setIsCartOpen(!isCartOpen)}
