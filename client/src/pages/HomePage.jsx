@@ -240,7 +240,6 @@ export default function HomePage() {
 
                 </div>
             </section>
-
             {/* ================= STORY SECTION ================= */}
             <section className="w-full pt-4 pb-10 px-6 bg-white relative z-10">
                 <div className="max-w-3xl mx-auto text-center">
