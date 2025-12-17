@@ -146,11 +146,8 @@ export default function HomePage() {
             {/* ================= HERO & PRODUCTS SECTION ================= */}
             <section className="relative w-full overflow-hidden bg-white pb-10">
                 <div className="relative z-10 w-full">
-
-                    {/* MAIN FLEX CONTAINER */}
                     <div className="flex items-start justify-between">
-
-                        {/* 1. COLUMN RIGHT: Image & Red Wave */}
+                        {/* RIGHT: Image & Red Wave */}
                         {draft.mainImg && (
                             <div className="relative" style={{ width: '32%', flexShrink: 0, minHeight: '500px' }}>
                                 <svg width="0" height="0" style={{ position: 'absolute' }}>
@@ -190,7 +187,7 @@ export default function HomePage() {
                             </div>
                         )}
 
-                        {/* 2. COLUMN LEFT: Text + Products Grid */}
+                        {/*  LEFT: Text + Products Grid */}
                         <div className="flex-1 flex flex-col pr-20 pt-10 pl-10 relative z-30">
                             <div className="text-right mb-8">
                                 <h1
@@ -279,7 +276,6 @@ export default function HomePage() {
             </div>
 
             {/* ================= TIPS SECTION (Fixed Design) ================= */}
-            {/* רקע ממש בהיר של אדום/ורוד כפי שביקשת (#fff0f0) */}
             <section className="w-full py-12 px-6" style={{ backgroundColor: '#fda49e' }}>
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
@@ -290,10 +286,8 @@ export default function HomePage() {
                                     to={`/tips/tip_page`}
                                     key={tip._id}
                                     onClick={() => setCurrentTip(tip)}
-                                    // Flex כדי שיהיה תמונה בצד אחד וטקסט בצד שני
                                     className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-all overflow-hidden flex h-48 sm:h-40 cursor-pointer"
                                 >
-                                    {/* תמונה בצד ימין (ראשונה בקוד ב-RTL) */}
                                     <div className="w-1/3 h-full relative shrink-0">
                                          <img
                                             src={tip.img}
@@ -301,14 +295,12 @@ export default function HomePage() {
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
-
-                                    {/* טקסט בצד שמאל */}
                                     <div className="w-2/3 p-5 text-right flex flex-col justify-center">
                                         <h4 
                                             className="text-lg font-bold mb-2 line-clamp-1" 
                                             style={{ color: '#ff5555' }}
                                         >
-                                            {tip.title}
+                                            {tip.title ? tip.title.split(":")[0].trim() : ""}
                                         </h4>
                                         <p className="text-black text-sm leading-relaxed line-clamp-3 md:line-clamp-4">
                                             {truncateText(tip.summary || tip.content, 90)}
