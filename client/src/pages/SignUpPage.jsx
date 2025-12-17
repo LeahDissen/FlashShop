@@ -297,7 +297,7 @@ export default function SignUpPage() {
                 <div className="text-center text-sm text-gray-500 font-sans">
                     כבר יש לך חשבון?{' '}
                     <a
-                        href="#login"
+                        href="/login"
                         // Force pink color and handle hover
                         style={{ color: '#f2665e' }}
                         className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"
