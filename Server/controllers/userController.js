@@ -33,10 +33,11 @@ exports.signup = async (req, res, next) => {
   }
 };
 //'/login'
+// Server/controllers/userController.js
+
 exports.login = async (req, res, next) => {
   let validBody = validateLogin(req.body);
   if (validBody.error) {
-    console.log(validBody.error.details);
     return res.status(400).json(validBody.error.details);
   }
   try {
@@ -45,11 +46,19 @@ exports.login = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ msg: "User or password not match" });
     }
+
+    if (!user.password) {
+      return res.status(401).json({ 
+        msg: "User not found with password. Did you sign up with Google?" 
+      });
+    }
+
     let passOk = await bcrypt.compare(req.body.password, user.password);
     if (!passOk) {
       return res.status(401).json({ msg: "User or password not match" });
     }
-    let token = createToken(user._id,user.role);
+    
+    let token = createToken(user._id, user.role); 
     res.json({ token });
   } catch (err) {
     console.log(err);
