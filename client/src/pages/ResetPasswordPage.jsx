@@ -1,4 +1,76 @@
 import React, { useState } from 'react';
+import { resetPassword } from '../api/auth';
+import { useNavigate } from 'react-router-dom';
+export default function ResetPasswordPage() {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const Navigate = useNavigate()
+
+  const getParamsFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      token: params.get('token'),
+      userId: params.get('id') 
+    };
+  };
+  const handleResetPassword = () => {
+    setError('');
+
+    if (!newPassword || !confirmPassword) {
+      setError('Both fields are required');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    const { token, userId } = getParamsFromUrl(); // 2. UPDATE: Get both
+
+    if (!token || !userId) {
+      setError('Invalid or missing reset token/ID');
+      return;
+    }
+
+    resetPassword(userId, token, newPassword)
+      .then(() => {
+        setResetSuccess(true);
+        setTimeout(() => {
+          Navigate('/login');
+        }, 3000);
+      })
+      .catch((err) => {
+        setError(err.response?.data?.msg || 'Failed to reset password.');
+      });
+
+  };
+
+  const getPasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: '', color: '' };
+
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (password.length >= 12) strength++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+    if (strength <= 2) return { strength: 33, label: 'Weak', color: '#ef4444' };
+    if (strength <= 3) return { strength: 66, label: 'Medium', color: '#f59e0b' };
+    return { strength: 100, label: 'Strong', color: '#10b981' };
+  };
+
+  const passwordStrength = getPasswordStrength(newPassword);
+
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../api/auth';
 
