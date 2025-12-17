@@ -22,6 +22,7 @@ exports.auth = (req, res, next) => {
 exports.authAdmin = (req, res, next) => {
     let token = req.cookies.authToken || req.header("x-api-key");
     if (!token) {
+       
         return res.status(401).json({ msg: "You must send token" });
     }
     try {

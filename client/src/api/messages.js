@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/messages";
+const API_URL = "http://localhost:5000/contact";
 
 // שליחת הודעה (מהפוטר)
 export const sendMessageRequest = async (msgData) => {
