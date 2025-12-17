@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { signIn } from '../api/auth';
+import { googleLoginAPI, signIn } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,15 +15,15 @@ export default function LoginPage() {
     const newErrors = {};
 
     if (!email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'מייל הוא שדה חובה';
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
+      newErrors.email = 'כתובת מייל אינה תקינה';
     }
 
     if (!password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = 'סיסמה הוא שדה חובה';
     } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = 'סיסמה חייבת להכיל לפחות 6 תווים';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -33,277 +34,138 @@ export default function LoginPage() {
     setErrors({});
     signIn(email, password)
       .then((response) => {
-        // Save admin status in localStorage - need to fix that
+        localStorage.setItem("token", response.data.token);
         localStorage.setItem('admin', false);
         Navigate('/about');
       })
       .catch((error) => {
-        alert('Login failed. Please check your credentials and try again.');
+        alert('הכניסה נכשלה. אנא בדוק את הפרטים ונסה שוב.');
       });
   };
 
-  const handleSocialLogin = (provider) => {
-    alert(`${provider} login coming soon!`);
-  };
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const response = await googleLoginAPI(tokenResponse.access_token);
+        localStorage.setItem("token", response.data.token);
+        Navigate('/about');
+      } catch (error) {
+        console.error("Google Login Error:", error);
+        alert(error.response?.data?.msg || 'הכניסה נכשלה. אנא בדוק את הפרטים ונסה שוב.');
+      }
+    },
+    onError: () => {
+      alert("הכניסה נכשלה. אנא בדוק את הפרטים ונסה שוב.");
+    }
+  });
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-    }}>
-      <style>{`
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
+    <div className="min-h-screen flex items-center justify-center p-5 bg-gradient-to-br from-[#f2665e] to-[#e1574f]">
+      <div className="bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] p-10 w-full max-w-md animate-[slideUp_0.5s_ease-out]">
+        
+        <style>{`
+          @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
           }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.5s ease-out;
-        }
-        .gradient-text {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-      `}</style>
+        `}</style>
 
-      <div className="animate-slide-up" style={{
-        backgroundColor: 'white',
-        borderRadius: '24px',
-        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-        padding: '48px 40px',
-        width: '100%',
-        maxWidth: '440px'
-      }}>
         {/* Logo Section */}
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 className="gradient-text" style={{
-            fontSize: '36px',
-            fontWeight: 700,
-            marginBottom: '8px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-          }}>
-            Welcome Back
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold mb-2 font-sans bg-clip-text text-transparent bg-gradient-to-br from-[#f2665e] to-[#e1574f]">
+            ברוכים הבאים
           </h1>
-          <p style={{
-            color: '#666',
-            fontSize: '14px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-          }}>
-            Please login to your account
+          <p className="text-gray-500 text-sm font-sans">
+            אנא הכנס את הפרטים שלך
           </p>
         </div>
 
         {/* Login Form */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ marginBottom: '24px' }}>
-            <label htmlFor="email" style={{
-              display: 'block',
-              marginBottom: '8px',
-              color: '#333',
-              fontWeight: 500,
-              fontSize: '14px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-            }}>
-              Email Address
+        <div className="mb-6">
+          <div className="mb-6">
+            <label 
+              htmlFor="email" 
+              className="block mb-2 text-gray-800 font-medium text-sm font-sans text-right"
+            >
+              כתובת מייל
             </label>
             <input
               type="email"
               id="email"
+              dir="ltr"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              style={{
-                width: '100%',
-                padding: '14px 16px',
-                border: errors.email ? '2px solid #ef4444' : '2px solid #e5e7eb',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                outline: 'none',
-                transition: 'all 0.3s ease',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => {
-                if (!errors.email) {
-                  e.target.style.borderColor = '#667eea';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
-                }
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = errors.email ? '#ef4444' : '#e5e7eb';
-                e.target.style.boxShadow = 'none';
-              }}
+              className={`w-full p-3.5 border-2 rounded-xl text-[15px] font-sans outline-none transition-all duration-300 text-right
+                ${errors.email ? 'border-red-500' : 'border-gray-200'}
+                focus:border-[#f2665e] focus:shadow-[0_0_0_4px_rgba(242,102,94,0.1)]`}
             />
             {errors.email && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '12px',
-                marginTop: '4px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-              }}>
+              <p className="text-red-500 text-xs mt-1 font-sans text-right">
                 {errors.email}
               </p>
             )}
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="password" style={{
-              display: 'block',
-              marginBottom: '8px',
-              color: '#333',
-              fontWeight: 500,
-              fontSize: '14px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-            }}>
-              Password
+          <div className="mb-4">
+            <label 
+              htmlFor="password" 
+              className="block mb-2 text-gray-800 font-medium text-sm font-sans text-right"
+            >
+              סיסמה
             </label>
             <input
               type="password"
               id="password"
+              dir="rtl"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              style={{
-                width: '100%',
-                padding: '14px 16px',
-                border: errors.password ? '2px solid #ef4444' : '2px solid #e5e7eb',
-                borderRadius: '12px',
-                fontSize: '15px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                outline: 'none',
-                transition: 'all 0.3s ease',
-                boxSizing: 'border-box'
-              }}
-              onFocus={(e) => {
-                if (!errors.password) {
-                  e.target.style.borderColor = '#667eea';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(102, 126, 234, 0.1)';
-                }
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = errors.password ? '#ef4444' : '#e5e7eb';
-                e.target.style.boxShadow = 'none';
-              }}
+              className={`w-full p-3.5 border-2 rounded-xl text-[15px] font-sans outline-none transition-all duration-300 text-right
+                ${errors.password ? 'border-red-500' : 'border-gray-200'}
+                focus:border-[#f2665e] focus:shadow-[0_0_0_4px_rgba(242,102,94,0.1)]`}
             />
             {errors.password && (
-              <p style={{
-                color: '#ef4444',
-                fontSize: '12px',
-                marginTop: '4px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-              }}>
+              <p className="text-red-500 text-xs mt-1 font-sans text-right">
                 {errors.password}
               </p>
             )}
           </div>
 
-          <div style={{ textAlign: 'right', marginBottom: '24px' }}>
+          <div className="text-right mb-6">
             <a
               href="#forgot"
-              style={{
-                color: '#667eea',
-                textDecoration: 'none',
-                fontSize: '13px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-                transition: 'color 0.3s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.color = '#764ba2'}
-              onMouseLeave={(e) => e.target.style.color = '#667eea'}
+              // Force pink color with style prop to override global CSS
+              style={{ color: '#f2665e' }}
+              className="!text-[#f2665e] text-[13px] font-sans transition-colors duration-300 hover:!text-[#e1574f]"
+              onMouseEnter={(e) => e.target.style.color = '#e1574f'}
+              onMouseLeave={(e) => e.target.style.color = '#f2665e'}
             >
-              Forgot Password?
+              שכחת סיסמה ?
             </a>
           </div>
 
           <button
             onClick={handleSubmit}
-            style={{
-              width: '100%',
-              padding: '16px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontWeight: 600,
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
-            }}
+            className="w-full p-4 bg-gradient-to-br from-[#f2665e] to-[#e1574f] text-white border-none rounded-xl text-base font-semibold font-sans cursor-pointer shadow-[0_4px_15px_rgba(242,102,94,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(242,102,94,0.5)]"
           >
-            Login
+            התחבר
           </button>
         </div>
 
         {/* Divider */}
-        <div style={{ position: 'relative', margin: '32px 0', textAlign: 'center' }}>
-          <div style={{
-            position: 'absolute',
-            left: 0,
-            top: '50%',
-            width: '100%',
-            height: '1px',
-            backgroundColor: '#e5e7eb'
-          }}></div>
-          <span style={{
-            backgroundColor: 'white',
-            padding: '0 16px',
-            color: '#999',
-            fontSize: '13px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            position: 'relative'
-          }}>
-            OR
+        <div className="relative my-8 text-center">
+          <div className="absolute left-0 top-1/2 w-full h-px bg-gray-200"></div>
+          <span className="relative bg-white px-4 text-gray-400 text-[13px] font-sans">
+            או
           </span>
         </div>
 
         {/* Social Login */}
-        <div style={{ marginBottom: '32px' }}>
+        <div className="mb-8">
           <button
-            onClick={() => handleSocialLogin('Google')}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '12px',
-              border: '2px solid #e5e7eb',
-              borderRadius: '12px',
-              backgroundColor: 'white',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: 500,
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#667eea';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#e5e7eb';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            onClick={() => loginWithGoogle()}
+            className="w-full flex items-center justify-center gap-2 p-3 border-2 border-gray-200 rounded-xl bg-white cursor-pointer text-sm font-medium font-sans transition-all duration-300 hover:border-[#f2665e] hover:-translate-y-0.5"
           >
             <svg width="18" height="18" viewBox="0 0 18 18">
               <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
@@ -311,30 +173,22 @@ export default function LoginPage() {
               <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
               <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" />
             </svg>
-            <span>Continue with Google</span>
+            <span>התחבר עם Google</span>
           </button>
         </div>
 
         {/* Sign Up Link */}
-        <div style={{
-          textAlign: 'center',
-          fontSize: '14px',
-          color: '#666',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-        }}>
-          Don't have an account?{' '}
+        <div className="text-center text-sm text-gray-500 font-sans">
+          אין לך חשבון?{' '}
           <a
             href="#signup"
-            style={{
-              color: '#667eea',
-              textDecoration: 'none',
-              fontWeight: 600,
-              transition: 'color 0.3s ease'
-            }}
-            onMouseEnter={(e) => e.target.style.color = '#764ba2'}
-            onMouseLeave={(e) => e.target.style.color = '#667eea'}
+            // Force pink color with style prop to override global CSS
+            style={{ color: '#f2665e' }}
+            className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"
+            onMouseEnter={(e) => e.target.style.color = '#e1574f'}
+            onMouseLeave={(e) => e.target.style.color = '#f2665e'}
           >
-            Sign up
+            הרשם
           </a>
         </div>
       </div>

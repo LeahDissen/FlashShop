@@ -49,7 +49,7 @@ exports.login = async (req, res, next) => {
     if (!passOk) {
       return res.status(401).json({ msg: "User or password not match" });
     }
-    let token = createToken(user._id);
+    let token = createToken(user._id,user.role);
     res.json({ token });
   } catch (err) {
     console.log(err);
@@ -163,29 +163,29 @@ exports.googleLogin = async (req, res) => {
     const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
       headers: { Authorization: `Bearer ${access_token}` }
     });
+    
     const { email, name, sub: googleId } = googleResponse.data;
-    console.log(googleResponse.data);
 
+    let user = await UserModel.findOne({ email: email });
 
-
-
-    let user = new UserModel({
+    if (user) {
+      const token = createToken(user._id, user.role); 
+      return res.json({ token, user });
+    }
+    user = new UserModel({
       name: name,
       email: email,
+      role: "user" 
     });
     
     await user.save();
-    const token = createToken(user._id);
+    
+    const token = createToken(user._id, user.role);
     res.json({ token, user });
 
   } catch (err) {
-    if (err.code == 11000) {
-      console.log("Email already in system, try to log in");
-      return res.status(500).json({ msg: "Email already in system, try to log in", code: 11000 })
-    }
-
     console.error("Google Auth Error:", err);
-    res.status(401).json({ msg: "Google authentication failed" });
+    res.status(401).json({ msg: "Google authentication failed", err });
   }
 };
 //'/myInfo'
