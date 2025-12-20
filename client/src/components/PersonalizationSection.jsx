@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // 1. הוספת ייבוא
 import { SparklesIcon } from './icons';
 import { getProducts } from '../api/products';
 
 const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
+    const navigate = useNavigate(); // 2. שימוש ב-hook
     const [products, setProducts] = useState([]);
-    // 1. Initialize categories state with just "All" (Hebrew: הכל)
     const [categories, setCategories] = useState(["הכל"]);
     const [activeCategory, setActiveCategory] = useState("הכל");
     const [loading, setLoading] = useState(true);
@@ -15,11 +16,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                 const data = await getProducts();
                 setProducts(data);
 
-                // 2. Dynamically extract unique categories from the fetched products
-                // We filter out any empty categories just in case
                 const uniqueCategories = [...new Set(data.map(p => p.category).filter(c => c))];
-                
-                // 3. Update the categories list (Starting with "הכל")
                 setCategories(["הכל", ...uniqueCategories]);
 
             } catch (error) {
@@ -31,7 +28,6 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         fetchProducts();
     }, []);
 
-    // Filter logic based on the active dynamic category
     const filteredProducts = products.filter(product => {
         if (activeCategory === "הכל") return true;
         return product.category === activeCategory; 
@@ -39,13 +35,12 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
 
     const handleCategoryChange = (category) => {
         setActiveCategory(category);
-        onSelectProduct(null); // Clear selection when switching categories
     };
 
-    const handleStartDesigning = () => {
-        if (selectedProduct) {
-            onNavigateToEditor();
-        }
+    // 3. פונקציה חדשה לטיפול בלחיצה על מוצר
+    const handleProductClick = (product) => {
+        // ניווט לעמוד הביניים עם העברת אובייקט המוצר
+        navigate(`/product-selection/${product._id}`, { state: { product } });
     };
 
     return (
@@ -54,7 +49,6 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                 <h2 className="text-3xl font-bold text-[#f2665e] mb-4">{content.sectionTitle}</h2>
                 <p className="text-gray-600 mb-8 max-w-2xl mx-auto">{content.sectionDescription}</p>
 
-                {/* 4. Render Dynamic Categories */}
                 <div className="flex flex-wrap justify-center gap-6 mb-10 text-sm font-medium text-gray-500">
                     {categories.map((cat) => (
                         <button
@@ -75,19 +69,16 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     {filteredProducts.map(product => (
                         <div
                             key={product._id || product.name}
-                            onClick={() => onSelectProduct(product.name)}
-                            className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white
-                                ${selectedProduct === product.name 
-                                    ? 'border-red-400 ring-4 ring-red-100 shadow-xl' 
-                                    : 'border-transparent shadow-md hover:shadow-xl'
-                                }`}
+                            // 4. שינוי ה-onClick כאן לניווט ישיר
+                            onClick={() => handleProductClick(product)}
+                            className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white border-transparent shadow-md hover:shadow-xl hover:border-red-300`}
                         >
                             <div className="h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
                                 <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                             </div>
                             
-                            <div className={`p-3 flex flex-col items-center gap-1 ${selectedProduct === product.name ? 'bg-red-50' : 'bg-white'}`}>
-                                <h3 className={`font-bold text-sm md:text-base ${selectedProduct === product.name ? 'text-[#f2665e]' : 'text-gray-800'}`}>
+                            <div className="p-3 flex flex-col items-center gap-1 bg-white">
+                                <h3 className="font-bold text-sm md:text-base text-gray-800">
                                     {product.name} 
                                 </h3>
                                 {product.price && (
@@ -100,17 +91,14 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     ))}
                 </div>
 
-                <button
-                    onClick={handleStartDesigning}
+                {/* הכפתור הישן הוסתר כי הלחיצה על המוצר עצמו מעבירה הלאה */}
+                {/* <button
                     disabled={!selectedProduct}
-                    className="bg-red-400 text-white font-bold py-4 px-12 rounded-full hover:bg-red-500 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed shadow-lg text-xl flex items-center justify-center mx-auto transform hover:scale-105 disabled:hover:scale-100 disabled:shadow-none"
+                    className="..."
                 >
                     <SparklesIcon className="w-6 h-6 ml-2" /> {content.buttonText}
-                </button>
-                
-                {!selectedProduct && (
-                    <p className="text-sm text-gray-500 mt-3">{content.msg}</p>
-                )}
+                </button> 
+                */}
             </div>
         </section>
     );

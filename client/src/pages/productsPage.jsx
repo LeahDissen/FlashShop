@@ -93,7 +93,6 @@ const ProductsPage = ({ onNavigate }) => {
             </div>
 
             <div className="pt-8 min-h-[60vh]">
-                {/* העברת המידע (draft) כ-prop לרכיב הבן */}
                 <PersonalizationSection
                     onNavigateToEditor={() => onNavigate('/editor')}
                     onSelectProduct={setSelectedProduct}
