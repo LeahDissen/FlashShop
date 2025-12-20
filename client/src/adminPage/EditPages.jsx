@@ -1,8 +1,8 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FaHome, FaLightbulb, FaScroll, FaGift, FaWindowMaximize, FaWindowMinimize, FaMagic, FaCamera, FaTags, FaShoppingCart } from 'react-icons/fa';
+import { FaCamera, FaGift, FaHome, FaLightbulb, FaMagic, FaScroll, FaShoppingCart, FaTags, FaWindowMaximize, FaWindowMinimize } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
-import useAuthStore from '../store/authStore';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useAppStore from '../store/appStore';
+import useAuthStore from '../store/authStore';
 
 export default function EditPages() {
     const isAdmin = useAuthStore(state => state.isAdmin());

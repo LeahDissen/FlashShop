@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
+import { FaClock, FaEnvelope, FaMapMarkerAlt, FaPhoneAlt } from "react-icons/fa";
+import { sendMessageRequest } from "../api/messages";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
-import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaClock } from "react-icons/fa";
-import { sendMessageRequest } from "../api/messages";
 
 export default function Footer() {
     const adminControls = useAdminControl(

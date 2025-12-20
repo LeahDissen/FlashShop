@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAllTips, updateTip } from '../api/tips.js';
-import { useTipsStore } from "../store/tipsStore.js";
 import useAuthStore from '../store/authStore.js';
+import { useTipsStore } from "../store/tipsStore.js";
 
 export default function BlogPage() {
     const isAdmin = useAuthStore(state => state.isAdmin());

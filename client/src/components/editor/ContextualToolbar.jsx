@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { 
-    BoldIcon, ItalicIcon, UnderlineIcon, 
-    AlignLeftIcon, AlignCenterIcon, AlignRightIcon, 
-    CropIcon, DuplicateIcon, TrashIcon,
-    BringForwardIcon, SendBackwardIcon,
-    FlipHorizontalIcon, FlipVerticalIcon,
-    SunIcon, PlusIcon, NoColorIcon
+    AlignCenterIcon, AlignLeftIcon, AlignRightIcon, 
+    BoldIcon, BringForwardIcon, CropIcon, 
+    DuplicateIcon, FlipHorizontalIcon, FlipVerticalIcon,
+    ItalicIcon, NoColorIcon, PlusIcon, 
+    SendBackwardIcon, SunIcon, TrashIcon, UnderlineIcon 
 } from '../icons';
 
 const NumericStepper = ({ value, onChange, min = 0, max = 200, step = 1, label }) => {

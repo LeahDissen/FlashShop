@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { googleLoginAPI, signIn } from '../api/auth';
 import { useGoogleLogin } from '@react-oauth/google';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { googleLoginAPI, signIn } from '../api/auth';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 

@@ -1,7 +1,7 @@
+import Club from "./Club";
+import Footer from "./Footer";
 import Header from "./Header";
 import NavBar from "./NavBar";
-import Footer from "./Footer";
-import Club from "./Club";
 import Terms from "./Terms";
 
 export default function Layout({ children }) {

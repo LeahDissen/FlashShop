@@ -1,6 +1,6 @@
+const crypto = require("crypto");
 const { ClubModel } = require("../models/clubModel");
 const { CouponModel } = require("../models/couponModel");
-const crypto = require("crypto");
 const { sendEmail } = require("../utils/sendEmail");
 
 const generateGiftCode = () => {

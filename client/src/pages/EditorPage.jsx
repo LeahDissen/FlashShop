@@ -1,13 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import EditorHeader from '../components/editor/EditorHeader';
-import Canvas from '../components/editor/Canvas.jsx';
-import EditorFooter from '../components/editor/EditorFooter';
-import ContextualToolbar from '../components/editor/ContextualToolbar';
 import { toPng } from 'html-to-image';
-import { generatePersonalizedProduct } from '../services/geminiService';
-import { XIcon, SparklesIcon, TrashIcon, ClockIcon } from '../components/icons';
-import { db } from '../services/databaseService';
+import { useState, useCallback } from 'react';
+import Canvas from '../components/editor/Canvas.jsx';
+import ContextualToolbar from '../components/editor/ContextualToolbar';
+import EditorFooter from '../components/editor/EditorFooter';
+import EditorHeader from '../components/editor/EditorHeader';
 import EditorSidebar from '../components/editor/EditorSideBar.jsx';
+import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
+import { db } from '../services/databaseService';
+import { generatePersonalizedProduct } from '../services/geminiService';
 import { useProductStore } from '../store/productStore';
 
 const initialElements = [

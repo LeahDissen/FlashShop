@@ -6,8 +6,8 @@ import os
 import requests
 import re
 from PIL import Image, ImageOps
+API_KEY = os.environ.get("GEMINI_API_KEY")
 
-API_KEY = os.environ.get("GEMINI_API_KEY") 
 if not API_KEY:
     sys.stderr.write("Error: GEMINI_API_KEY is missing.\n")
     sys.exit(1)

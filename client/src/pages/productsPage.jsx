@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import PersonalizationSection from '../components/PersonalizationSection';
-import { useProductStore } from '../store/productStore';
-import AdminControls from '../components/AdminControls';
-import { useAdminControl } from '../hooks/useAdminControl';
 import { getPage } from '../api/pages';
+import AdminControls from '../components/AdminControls';
+import PersonalizationSection from '../components/PersonalizationSection';
+import { useAdminControl } from '../hooks/useAdminControl';
+import { useProductStore } from '../store/productStore';
 
 
 const ProductsPage = ({ onNavigate }) => {

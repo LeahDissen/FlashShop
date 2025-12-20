@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FaCloudUploadAlt, FaFilePdf, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaCloudUploadAlt, FaExclamationCircle, FaFilePdf } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
+import { Link } from 'react-router-dom';
 import { uploadCatalog } from '../api/admin';
 
 export default function UpdateCatalog() {

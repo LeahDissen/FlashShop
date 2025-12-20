@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
-import AdminControls from "../components/AdminControls.jsx";
-import { useAdminControl } from "../hooks/useAdminControl.jsx";
 import { Link } from "react-router-dom";
-import { useTipsStore } from "../store/tipsStore.js";
-import useAuthStore from "../store/authStore.js";
 import { getPage } from '../api/pages';
 import { getAllTips, createTip } from '../api/tips';
+import AdminControls from "../components/AdminControls.jsx";
+import { useAdminControl } from "../hooks/useAdminControl.jsx";
+import useAuthStore from "../store/authStore.js";
+import { useTipsStore } from "../store/tipsStore.js";
 
 export default function TipsPage() {
     const isAdmin = useAuthStore(state => state.isAdmin());

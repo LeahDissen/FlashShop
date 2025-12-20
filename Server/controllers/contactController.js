@@ -1,6 +1,7 @@
 const { sendEmail } = require('../utils/sendEmail');
 const { config } = require('../config/secret');
 const { ContactModel } = require('../models/contactModel'); 
+
 exports.receiveContact = async (req, res) => {
   try {
     const { name, email, message } = req.body;

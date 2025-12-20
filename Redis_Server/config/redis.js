@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { Redis } from "@upstash/redis";
+
 config();
 
 const redis = new Redis({

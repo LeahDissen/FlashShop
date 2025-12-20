@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { getAllMessages, deleteMessageRequest } from "../api/messages";
-import { FaTrash, FaEnvelope, FaUser, FaClock, FaReply } from "react-icons/fa";
+import { FaClock, FaEnvelope, FaReply, FaTrash, FaUser } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 export default function ViewMessages() {
     const [messages, setMessages] = useState([]);

@@ -1,9 +1,8 @@
+import { useGoogleLogin } from '@react-oauth/google';
 import { useState } from 'react';
-import { signUp, googleLoginAPI } from '../api/auth'; 
-import { useGoogleLogin } from '@react-oauth/google'; 
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { googleLoginAPI, signUp } from '../api/auth';
 import { joinClubRequest } from '../api/club';
-
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({

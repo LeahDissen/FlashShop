@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import { FaBox, FaCheckCircle, FaClock, FaTruck, FaUserCircle } from 'react-icons/fa';
 import { fetchUserInfo } from '../api/auth';
 import { getUserOrders } from '../api/orders';
 import useAuthStore from '../store/authStore';
-import { FaUserCircle, FaBox, FaClock, FaCheckCircle, FaTruck } from 'react-icons/fa';
 
 export default function ProfilePage() {
     const [userInfo, setUserInfo] = useState(null);
