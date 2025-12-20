@@ -34,7 +34,7 @@ const getCursorForHandle = (handle, rotation) => {
   if (totalAngle >= 247.5 && totalAngle < 292.5) return 'ns-resize';
   if (totalAngle >= 292.5 && totalAngle < 337.5) return 'nwse-resize';
 
-  return 'default'; // fallback
+  return 'default';
 };
 
 const Canvas = ({ 
@@ -101,19 +101,13 @@ const Canvas = ({
     }
   }, [croppingElementId]);
 
-  // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Skip if editing text inside the canvas
       if (editingElementId) return;
-
-      // Skip if interacting with form inputs outside canvas
       const target = e.target;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
-
-      // Escape to deselect
       if (e.key === 'Escape') {
         if (croppingElementId) {
           onCancelCrop();
@@ -125,16 +119,12 @@ const Canvas = ({
 
       const currentSelectedElement = elements.find(el => el.id === selectedElementId);
       if (!selectedElementId || !currentSelectedElement || croppingElementId) return;
-
-      // Delete / Backspace
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!currentSelectedElement.locked) {
           onDelete();
         }
         return;
       }
-
-      // Duplicate (Ctrl+D / Cmd+D)
       if ((e.key === 'd' || e.key === 'D') && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         if (!currentSelectedElement.locked) {
@@ -142,13 +132,11 @@ const Canvas = ({
         }
         return;
       }
-
-      // Arrow Movement
       if (currentSelectedElement.locked) return;
 
       let dx = 0;
       let dy = 0;
-      const step = e.shiftKey ? 10 : 1; // Shift for faster movement
+      const step = e.shiftKey ? 10 : 1;
 
       if (e.key === 'ArrowLeft') dx = -step;
       if (e.key === 'ArrowRight') dx = step;
@@ -167,13 +155,10 @@ const Canvas = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [elements, selectedElementId, editingElementId, croppingElementId, updateElement, onDelete, onDuplicate, setSelectedElementId, onCancelCrop]);
-
-  // Global event listeners for Drag, Rotate, Resize
   useEffect(() => {
     if (!isInteracting) return;
 
     const handleGlobalMouseMove = (e) => {
-      // Dragging Logic
       if (dragInfo.current.isDragging && dragInfo.current.elementId) {
         const dx = (e.clientX - dragInfo.current.initialMouseX) / scale;
         const dy = (e.clientY - dragInfo.current.initialMouseY) / scale;
@@ -183,7 +168,6 @@ const Canvas = ({
 
         updateElement(dragInfo.current.elementId, { top: newTop, left: newLeft });
       }
-      // Rotation Logic
       else if (rotationInfo.current.isRotating && rotationInfo.current.elementId) {
         const { centerX, centerY, startAngle, initialRotation } = rotationInfo.current;
         const currentX = e.clientX - centerX;
@@ -193,7 +177,6 @@ const Canvas = ({
         let newRotation = initialRotation + (currentAngle - startAngle);
         updateElement(rotationInfo.current.elementId, { rotation: newRotation });
       }
-      // Resize Logic
       else if (resizeInfo.current.isResizing && resizeInfo.current.elementId) {
         const {
           elementId, handle, initialWidth, initialHeight, initialTop, initialLeft,
@@ -210,13 +193,13 @@ const Canvas = ({
 
         if (handle.includes('r')) {
           tempNewWidth += rotatedDelta.x;
-        } else { // 'l'
+        } else {
           tempNewWidth -= rotatedDelta.x;
         }
 
         if (handle.includes('b')) {
           tempNewHeight += rotatedDelta.y;
-        } else { // 't'
+        } else {
           tempNewHeight -= rotatedDelta.y;
         }
 
@@ -336,9 +319,6 @@ const Canvas = ({
     if (el.locked) return;
     e.preventDefault();
     e.stopPropagation();
-
-    // When using the ghost overlay, we need to find the ghost wrapper's bounding rect
-    // The event target is the rotation handle, parent is the ghost wrapper
     const wrapper = e.currentTarget.parentElement;
     if (!wrapper) return;
 
@@ -447,7 +427,6 @@ const Canvas = ({
 
   const gridCellSize = 350 / gridSize;
 
-  // Helper to render element content (used for both real element and selection ghost)
   const renderElementContent = (el, isGhost = false) => {
     const elIsImage = el.type === 'image';
     const elIsShape = el.type === 'shape';
@@ -461,8 +440,8 @@ const Canvas = ({
         width: '100%',
         height: '100%',
         objectFit: 'contain',
-        opacity: isGhost ? 0 : el.opacity, // Invisible if ghost
-        pointerEvents: 'none', // Images never capture pointer events directly, the wrapper does
+        opacity: isGhost ? 0 : el.opacity,
+        pointerEvents: 'none',
         transform: imageTransform,
         filter: filterStyle,
       };
@@ -519,8 +498,6 @@ const Canvas = ({
       textDecoration: textEl.underline ? 'underline' : 'none',
       direction: textEl.direction,
       padding: '0.5rem',
-      // If ghost, we want it invisible but taking up space. 
-      // pointerEvents 'none' so clicks go through to the real text below (for drag)
       cursor: isGhost ? 'default' : (el.locked ? 'not-allowed' : (isEditing ? 'text' : 'move')),
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word',
@@ -564,7 +541,7 @@ const Canvas = ({
           className="absolute left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-lg flex items-center gap-1 p-1"
           style={{
             top: '-45px',
-            pointerEvents: 'auto', // Must be auto to click buttons
+            pointerEvents: 'auto',
             zIndex: 100,
           }}
           onMouseDown={e => e.stopPropagation()}
@@ -600,7 +577,7 @@ const Canvas = ({
             position: 'absolute',
             top: 0, left: 0, right: 0, bottom: 0,
             border: `2px solid ${el.locked ? '#f87171' : '#3B82F6'}`,
-            pointerEvents: 'none', // Pass through to element below
+            pointerEvents: 'none',
           }}
         />
 
@@ -661,14 +638,13 @@ const Canvas = ({
           />
         )}
 
-        {/* 1. RENDER ELEMENTS (Content Only, Z-Index = index) */}
+        {/* RENDER ELEMENTS (Content Only, Z-Index = index) */}
         {elements.map((el, index) => {
           const isCroppingThis = el.id === croppingElementId;
           const elIsImage = el.type === 'image';
           const elIsShape = el.type === 'shape';
-
-          // Accessible label generation
           let ariaLabel = el.type;
+
           if (el.type === 'text') {
             const textContent = el.content;
             ariaLabel = `Text: ${textContent.length > 20 ? textContent.substring(0, 20) + '...' : textContent}`;
@@ -688,8 +664,6 @@ const Canvas = ({
             height: (elIsImage || elIsShape) ? `${el.height}px` : 'auto',
             transform: `rotate(${el.rotation || 0}deg)`,
             transformOrigin: 'center center',
-            // Z-index is strictly based on array order to support "Send to Back" visually
-            // Unless cropping, then it pops up
             zIndex: isCroppingThis ? 50 : index,
           };
 
@@ -706,7 +680,6 @@ const Canvas = ({
             <div
               key={el.id}
               style={outerWrapperStyle}
-              // Accessibility
               role="button"
               tabIndex={0}
               aria-label={ariaLabel}
@@ -766,7 +739,7 @@ const Canvas = ({
           )
         })}
 
-        {/* 2. SELECTION GHOST OVERLAY (Rendered ON TOP of everything) */}
+        {/* SELECTION GHOST OVERLAY (Rendered ON TOP of everything) */}
         {selectedElement && !croppingElementId && (
           <div
             style={{
@@ -777,8 +750,8 @@ const Canvas = ({
               height: (selectedElement.type === 'image' || selectedElement.type === 'shape') ? `${selectedElement.height}px` : 'auto',
               transform: `rotate(${selectedElement.rotation || 0}deg)`,
               transformOrigin: 'center center',
-              zIndex: 100, // Always on top
-              pointerEvents: 'none', // Allow clicks to pass through to real element (for dragging)
+              zIndex: 100,
+              pointerEvents: 'none',
             }}
           >
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>

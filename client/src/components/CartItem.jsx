@@ -22,7 +22,6 @@ export default function CartItem({ item, onRemove }) {
         
         <div>
             <h3 className="font-semibold text-lg text-gray-800">{item.name}</h3>
-            {/* Display the size here */}
             {item.size && (
                 <span className="text-sm text-gray-500">גודל: {item.size} ס"מ</span>
             )}

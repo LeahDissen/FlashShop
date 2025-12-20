@@ -298,7 +298,6 @@ export default function SignUpPage() {
                     כבר יש לך חשבון?{' '}
                     <a
                         href="/login"
-                        // Force pink color and handle hover
                         style={{ color: '#f2665e' }}
                         className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"
                         onMouseEnter={(e) => e.target.style.color = '#e1574f'}

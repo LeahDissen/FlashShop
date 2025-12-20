@@ -196,7 +196,7 @@ exports.googleLogin = async (req, res) => {
     res.status(401).json({ msg: "Google authentication failed", err });
   }
 };
-//'/myInfo'
+
 exports.myInfo = async (req, res) => {
   try {
     let user = await UserModel.findOne({ _id: req.tokenData._id }, { password: 0 });
@@ -207,12 +207,3 @@ exports.myInfo = async (req, res) => {
   }
 };
 
-// router.get("/usersLIst", authAdmin, async (req, res) => {
-//     try {
-//         let users = await UserModel.find({}, { password: 0 });
-//         res.json(users);
-//     } catch (err) {
-//         console.log(err);
-//         res.status(500).json({ msg: "There was an error, try again later", err });
-//     }
-// });

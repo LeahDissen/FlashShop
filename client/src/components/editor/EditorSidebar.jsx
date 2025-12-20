@@ -509,8 +509,6 @@ const EditorSidebar = ({
 
     return (
         <aside className={`bg-white shadow-lg flex flex-col transition-all duration-300 relative z-30 ${isCollapsed ? 'w-24' : 'w-96'}`}>
-
-            {/* Collapse/Expand Toggle Button - Absolute positioned relative to aside */}
             <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 className="absolute top-1/2 left-0 -translate-x-1/2 z-40 bg-white border border-gray-200 shadow-md rounded-full w-8 h-8 flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-300 transition-colors"

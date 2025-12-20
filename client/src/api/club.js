@@ -8,7 +8,6 @@ export const joinClubRequest = async (userData) => {
 };
 export const checkCouponRequest = async (code, userId) => {
     try {
-        // Pass userId as a query parameter
         const url = userId 
             ? `${API_URL}/check/${code}?userId=${userId}`
             : `${API_URL}/check/${code}`;

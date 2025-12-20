@@ -81,7 +81,6 @@ export default function ProductsManagement() {
         if(confirm("למחוק את המוצר?")) {
             try {
                 await deleteProduct(id);
-                // If we deleted the item currently being edited, reset the form
                 if (isEditing && editId === id) {
                     resetForm();
                 }

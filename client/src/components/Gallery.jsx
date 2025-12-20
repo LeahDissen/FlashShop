@@ -9,14 +9,13 @@ const Gallery = ({
     selectedImageId, 
     onSendOrder, 
     onSizeChange, 
-    availableSizes // NEW: Receive sizes from the page
+    availableSizes
 }) => {
   return (
     <section className="py-12 bg-white min-h-[400px]">
       <div className="container mx-auto px-6">
         
         {images.length === 0 ? (
-            // המצב הריק - מלבן רחב ומקווקו
             <div className="w-full py-16 border-2 border-dashed border-gray-200 rounded-2xl flex items-center justify-center bg-gray-50/50">
                 <p className="text-xl text-gray-400 font-medium">
                     לא נבחרו תמונות. אנא העלה תמונות באמצעות הכפתור למעלה.
@@ -33,13 +32,11 @@ const Gallery = ({
                     onImageSelect={onImageSelect}
                     onSizeChange={onSizeChange}
                     isSelected={image.id === selectedImageId}
-                    availableSizes={availableSizes} // NEW: Pass it down to the card
+                    availableSizes={availableSizes}
                 />
             ))}
             </div>
         )}
-        
-        {/* כפתור השליחה התחתון */}
         {images.length > 0 && (
             <div className="text-center mt-12">
                 <button 

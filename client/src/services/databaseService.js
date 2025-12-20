@@ -1,10 +1,7 @@
-
-
 const DB_NAME = 'GiftShopDB';
 const STORE_NAME = 'projects';
 const DB_VERSION = 1;
 
-// Helper to open the database
 const openDB = () => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -26,14 +23,12 @@ const openDB = () => {
   });
 };
 
-// Simulating a MongoDB-like ID generator
 const generateObjectId = () => {
   const timestamp = (new Date().getTime() / 1000 | 0).toString(16);
   return timestamp + 'xxxxxxxxxxxxxxxx'.replace(/[x]/g, () => (Math.random() * 16 | 0).toString(16)).toLowerCase();
 };
 
 export const db = {
-  // Save or Update (Upsert)
   save: async (project) => {
     const dbInstance = await openDB();
 
@@ -41,16 +36,14 @@ export const db = {
       const transaction = dbInstance.transaction(STORE_NAME, 'readwrite');
       const store = transaction.objectStore(STORE_NAME);
       const now = new Date().toISOString();
-
-      // If ID exists, try to get existing record to preserve createdAt
       if (project._id) {
         const getRequest = store.get(project._id);
 
         getRequest.onsuccess = () => {
           const existing = getRequest.result;
           const finalProject = {
-            ...existing, // Keep existing fields
-            ...project,  // Overwrite
+            ...existing,
+            ...project,
             _id: project._id,
             createdAt: existing ? existing.createdAt : now,
             updatedAt: now
@@ -63,7 +56,6 @@ export const db = {
 
         getRequest.onerror = () => reject(getRequest.error);
       } else {
-        // New record
         const finalProject = {
           ...project,
           _id: generateObjectId(),
@@ -78,7 +70,6 @@ export const db = {
     });
   },
 
-  // Get All (Find)
   findAll: async () => {
     const dbInstance = await openDB();
     return new Promise((resolve, reject) => {
@@ -88,7 +79,6 @@ export const db = {
 
       request.onsuccess = () => {
         const results = request.result;
-        // Sort client-side by updatedAt desc
         if (results) {
           results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
         }
@@ -99,7 +89,6 @@ export const db = {
     });
   },
 
-  // Find by ID
   findById: async (id) => {
     const dbInstance = await openDB();
     return new Promise((resolve, reject) => {
@@ -112,7 +101,6 @@ export const db = {
     });
   },
 
-  // Delete
   delete: async (id) => {
     const dbInstance = await openDB();
     return new Promise((resolve, reject) => {

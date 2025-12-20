@@ -59,18 +59,14 @@ const ProductsPage = ({ onNavigate }) => {
         </div>
     );
 
-    // תוכן התצוגה - משתמש ב-draft המעודכן
     const ViewContent = (
         <div className="min-h-screen bg-white">
             <div className="w-full relative">
                 <div
                     className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
-                    // כאן השינוי המשמעותי - שימוש ב-draft.img
                     style={{ backgroundImage: `url(${draft.img})` }}
                 >
                     <div className="absolute inset-0 bg-black/20"></div>
-
-                    {/* שימוש ב-draft.title */}
                     <h1 className="relative z-10 text-5xl sm:text-6xl font-bold text-center drop-shadow-lg tracking-wide">
                         {draft.title}
                     </h1>
@@ -93,7 +89,6 @@ const ProductsPage = ({ onNavigate }) => {
             </div>
 
             <div className="pt-8 min-h-[60vh]">
-                {/* העברת המידע (draft) כ-prop לרכיב הבן */}
                 <PersonalizationSection
                     onNavigateToEditor={() => onNavigate('/editor')}
                     onSelectProduct={setSelectedProduct}

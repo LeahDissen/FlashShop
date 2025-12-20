@@ -24,7 +24,7 @@ const Testimonials = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentIndex((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1));
-        }, 4000); // 4 שניות
+        }, 4000);
 
         return () => clearInterval(interval);
     }, []);

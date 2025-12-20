@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // Import useLocation
+import { useLocation } from 'react-router-dom';
 import { updatePage } from '../api/pages';
 
 export const useAdminControl = (initialData, endpoint) => {
@@ -8,11 +8,9 @@ export const useAdminControl = (initialData, endpoint) => {
     const [previewMode, setPreviewMode] = useState(false);
     const [draft, setDraft] = useState(initialData);
     
-    // הוספת הלוגיקה לפתיחה אוטומטית של מצב עריכה
     const location = useLocation();
 
     useEffect(() => {
-        // בדיקה האם הועבר State שמבקש עריכה והאם ה-Endpoint תואם לרכיב הנוכחי
         if (location.state?.autoEdit && location.state?.targetEndpoint === endpoint) {
             setEditMode(true);
         }

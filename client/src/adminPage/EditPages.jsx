@@ -26,7 +26,7 @@ export default function EditPages() {
             icon: <FaHome className="text-3xl text-white" />,
             link: "/",
             targetEndpoint: "home",
-            type: "page" // סוג רגיל
+            type: "page"
         },
         {
             id: 2,
@@ -35,7 +35,7 @@ export default function EditPages() {
             icon: <FaWindowMaximize className="text-3xl text-white" />,
             link: "/",
             targetEndpoint: "header",
-            type: "page" // למרות שזה ברכיב, זה מוצג בדף הבית בדרך כלל
+            type: "page"
         },
         {
             id: 3,

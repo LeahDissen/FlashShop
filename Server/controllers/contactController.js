@@ -1,5 +1,5 @@
-const { sendEmail } = require('../utils/sendEmail'); // יש קובץ sendEmail.js בפרויקט
-const { config } = require('../config/secret'); // קונפיג/env
+const { sendEmail } = require('../utils/sendEmail');
+const { config } = require('../config/secret');
 const { ContactModel } = require('../models/contactModel'); 
 exports.receiveContact = async (req, res) => {
   try {
@@ -7,12 +7,10 @@ exports.receiveContact = async (req, res) => {
     if (!name || !email || !message) {
       return res.status(400).json({ ok: false, error: 'Missing fields' });
     }
-
     const adminEmail = config.USER 
     const subject = `Contact form: ${name}`;
-    const payload = { name, email, message }; // השתמש בתבנית או במספר שורות HTML
-
-    await sendEmail(adminEmail, subject, payload, '../utils/template/contact.handlebars'); // החלף בתבנית משלך
+    const payload = { name, email, message };
+    await sendEmail(adminEmail, subject, payload, '../utils/template/contact.handlebars');
 
     const contact = new ContactModel({ name, email, message });
     await contact.save();

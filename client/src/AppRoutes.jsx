@@ -21,9 +21,6 @@ import ViewMessages from "./adminPage/ViewMessages";
 import ShoppingCartPage from "./pages/ShoppingCartPage";
 import ProfilePage from "./pages/profilePage";
 
-// Wrapper to provide navigation prop to ProductsPage if needed, 
-// though ProductsPage could also use useNavigate directly.
-// For now, keeping onNavigate prop as requested in original code structure.
 const ProductsPageWrapper = () => {
     const navigate = useNavigate();
     return <ProductsPage onNavigate={(path) => navigate(path)} />;

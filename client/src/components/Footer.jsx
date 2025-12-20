@@ -51,7 +51,7 @@ export default function Footer() {
             setStatusMsg(null);
             const res = await sendMessageRequest(contactForm)
 
-            if (res.ok === 200 || res.ok === 201 || res.msg) { // התאמה לתשובת שרת גמישה
+            if (res.ok === 200 || res.ok === 201 || res.msg) {
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });
                 setContactForm({ name: '', email: '', message: '' });
             } else {
@@ -96,8 +96,6 @@ export default function Footer() {
     const ViewContent = (
         <footer className="w-full bg-[#f2665e] py-6 px-4 sm:px-8 text-white mt-auto">
             <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 px-4 lg:px-8 items-start" dir="rtl">
-
-                {/* עמודה ימנית - טופס */}
                 <div className="sendANote pr-0 md:pr-8">
                     <h2 dir="rtl" className="text-lg font-semibold mb-2 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
                         {draft.noteTitle}
@@ -148,7 +146,6 @@ export default function Footer() {
                     </form>
                 </div>
 
-                {/* עמודה שמאלית - פרטי קשר */}
                 <div className="flex flex-col items-center md:items-start">
                     <iframe
                         title="map"

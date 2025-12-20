@@ -42,15 +42,11 @@ const initialElements = [
 
 const EditorPage = ({ onNavigateToHome }) => {
     const { selectedProduct, setSelectedProduct } = useProductStore();
-
-    // If onSelectProduct was passed as a prop (legacy), we ignore it or sync it if needed.
-    // But now we use the store directly.
     const onSelectProduct = setSelectedProduct;
-    // State for Elements & History
+
     const [history, setHistory] = useState([initialElements]);
     const [historyIndex, setHistoryIndex] = useState(0);
     const [elements, setElements] = useState(initialElements);
-
     const [selectedElementId, setSelectedElementId] = useState(initialElements[0]?.id || null);
     const [uploadedImages, setUploadedImages] = useState([]);
     const [croppingElementId, setCroppingElementId] = useState(null);
@@ -59,24 +55,16 @@ const EditorPage = ({ onNavigateToHome }) => {
     const [projectName, setProjectName] = useState('הפרויקט שלי');
     const [currentProjectId, setCurrentProjectId] = useState(undefined);
 
-    // Grid State
     const [showGrid, setShowGrid] = useState(false);
     const [gridSize, setGridSize] = useState(5);
-
-    // Zoom State
     const [zoom, setZoom] = useState(100);
-
-    // Preview State
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
-
-    // Persistence Modal State
     const [showLoadModal, setShowLoadModal] = useState(false);
     const [savedProjects, setSavedProjects] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
 
-    // --- History Logic ---
     const addToHistory = useCallback((newElements) => {
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(newElements);

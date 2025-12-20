@@ -51,23 +51,16 @@ exports.joinClub = async (req, res) => {
 exports.checkGiftCode = async (req, res) => {
     try {
         const { code } = req.params;
-        const { userId } = req.query; // Get userId from query string
-
-        // 1. Check General Coupon
+        const { userId } = req.query;
         const generalCoupon = await CouponModel.findOne({ code: code });
         
         if (generalCoupon) {
-            // A. Check Active Status
             if (!generalCoupon.isActive) {
                 return res.json({ valid: false, msg: "הקופון אינו פעיל" });
             }
-
-            // B. Check Expiration (Time Limit)
             if (generalCoupon.expirationDate && new Date() > new Date(generalCoupon.expirationDate)) {
                 return res.json({ valid: false, msg: "תוקף הקופון פג" });
             }
-
-            // C. Check if User already used it (One time per user)
             if (userId && generalCoupon.usedBy.includes(userId)) {
                 return res.json({ valid: false, msg: "כבר השתמשת בקופון זה בעבר" });
             }
@@ -80,7 +73,6 @@ exports.checkGiftCode = async (req, res) => {
             });
         }
 
-        // 2. Check Member Gift Code (Existing logic)
         const member = await ClubModel.findOne({ giftCode: code });
         if (member) {
             if (member.isUsed) {

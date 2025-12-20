@@ -24,7 +24,6 @@ exports.getProductById = async (req, res) => {
 exports.addProduct = async (req, res) => {
   try {
     const data = req.body;
-    // We assume 'image' is sent as a URL string in the body
     const product = new ProductModel(data);
     await product.save();
     res.json(product);
@@ -64,12 +63,9 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
-// This function is likely not needed if images are URLs, but kept for compatibility
 exports.getProductImage = async (req, res) => {
   try {
     const product = await ProductModel.findById(req.params.id);
-    // If image is a URL string, we just return the product object in getProducts/ById
-    // If you were storing binary data, this would be relevant.
     if (!product) return res.status(404).json({ msg: "Product not found" });
     res.json({ imageUrl: product.image }); 
   } catch (err) {
@@ -79,11 +75,9 @@ exports.getProductImage = async (req, res) => {
 };
 
 exports.generateMockup = async (req, res) => {
-    console.log("Controller: Received request for generateMockup"); // הדפסה 1
+    console.log("Controller: Received request for generateMockup");
     try {
         const { productName, designImage } = req.body;
-        
-        // בדיקה שהמידע הגיע
         if (!productName) console.log("Controller Warning: productName is missing");
         if (!designImage) console.log("Controller Warning: designImage is missing (length: 0)");
         else console.log(`Controller: designImage received (length: ${designImage.length})`);

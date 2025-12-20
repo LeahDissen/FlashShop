@@ -4,7 +4,6 @@ import { getProducts } from '../api/products';
 
 const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
     const [products, setProducts] = useState([]);
-    // 1. Initialize categories state with just "All" (Hebrew: הכל)
     const [categories, setCategories] = useState(["הכל"]);
     const [activeCategory, setActiveCategory] = useState("הכל");
     const [loading, setLoading] = useState(true);
@@ -14,12 +13,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
             try {
                 const data = await getProducts();
                 setProducts(data);
-
-                // 2. Dynamically extract unique categories from the fetched products
-                // We filter out any empty categories just in case
                 const uniqueCategories = [...new Set(data.map(p => p.category).filter(c => c))];
-                
-                // 3. Update the categories list (Starting with "הכל")
                 setCategories(["הכל", ...uniqueCategories]);
 
             } catch (error) {
@@ -31,7 +25,6 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         fetchProducts();
     }, []);
 
-    // Filter logic based on the active dynamic category
     const filteredProducts = products.filter(product => {
         if (activeCategory === "הכל") return true;
         return product.category === activeCategory; 
@@ -39,7 +32,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
 
     const handleCategoryChange = (category) => {
         setActiveCategory(category);
-        onSelectProduct(null); // Clear selection when switching categories
+        onSelectProduct(null);
     };
 
     const handleStartDesigning = () => {
@@ -54,7 +47,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                 <h2 className="text-3xl font-bold text-[#f2665e] mb-4">{content.sectionTitle}</h2>
                 <p className="text-gray-600 mb-8 max-w-2xl mx-auto">{content.sectionDescription}</p>
 
-                {/* 4. Render Dynamic Categories */}
+                {/* Render Dynamic Categories */}
                 <div className="flex flex-wrap justify-center gap-6 mb-10 text-sm font-medium text-gray-500">
                     {categories.map((cat) => (
                         <button

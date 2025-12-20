@@ -35,7 +35,7 @@ export const resetPassword = async (userId, token, newPassword) => {
     const response = await axios.post(`${API_URL}/resetPassword`, {
         userId,      
         token,
-        password: newPassword // Matched key to backend expectation
+        password: newPassword
     });
     return response;
 };

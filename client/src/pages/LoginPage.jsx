@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { googleLoginAPI, signIn } from '../api/auth';
 import { useGoogleLogin } from '@react-oauth/google';
-import { useNavigate, Link, useLocation } from 'react-router-dom'; // 1. Import useLocation
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 
@@ -11,12 +11,9 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
 
   const Navigate = useNavigate();
-  const location = useLocation(); // 2. Get location hook
+  const location = useLocation();
   const login = useAuthStore(state => state.login);
   const loadCart = useCartStore(state => state.loadCart);
-
-  // 3. Determine where to redirect (default to home '/')
-  // If 'state.from' exists (e.g. passed from ShoppingCartPage), use that.
   const from = location.state?.from || '/';
 
   const handleSubmit = (e) => {
@@ -54,8 +51,6 @@ export default function LoginPage() {
                 console.error("Failed to load cart:", err);
             }
         }
-
-        // 4. Navigate to the dynamic destination
         Navigate(from);
       })
       .catch((error) => {
@@ -156,7 +151,6 @@ export default function LoginPage() {
           <div className="text-right mb-6">
             <a
               href="/forgot"
-              // Force pink color with style prop to override global CSS
               style={{ color: '#f2665e' }}
               className="!text-[#f2665e] text-[13px] font-sans transition-colors duration-300 hover:!text-[#e1574f]"
               onMouseEnter={(e) => e.target.style.color = '#e1574f'}
@@ -203,7 +197,6 @@ export default function LoginPage() {
           אין לך חשבון?{' '}
           <a
             href="/signup"
-            // Force pink color with style prop to override global CSS
             style={{ color: '#f2665e' }}
             className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"
             onMouseEnter={(e) => e.target.style.color = '#e1574f'}
