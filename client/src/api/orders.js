@@ -1,7 +1,5 @@
-//orders API
-
 import axios from 'axios';
-const API_URL = 'http://localhost:5000/orders';
+const API_URL = `${import.meta.env.VITE_MONGO_API}/orders`;
 
 export const createOrder = async (orderData) => {
     const response = await axios.post(API_URL, orderData);

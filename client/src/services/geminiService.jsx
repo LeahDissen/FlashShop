@@ -14,7 +14,7 @@
 import axios from 'axios';
 
 // כתובת השרת שלך
-const API_URL = "http://localhost:5000/products"; 
+const API_URL = `${import.meta.env.VITE_MONGO_API}/products`;
 
 export async function generatePersonalizedProduct(productName, userDesignDataUrl) {
   try {

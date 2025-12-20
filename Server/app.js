@@ -18,7 +18,7 @@ const HOST_NAME = config.HOST_NAME;
 const app = express();
 const cookieParser = require("cookie-parser");
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: process.env.CLIENT_URL,
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));

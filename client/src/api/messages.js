@@ -1,6 +1,5 @@
 import axios from "axios";
-
-const API_URL = "http://localhost:5000/contact";
+const API_URL = `${import.meta.env.VITE_MONGO_API}/contact`;
 
 // שליחת הודעה (מהפוטר)
 export const sendMessageRequest = async (msgData) => {
