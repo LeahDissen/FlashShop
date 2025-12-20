@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon } from '../icons';
 import { ReactCrop } from 'react-image-crop';
 

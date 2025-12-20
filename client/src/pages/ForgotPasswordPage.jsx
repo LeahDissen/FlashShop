@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {forgotPasswordRequest} from '../api/auth';
 import { Link } from 'react-router-dom';
 

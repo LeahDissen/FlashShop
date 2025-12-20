@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Hero from '../components/Hero';
-import Gallery from '../components/Gallery';
-import { useCartStore } from '../store/cartStore';
-import AdminControls from '../components/AdminControls';
-import { useAdminControl } from '../hooks/useAdminControl';
 import { getPage } from '../api/pages';
 import { getPhotoPrices } from '../api/photo';
+import AdminControls from '../components/AdminControls';
+import Gallery from '../components/Gallery';
+import Hero from '../components/Hero';
+import { useAdminControl } from '../hooks/useAdminControl';
+import { useCartStore } from '../store/cartStore';
 
-const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
+const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [images, setImages] = useState([]);
     const [priceList, setPriceList] = useState([]);
     const addToCart = useCartStore((state) => state.addToCart);

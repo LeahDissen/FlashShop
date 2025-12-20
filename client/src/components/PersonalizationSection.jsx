@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SparklesIcon } from './icons';
 import { getProducts } from '../api/products';
 

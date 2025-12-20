@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { FaShoppingCart, FaUser, FaDownload, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import MiniCart from './MiniCart';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore'; 
-import MiniCart from './MiniCart'; 
 
 export default function NavBar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);

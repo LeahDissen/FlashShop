@@ -1,10 +1,10 @@
-const bcrypt = require("bcrypt");
 const axios = require("axios");
-const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
-const { Token } = require("../models/tokenModel");
+const bcrypt = require("bcrypt");
 const crypto = require("crypto");
-const { sendEmail } = require("../utils/sendEmail");
 const { config } = require("../config/secret");
+const { Token } = require("../models/tokenModel");
+const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
+const { sendEmail } = require("../utils/sendEmail");
 const clientURL = process.env.CLIENT_URL;
 
 exports.signup = async (req, res, next) => {

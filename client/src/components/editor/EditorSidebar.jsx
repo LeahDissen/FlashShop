@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { GridIcon, BackgroundIcon, TextIcon, ImageIcon, XIcon, ChevronLeftIcon, PlusIcon, NoColorIcon } from '../icons';
 
 const SidebarTab = ({ icon, label, isActive, onClick }) => {

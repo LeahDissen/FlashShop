@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import AdminControls from '../components/AdminControls.jsx';
-import { useAdminControl } from '../hooks/useAdminControl.jsx';
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from 'react-router-dom';
-import useAppStore from '../store/appStore';
 import { getPage } from '../api/pages';
 import { getAllTips } from '../api/tips';
-import { useTipsStore } from '../store/tipsStore';
+import AdminControls from '../components/AdminControls.jsx';
 import Testimonials from '../components/Testimonials';
+import { useAdminControl } from '../hooks/useAdminControl.jsx';
+import useAppStore from '../store/appStore';
+import { useTipsStore } from '../store/tipsStore';
 
 export default function HomePage() {
     const adminControls = useAdminControl({

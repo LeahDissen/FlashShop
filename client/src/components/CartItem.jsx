@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function CartItem({ item, onRemove }) {
   const lineItemTotal = item.price * item.quantity;
 

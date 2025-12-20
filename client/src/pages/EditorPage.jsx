@@ -1,6 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import EditorHeader from '../components/editor/EditorHeader';
-
 import Canvas from '../components/editor/Canvas.jsx';
 import EditorFooter from '../components/editor/EditorFooter';
 import ContextualToolbar from '../components/editor/ContextualToolbar';

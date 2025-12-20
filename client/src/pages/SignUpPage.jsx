@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { signUp, googleLoginAPI } from '../api/auth'; 
 import { useGoogleLogin } from '@react-oauth/google'; 
 import { Link, useNavigate } from 'react-router-dom';
