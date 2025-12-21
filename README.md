@@ -126,46 +126,46 @@
 # צילומי מסך
 *שימוש באתר ללקוחות*
 - דף הבית:
-  <img src="https://github.com/noa123715/FalshShop/blob/main/screenshots/home_page_one.png"> <br><br>
-  <img src="https://github.com/noa123715/FalshShop/blob/main/screenshots/home_page_two.png"> <br><br>
+  <img src="https://github.com/noa123715/FalshShop/tree/main/screenshots/home_page_one.png"> <br><br>
+  <img src="https://github.com/noa123715/FalshShop/tree/main/screenshots/home_page_two.png"> <br><br>
 
 - העורך:
-  <img src="https://github.com/Noa123715/FlashShop/blob/main/screenshots/editor.png"><br><br>
+  <img src="https://github.com/Noa123715/FlashShop/tree/main/screenshots/editor.png"><br><br>
 
 - דף הטיפים:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/tips.png"><br><br>
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/one_tip.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/tips.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/one_tip.png"><br><br>
 
 - עגלה:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/cart.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/cart.png"><br><br>
   
 - מוצרים:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/products.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/products.png"><br><br>
 
 - פיתוח תמונות:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/photo_developments.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/photo_developments.png"><br><br>
 
 - פרופיל:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/profil.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/profil.png"><br><br>
 
 - הצטרפות למועדון:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/club.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/club.png"><br><br>
 
 - תחתית האתר:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/footer.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/footer.png"><br><br>
 
 *ניהול האתר*
 - דף הניהול:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/admin_dashboard.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/admin_dashboard.png"><br><br>
 
 - ניהול מוצרים:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/admin_products.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/admin_products.png"><br><br>
 
 - עדכון ושינוי הקטלוג:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/catalog.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/catalog.png"><br><br>
 
 - עדכון ושינוי המועדון:
-  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/update_club.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/tree/main/screenshots/update_club.png"><br><br>
 
 
 <br/><br/>
