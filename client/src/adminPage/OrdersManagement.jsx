@@ -3,18 +3,6 @@ import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEllipsisV, FaEye,
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
-import {
-    FaClipboardList,
-    FaSearch,
-    FaCheckCircle,
-    FaTimesCircle,
-    FaClock,
-    FaShippingFast,
-    FaBoxOpen,
-    FaEye,
-    FaEllipsisV
-} from "react-icons/fa";
-
 export default function OrdersManagement() {
     const mockOrders = [
         {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPage } from '../api/pages';
-import { getPhotoPrices } from '../api/photoPrices';
+import { getPhotoPrices } from '../api/photo';
 import AdminControls from '../components/AdminControls';
 import Gallery from '../components/Gallery';
 import Hero from '../components/Hero';
