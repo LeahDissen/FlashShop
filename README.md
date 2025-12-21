@@ -1,22 +1,177 @@
-# FlashShop
-Full-stack photo store website where users can upload photos, preview personalized products, and place online orders.
+# אפליקציית Flash Shop 📸
 
-***כל הקוד והערות: באנגלית***
-***האתר - בעברית***
+# סקירת האפליקציה
+אתר חנות אונליין להדפסות על מוצרים ולפיתוח תמונות, כולל קטגוריות של מתנות, מוצרים נלווים וקורסים 
+האתר מאפשר למשתמשים להעלות תמונה ולראות איך היא נראית על מוצרים שונים (כמו ספלים, חולצות, מגנטים ועוד).
+המערכת כוללת:
+* **ממשק משתמש (Frontend):** נבנה ב-React (Vite) עם Tailwind CSS לעיצוב ו-Zustand לניהול מצב.
+* **שרת ראשי (Backend):** נבנה ב-Node.js ו-Express עם בסיס נתונים MongoDB.
+* **שרת תוכן (CMS):** שירות נוסף מבוסס Redis לניהול תכנים דינמיים באתר (כמו טקסטים בדף הבית).
 
-**יש שלוש איטרציות בפיתוח**:
-1.בסיסית - כל הדפים הבסיסים, הפונקציונאליות העיקרית של האתר
-2. אמצעית - פונקציונאליות משלימה כדי לשפר את האתר
-3.מתקדמת - חיבור לAPI חיצוני של סליקה ותשלו
 
-**ניהול משימות בפרויקט:**
-1. לבחור משימה שהולכים לעבוד עליה בזמן הקרוב (עד לסיומה)
-2. לפתוח branch מתאים למשימה
-3. בהתאם לפתוח PR ולקשר למשימה
-4. להעביר את המשימה לאחריותך ולעמוד של In-Progress
-5. לעבוד על המשימה...
-6. לעשות מרג' לdev לבדוק שהכל בסדר: אין קונפליקטים והקוד עובד
-7. לסגור PR להעביר את המשימה לDone ולסגור את הIssue
-**בהצלחה!!!!**
+# התקנה והפעלה
+כדי להריץ את האפליקציה באופן מקומי, עקוב אחרי השלבים הבאים:
+מכיוון שהפרויקט מורכב משלושה חלקים (קליינט, שרת, ושרת-רדיס), יש להתקין כל אחד מהם.
 
-**בסוף האיטרציה נעביר את הdev לmain**
+- פתח את שורת הפקודה (Command Line):
+(1. לחץ על מקש Windows + R, 2. הקלד cmd, 3. לחץ Enter)
+
+- הורד את המאגר (repository) מגיטהאב:
+
+    ```bash
+    git clone https://github.com/Noa123715/FlashShop.git
+    ```
+
+    ```bash
+    cd FlashShop
+    ```
+
+- התקן את התלויות (dependencies) גם בצד הלקוח וגם בצד השרת:
+
+    ```bash
+    cd client
+    ```
+
+    ```bash
+    npm install
+    ```
+
+    ```bash
+    cd ../Server
+    ```
+
+    ```bash 
+    npm install
+    ```
+
+    ```bash
+    cd ../Redis_Server
+    ```
+
+    ```bash 
+    npm install
+    ```
+
+- הפעל את השרת (Backend):
+
+    ```bash
+    node index.js &
+    ```
+
+  ```bash
+  cd ../Server
+  ```
+
+  ```bash
+    npm run dev &
+    ```
+
+- הפעל את האפליקציה (Frontend):
+
+    ```bash
+    cd ../client
+    ```
+
+    ```bash
+    npm run dev &
+    ```
+
+- אם הדפדפן לא נפתח אוטומטית, ניתן לגשת לכתובת: http://localhost:5173
+
+# הוראות שימוש
+לאחר שהאפליקציה פועלת, ניתן להשתמש בה כך:
+*רכישת מוצרים ועיצוב אישי*
+- בחר מוצר מתוך הרשימה (כגון ספל, חולצה, פוסטר וכו').
+- העלה תמונה מהמחשב שלך.
+- התצוגה תתעדכן מיידית ותראה לך איך התמונה נראית על גבי המוצר שנבחר.
+- ניתן לבחור כמויות והמחיר יתעדכן בהתאם
+- מתלבט? השאר את המוצרים בעגלה ותחזור בזמן מתאים יותר
+- עכשיו אפשר לגשת לדף התשלום
+
+*פיתוח תמונות*
+- כנס לעמוד "פיתוח תמונות"
+- אפשר להעלות כמות גדולה של תמונות בבת אחת.
+- בחר גודל לכל תמונה (המחיר מתעדכן אוטומטית).
+
+*אזור ניהול (Admin Dashboard)*
+מנהלי האתר יכולים:
+- לנהל הזמנות וסטטוסים.
+- לערוך מוצרים ומחירים.
+- לעדכן את הטקסטים והבאנרים באתר.
+- לשלוח מיילים לחברי מועדון.
+
+# נקודות קצה מרכזיות (API Endpoints)
+השרת מספק את הנתיבים הבאים
+*משתמשים:*
+    POST /auth/login
+
+    POST /auth/signup
+
+*מוצרים:*
+    GET /products
+
+    POST /products/add
+
+*הזמנות:*
+    GET /orders/my-orders
+
+    POST /orders
+
+*פיתוח תמונות:*
+    GET /photo-prices
+
+*מועדון לקוחות:*
+    POST /club/join
+
+# צילומי מסך
+*שימוש באתר ללקוחות*
+- דף הבית:
+  <img src="https://github.com/noa123715/FalshShop/blob/main/screenshots/home_page_one.png"> <br><br>
+  <img src="https://github.com/noa123715/FalshShop/blob/main/screenshots/home_page_two.png"> <br><br>
+
+- העורך:
+  <img src="https://github.com/Noa123715/FlashShop/blob/main/screenshots/editor.png"><br><br>
+
+- דף הטיפים:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/tips.png"><br><br>
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/one_tip.png"><br><br>
+
+- עגלה:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/cart.png"><br><br>
+  
+- מוצרים:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/products.png"><br><br>
+
+- פיתוח תמונות:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/photo_developments.png"><br><br>
+
+- פרופיל:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/profil.png"><br><br>
+
+- הצטרפות למועדון:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/club.png"><br><br>
+
+- תחתית האתר:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/footer.png"><br><br>
+
+*ניהול האתר*
+- דף הניהול:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/admin_dashboard.png"><br><br>
+
+- ניהול מוצרים:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/admin_products.png"><br><br>
+
+- עדכון ושינוי הקטלוג:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/catalog.png"><br><br>
+
+- עדכון ושינוי המועדון:
+  <img src="https://github.com/noa123715/FlashShop/blob/main/screenshots/update_club.png"><br><br>
+
+
+<br/><br/>
+
+#### האפליקציה פותחה על-ידי חני חלמיש ונועה אבקסיס בנובמבר 2025.
+#### זוהי הגרסה הראשונה של האפליקציה.
+#### אני מקווה שתהנו להשתמש בה, ושהיא תעזור לעסקים וללקוחות לראות את החלום שלהם מתגשם בתמונה אחת ❤️
+
+# שימוש מהנה 😊
