@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { resetPassword } from '../api/auth';
 import { useNavigate } from 'react-router-dom';
 export default function ResetPasswordPage() {
@@ -14,7 +14,7 @@ export default function ResetPasswordPage() {
     const params = new URLSearchParams(window.location.search);
     return {
       token: params.get('token'),
-      userId: params.get('id') 
+      userId: params.get('id')
     };
   };
   const handleResetPassword = () => {
@@ -34,7 +34,7 @@ export default function ResetPasswordPage() {
       setError('Passwords do not match');
       return;
     }
-    const { token, userId } = getParamsFromUrl(); // 2. UPDATE: Get both
+    const { token, userId } = getParamsFromUrl();
 
     if (!token || !userId) {
       setError('Invalid or missing reset token/ID');
@@ -70,7 +70,7 @@ export default function ResetPasswordPage() {
   };
 
   const passwordStrength = getPasswordStrength(newPassword);
-
+}
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { resetPassword } from '../api/auth';
 
@@ -88,21 +88,21 @@ export default function ResetPasswordPage() {
     setError('');
 
     if (newPassword.length < 6) {
-        setError('Password must be at least 6 characters');
-        return;
+      setError('Password must be at least 6 characters');
+      return;
     }
 
     if (newPassword !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
+      setError('Passwords do not match');
+      return;
     }
 
     try {
-        await resetPassword(token, newPassword);
-        setSuccess(true);
-        setTimeout(() => navigate('/login'), 3000);
+      await resetPassword(token, newPassword);
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
-        setError(err.response?.data?.msg || 'Failed to reset password. Link may be expired.');
+      setError(err.response?.data?.msg || 'Failed to reset password. Link may be expired.');
     }
   };
 
@@ -113,7 +113,6 @@ export default function ResetPasswordPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
-      // UPDATED: Theme color gradient
       background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
     }}>
       <style>{`
@@ -166,94 +165,94 @@ export default function ResetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: 500, fontSize: '14px' }}>
-                    New Password
-                </label>
-                <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
-                    style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '12px',
-                        fontSize: '15px',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                        e.target.style.borderColor = '#f2665e';
-                        e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                    }}
-                    onBlur={(e) => {
-                        e.target.style.borderColor = '#e5e7eb';
-                        e.target.style.boxShadow = 'none';
-                    }}
-                />
+              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: 500, fontSize: '14px' }}>
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#f2665e';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e5e7eb';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: 500, fontSize: '14px' }}>
-                    Confirm Password
-                </label>
-                <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm new password"
-                    style={{
-                        width: '100%',
-                        padding: '14px 16px',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '12px',
-                        fontSize: '15px',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                        e.target.style.borderColor = '#f2665e';
-                        e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                    }}
-                    onBlur={(e) => {
-                        e.target.style.borderColor = '#e5e7eb';
-                        e.target.style.boxShadow = 'none';
-                    }}
-                />
+              <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: 500, fontSize: '14px' }}>
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#f2665e';
+                  e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#e5e7eb';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
             </div>
 
             {error && (
-                <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
-                    {error}
-                </p>
+              <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '16px', textAlign: 'center' }}>
+                {error}
+              </p>
             )}
 
             <button
-                type="submit"
-                style={{
-                    width: '100%',
-                    padding: '16px',
-                    background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
-                    transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
-                }}
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
+              }}
             >
-                Reset Password
+              Reset Password
             </button>
           </form>
         )}

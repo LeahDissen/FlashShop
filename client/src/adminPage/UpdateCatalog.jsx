@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FaCloudUploadAlt, FaFilePdf, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
+import { FaCheckCircle, FaCloudUploadAlt, FaExclamationCircle, FaFilePdf } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
-import axios from 'axios';
+import { Link } from 'react-router-dom';
+import { uploadCatalog } from '../api/admin';
 
 export default function UpdateCatalog() {
     const [file, setFile] = useState(null);
@@ -30,10 +30,7 @@ export default function UpdateCatalog() {
         setMessage({ type: '', text: '' });
 
         try {
-            await axios.post('http://localhost:5000/admin/upload-catalog', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-                withCredentials: true
-            });
+            await uploadCatalog(formData);
 
             setMessage({ type: 'success', text: 'הקטלוג עודכן בהצלחה! 🎉' });
             setFile(null);

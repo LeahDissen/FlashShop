@@ -1,5 +1,4 @@
-import React from 'react';
-import { SaveIcon, UndoIcon, RedoIcon, ChevronLeftIcon, FolderOpenIcon } from '../icons';
+import { ChevronLeftIcon, FolderOpenIcon, RedoIcon, SaveIcon, UndoIcon } from '../icons';
 
 const EditorHeader = ({ 
     onExit, 

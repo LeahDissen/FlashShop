@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import AdminControls from '../components/AdminControls.jsx';
-import { useAdminControl } from '../hooks/useAdminControl.jsx';
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from 'react-router-dom';
-import useAppStore from '../store/appStore';
 import { getPage } from '../api/pages';
 import { getAllTips } from '../api/tips';
-import { useTipsStore } from '../store/tipsStore';
+import AdminControls from '../components/AdminControls.jsx';
 import Testimonials from '../components/Testimonials';
+import { useAdminControl } from '../hooks/useAdminControl.jsx';
+import useAppStore from '../store/appStore';
+import { useTipsStore } from '../store/tipsStore';
 
 export default function HomePage() {
     const adminControls = useAdminControl({
@@ -22,8 +22,6 @@ export default function HomePage() {
     const { draft, updateDraft, editMode } = adminControls;
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const Navigate = useNavigate();
-    
-    // State לטיפים
     const [recentTips, setRecentTips] = useState([]);
     const setCurrentTip = useTipsStore(state => state.setCurrentTip);
 
@@ -44,8 +42,6 @@ export default function HomePage() {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });
-
-        // משיכת 2 הטיפים האחרונים
         getAllTips(1, 2).then((data) => {
             if (data && data.tips) {
                 setRecentTips(data.tips);
@@ -143,7 +139,7 @@ export default function HomePage() {
 
     const ViewContent = (
         <div className="w-full bg-white">
-            {/* ================= HERO & PRODUCTS SECTION ================= */}
+            {/* HERO & PRODUCTS SECTION */}
             <section className="relative w-full overflow-hidden bg-white pb-10">
                 <div className="relative z-10 w-full">
                     <div className="flex items-start justify-between">
@@ -240,7 +236,8 @@ export default function HomePage() {
 
                 </div>
             </section>
-            {/* ================= STORY SECTION ================= */}
+
+            {/* STORY SECTION */}
             <section className="w-full pt-4 pb-10 px-6 bg-white relative z-10">
                 <div className="max-w-3xl mx-auto text-center">
                     <h2 className="text-2xl font-bold mb-2 text-[#ff5555]">
@@ -252,7 +249,7 @@ export default function HomePage() {
                 </div>
             </section>
 
-            {/* ================= REVIEWS WAVE HEADER ================= */}
+            {/* REVIEWS WAVE HEADER */}
             <div className="relative -mt-24 z-0">
                 <svg
                     viewBox="0 0 1440 320"
@@ -274,7 +271,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            {/* ================= TIPS SECTION (Fixed Design) ================= */}
+            {/* TIPS SECTION */}
             <section className="w-full py-12 px-6" style={{ backgroundColor: '#fda49e' }}>
                 <div className="max-w-5xl mx-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">

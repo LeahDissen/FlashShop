@@ -21,7 +21,6 @@ const AdminControls = ({
     if (editMode) {
         return (
             <div className="relative z-50 w-full my-4 animate-fade-in">
-                {/* סרגל כלים עליון - מופיע רק במצב עריכה */}
                 <div className="bg-white border-b-2 border-[#f2665e] shadow-lg p-3 rounded-t-xl flex justify-between items-center px-4" dir="rtl">
                     <div className="flex items-center gap-2">
                         <span className="font-bold text-[#f2665e] flex items-center gap-2 text-sm">
@@ -57,7 +56,6 @@ const AdminControls = ({
                     </div>
                 </div>
 
-                {/* קונטיינר לתוכן */}
                 <div className={`bg-white border-2 border-[#f2665e] border-t-0 rounded-b-xl shadow-xl overflow-hidden p-4 relative ${previewMode ? 'p-0 border-0' : ''}`}>
                     {previewMode ? children : previewContent}
                 </div>
@@ -65,13 +63,9 @@ const AdminControls = ({
         );
     }
 
-    // מצב רגיל (לא עריכה) - מציג את התוכן עם כפתור "ערוך" קטן בפינה
     return (
         <div className={`relative group w-full ${className}`}>
-            {/* מסגרת כחולה עדינה שמופיעה כשמרחפים על האזור */}
             <div className="absolute inset-0 border-2 border-dashed border-[#f2665e] opacity-0 group-hover:opacity-30 pointer-events-none rounded-lg transition-opacity z-10"></div>
-
-            {/* כפתור העריכה - מופיע בפינה השמאלית העליונה של הרכיב */}
             <button
                 onClick={(e) => {
                     e.preventDefault();
@@ -82,8 +76,6 @@ const AdminControls = ({
             >
                 <FaPen /> ערוך אזור זה
             </button>
-
-            {/* התוכן המקורי */}
             {children}
         </div>
     );

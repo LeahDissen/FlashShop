@@ -1,6 +1,5 @@
 import axios from "axios";
-
-const API_URL = "http://localhost:5000/club";
+const API_URL = `${import.meta.env.VITE_MONGO_API}/club`;
 
 export const joinClubRequest = async (userData) => {
     const response = await axios.post(`${API_URL}/join`, userData);
@@ -9,7 +8,6 @@ export const joinClubRequest = async (userData) => {
 };
 export const checkCouponRequest = async (code, userId) => {
     try {
-        // Pass userId as a query parameter
         const url = userId 
             ? `${API_URL}/check/${code}?userId=${userId}`
             : `${API_URL}/check/${code}`;

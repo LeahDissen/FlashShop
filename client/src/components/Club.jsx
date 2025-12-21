@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
+import { joinClubRequest } from "../api/club";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls.jsx";
 import { useAdminControl } from "../hooks/useAdminControl.jsx";
 import useAppStore from '../store/appStore';
-import useAuthStore from '../store/authStore.js'
-import { joinClubRequest } from "../api/club";
+import useAuthStore from '../store/authStore.js';
 
 export default function Club() {
     const { isClubOpen, setClubOpen, setTermsOpen, termsAgreed } = useAppStore();

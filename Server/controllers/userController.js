@@ -1,14 +1,12 @@
-const bcrypt = require("bcrypt");
 const axios = require("axios");
-const jwt = require("jsonwebtoken");
-const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
-const { Token } = require("../models/tokenModel");
+const bcrypt = require("bcrypt");
 const crypto = require("crypto");
-const { sendEmail } = require("../utils/sendEmail");
 const { config } = require("../config/secret");
-const clientURL = "http://localhost:5173";
-//change to async func needed
-//'/signup'
+const { Token } = require("../models/tokenModel");
+const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
+const { sendEmail } = require("../utils/sendEmail");
+const clientURL = process.env.CLIENT_URL;
+
 exports.signup = async (req, res, next) => {
   try {
     let validateBody = validateUser(req.body);
@@ -18,7 +16,7 @@ exports.signup = async (req, res, next) => {
     }
     let user = new UserModel(req.body);
     console.log(user);
-    user.password = await bcrypt.hash(user.password, 10);
+    user.password = bcrypt.hash(user.password, 10);
     await user.save();
     user.password = "******"
     res.status(201).json(user);
@@ -30,8 +28,6 @@ exports.signup = async (req, res, next) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
-//'/login'
-// Server/controllers/userController.js
 
 exports.login = async (req, res, next) => {
   let validBody = validateLogin(req.body);
@@ -46,8 +42,8 @@ exports.login = async (req, res, next) => {
     }
 
     if (!user.password) {
-      return res.status(401).json({ 
-        msg: "User not found with password. Did you sign up with Google?" 
+      return res.status(401).json({
+        msg: "User not found with password. Did you sign up with Google?"
       });
     }
 
@@ -57,11 +53,12 @@ exports.login = async (req, res, next) => {
     }
 
     let token = createToken(user._id, user.role);
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie("authToken", token, {
       httpOnly: true,
-      secure: false, //process.env.NODE_ENV === 'dev',
+      secure: isProduction,
+      sameSite: isProduction ? 'None' : 'Lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      sameSite: 'Lax'
     });
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
@@ -76,10 +73,11 @@ exports.login = async (req, res, next) => {
 };
 
 exports.logout = async (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
   res.clearCookie('authToken', {
     httpOnly: true,
-    secure: false, //config.NODE_ENV === 'dev',
-    sameSite: 'Lax'
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax',
   });
   res.json({ msg: "Logout successful" });
 };
@@ -119,7 +117,7 @@ exports.requestPasswordReset = async (req, res, next) => {
   }
 };
 
-exports.resetPassword = async (req, res, next) => {
+exports.resetPassword = async (req, res) => {
   try {
     console.log(req.params.id);
     let passwordResetToken = await Token.findOne({ userId: req.params.id });
@@ -173,23 +171,23 @@ exports.googleLogin = async (req, res) => {
     const googleResponse = await axios.get("https://www.googleapis.com/oauth2/v3/userinfo", {
       headers: { Authorization: `Bearer ${access_token}` }
     });
-    
+
     const { email, name, sub: googleId } = googleResponse.data;
 
     let user = await UserModel.findOne({ email: email });
 
     if (user) {
-      const token = createToken(user._id, user.role); 
+      const token = createToken(user._id, user.role);
       return res.json({ token, user });
     }
     user = new UserModel({
       name: name,
       email: email,
-      role: "user" 
+      role: "user"
     });
-    
+
     await user.save();
-    
+
     const token = createToken(user._id, user.role);
     res.json({ token, user });
 
@@ -198,7 +196,7 @@ exports.googleLogin = async (req, res) => {
     res.status(401).json({ msg: "Google authentication failed", err });
   }
 };
-//'/myInfo'
+
 exports.myInfo = async (req, res) => {
   try {
     let user = await UserModel.findOne({ _id: req.tokenData._id }, { password: 0 });
@@ -209,12 +207,3 @@ exports.myInfo = async (req, res) => {
   }
 };
 
-// router.get("/usersLIst", authAdmin, async (req, res) => {
-//     try {
-//         let users = await UserModel.find({}, { password: 0 });
-//         res.json(users);
-//     } catch (err) {
-//         console.log(err);
-//         res.status(500).json({ msg: "There was an error, try again later", err });
-//     }
-// });

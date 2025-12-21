@@ -1,5 +1,5 @@
 import axios from "axios";
-const API_URL = "http://localhost:4000/api/page";
+const API_URL = `${import.meta.env.VITE_REDIS_API}/api/page`;
 
 export const getPage = async (endpoint) => {
     const response = await axios.get(`${API_URL}/${endpoint}`);

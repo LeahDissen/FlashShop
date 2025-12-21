@@ -3,7 +3,6 @@ const mongoose = require("mongoose");
 let orderSchema = new mongoose.Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'users' },
     items: [{
-        // Optional productId for catalog items
         productId: { type: mongoose.Schema.Types.ObjectId, ref: 'products', required: false },
         name: String,     
         size: String,     

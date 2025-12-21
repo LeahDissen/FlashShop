@@ -1,8 +1,8 @@
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
-import { Link } from "react-router-dom";
 
 export default function Header() {
     const adminControls = useAdminControl({ logo: null }, "header");

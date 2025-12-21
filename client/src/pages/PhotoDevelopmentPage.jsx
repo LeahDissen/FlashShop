@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Hero from '../components/Hero';
-import Gallery from '../components/Gallery';
-import { useCartStore } from '../store/cartStore';
-import axios from 'axios';
-import AdminControls from '../components/AdminControls';
-import { useAdminControl } from '../hooks/useAdminControl';
 import { getPage } from '../api/pages';
+import { getPhotoPrices } from '../api/photo';
+import AdminControls from '../components/AdminControls';
+import Gallery from '../components/Gallery';
+import Hero from '../components/Hero';
+import { useAdminControl } from '../hooks/useAdminControl';
+import { useCartStore } from '../store/cartStore';
 
-const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
+const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [images, setImages] = useState([]);
-    const [priceList, setPriceList] = useState([]); // Store prices from DB
+    const [priceList, setPriceList] = useState([]);
     const addToCart = useCartStore((state) => state.addToCart);
     const navigate = useNavigate();
 
@@ -22,7 +22,6 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
     }, "photos");
     const { draft, updateDraft, editMode } = adminControls;
 
-    // 1. Fetch prices from the Server on load
     useEffect(() => {
         getPage("photos").then((data) => {
             adminControls.setPage(data);
@@ -30,26 +29,21 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
         }).catch(error => console.error("Error fetching main photos page data:", error));
         const fetchPrices = async () => {
             try {
-                // Ensure this URL matches your server port (5000 or 4000)
-                const { data } = await axios.get('http://localhost:5000/photo-prices');
-
+                const data = await getPhotoPrices();
                 setPriceList(data);
             } catch (err) {
                 console.error("Failed to load prices from DB:", err);
-                // Fallback to empty list (component will use default logic)
                 setPriceList([]);
             }
         };
         fetchPrices();
     }, []);
 
-    // 2. Helper to get price based on size
     const getPriceBySize = (size) => {
         if (priceList.length > 0) {
             const found = priceList.find(p => p.size === size);
-            return found ? found.price : 1.20; // DB Price or Fallback
+            return found ? found.price : 1.20;
         }
-        // Hardcoded fallback if DB fails
         switch (size) {
             case '13x18': return 1.50;
             case '20x30': return 2.50;
@@ -57,7 +51,6 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
         }
     };
 
-    // 3. Upload Logic
     const uploadImage = async (file) => {
         const formData = new FormData();
         formData.append("file", file);
@@ -86,7 +79,6 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
     };
 
     const handleFilesSelected = async (files) => {
-        // Determine default size from DB or hardcode
         const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
 
         const newImagesPromises = Array.from(files).map(async (file) => {
@@ -107,7 +99,6 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
         setImages(prev => [...prev, ...newImages]);
     };
 
-    // 4. State Management Handlers
     const handleQuantityChange = (id, delta) => {
         setImages(prev => prev.map(img =>
             img.id === id ? { ...img, quantity: Math.max(0, img.quantity + delta) } : img
@@ -124,7 +115,6 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
         ));
     };
 
-    // 5. Checkout Logic
     const handleSendOrder = () => {
         const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
 
@@ -133,7 +123,6 @@ const PhotoDevelopmentPage = ({ onNavigate, onNavigateToEditor }) => {
             return {
                 id: img.id,
                 size: size,
-                // Include size in name for clarity in simple cart views
                 name: `פיתוח תמונה ${size} (${img.alt})`,
                 price: getPriceBySize(size),
                 quantity: img.quantity,

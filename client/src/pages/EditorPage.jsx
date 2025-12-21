@@ -1,14 +1,13 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import EditorHeader from '../components/editor/EditorHeader';
-
-import Canvas from '../components/editor/Canvas.jsx';
-import EditorFooter from '../components/editor/EditorFooter';
-import ContextualToolbar from '../components/editor/ContextualToolbar';
 import { toPng } from 'html-to-image';
-import { generatePersonalizedProduct } from '../services/geminiService';
-import { XIcon, SparklesIcon, TrashIcon, ClockIcon } from '../components/icons';
-import { db } from '../services/databaseService';
+import { useState, useCallback } from 'react';
+import Canvas from '../components/editor/Canvas.jsx';
+import ContextualToolbar from '../components/editor/ContextualToolbar';
+import EditorFooter from '../components/editor/EditorFooter';
+import EditorHeader from '../components/editor/EditorHeader';
 import EditorSidebar from '../components/editor/EditorSideBar.jsx';
+import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
+import { db } from '../services/databaseService';
+import { generatePersonalizedProduct } from '../services/geminiService';
 import { useProductStore } from '../store/productStore';
 
 const initialElements = [
@@ -42,15 +41,11 @@ const initialElements = [
 
 const EditorPage = ({ onNavigateToHome }) => {
     const { selectedProduct, setSelectedProduct } = useProductStore();
-
-    // If onSelectProduct was passed as a prop (legacy), we ignore it or sync it if needed.
-    // But now we use the store directly.
     const onSelectProduct = setSelectedProduct;
-    // State for Elements & History
+
     const [history, setHistory] = useState([initialElements]);
     const [historyIndex, setHistoryIndex] = useState(0);
     const [elements, setElements] = useState(initialElements);
-
     const [selectedElementId, setSelectedElementId] = useState(initialElements[0]?.id || null);
     const [uploadedImages, setUploadedImages] = useState([]);
     const [croppingElementId, setCroppingElementId] = useState(null);
@@ -59,24 +54,16 @@ const EditorPage = ({ onNavigateToHome }) => {
     const [projectName, setProjectName] = useState('הפרויקט שלי');
     const [currentProjectId, setCurrentProjectId] = useState(undefined);
 
-    // Grid State
     const [showGrid, setShowGrid] = useState(false);
     const [gridSize, setGridSize] = useState(5);
-
-    // Zoom State
     const [zoom, setZoom] = useState(100);
-
-    // Preview State
     const [isPreviewLoading, setIsPreviewLoading] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
-
-    // Persistence Modal State
     const [showLoadModal, setShowLoadModal] = useState(false);
     const [savedProjects, setSavedProjects] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
 
-    // --- History Logic ---
     const addToHistory = useCallback((newElements) => {
         const newHistory = history.slice(0, historyIndex + 1);
         newHistory.push(newElements);

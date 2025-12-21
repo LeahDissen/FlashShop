@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
+import { FaBox, FaCheckCircle, FaClock, FaTruck, FaUserCircle } from 'react-icons/fa';
 import { fetchUserInfo } from '../api/auth';
 import { getUserOrders } from '../api/orders';
 import useAuthStore from '../store/authStore';
-import { FaUserCircle, FaBox, FaClock, FaCheckCircle, FaTruck } from 'react-icons/fa';
 
 export default function ProfilePage() {
     const [userInfo, setUserInfo] = useState(null);
@@ -13,14 +13,10 @@ export default function ProfilePage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                // 1. Get User Info
                 const userRes = await fetchUserInfo();
                 setUserInfo(userRes.data);
-
-                // 2. Get Order History
                 if (userId) {
                     const ordersData = await getUserOrders(userId);
-                    // Sort by date (newest first)
                     ordersData.sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
                     setOrders(ordersData);
                 }

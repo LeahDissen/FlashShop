@@ -1,5 +1,5 @@
 import axios from "axios";
-const API_URL = 'http://localhost:5000/auth';
+const API_URL = `${import.meta.env.VITE_MONGO_API}/auth`;
 
 axios.defaults.withCredentials = true;
 
@@ -35,7 +35,7 @@ export const resetPassword = async (userId, token, newPassword) => {
     const response = await axios.post(`${API_URL}/resetPassword`, {
         userId,      
         token,
-        password: newPassword // Matched key to backend expectation
+        password: newPassword
     });
     return response;
 };

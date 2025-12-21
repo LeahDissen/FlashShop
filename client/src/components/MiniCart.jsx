@@ -1,16 +1,11 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore';
 import { XIcon } from './icons'; 
 
 export default function MiniCart({ onClose }) {
     const navigate = useNavigate();
-    
-    // FIX: Select state pieces individually to prevent infinite loops
     const cartItems = useCartStore((state) => state.cartItems);
     const removeFromCart = useCartStore((state) => state.removeFromCart);
-
-    // Calculate totals
     const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 

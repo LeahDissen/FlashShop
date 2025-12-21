@@ -1,6 +1,5 @@
 import axios from "axios";
-
-const API_URL = "http://localhost:5000/tips";
+const API_URL = `${import.meta.env.VITE_MONGO_API}/tips`;
 
 export const getAllTips = async (page = 1, limit = 9) => {
     const response = await axios.get(API_URL, {

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { signUp, googleLoginAPI } from '../api/auth'; 
-import { useGoogleLogin } from '@react-oauth/google'; 
-import { Link, useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { googleLoginAPI, signUp } from '../api/auth';
 import { joinClubRequest } from '../api/club';
-
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -298,7 +297,6 @@ export default function SignUpPage() {
                     כבר יש לך חשבון?{' '}
                     <a
                         href="/login"
-                        // Force pink color and handle hover
                         style={{ color: '#f2665e' }}
                         className="!text-[#f2665e] font-semibold no-underline transition-colors duration-300 hover:!text-[#e1574f]"
                         onMouseEnter={(e) => e.target.style.color = '#e1574f'}

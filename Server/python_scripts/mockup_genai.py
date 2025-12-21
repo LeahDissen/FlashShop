@@ -6,9 +6,8 @@ import os
 import requests
 import re
 from PIL import Image, ImageOps
+API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# קבלת מפתח ה-API
-API_KEY = os.environ.get("GEMINI_API_KEY") 
 if not API_KEY:
     sys.stderr.write("Error: GEMINI_API_KEY is missing.\n")
     sys.exit(1)
@@ -18,8 +17,6 @@ def load_image(source, label="Image"):
     try:
         if not source:
             raise ValueError(f"Source for {label} is empty")
-            
-        # ניקוי תווים מיותרים
         source = str(source).strip().strip("[]\"'")
 
         if source.startswith('http'):
@@ -48,9 +45,6 @@ def image_to_base64_str(img):
 
 def get_print_area_from_ai(product_img, product_name):
     """שולח את התמונה ל-Gemini ומבקש קואורדינטות"""
-    
-    # --- התיקון: שימוש במודל Gemini 2.0 Flash Experimental ---
-    # מודל זה לרוב זמין יותר למפתחים בגרסת בטא
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={API_KEY}"
     
     prompt = f"""
@@ -88,7 +82,6 @@ def get_print_area_from_ai(product_img, product_name):
         response = requests.post(url, headers={'Content-Type': 'application/json'}, json=payload)
         
         if response.status_code != 200:
-            # הדפסת השגיאה המלאה מגוגל כדי שנוכל לדבג אם צריך
             sys.stderr.write(f"Gemini API Error {response.status_code}: {response.text}\n")
             return None
 
@@ -99,8 +92,6 @@ def get_print_area_from_ai(product_img, product_name):
              return None
 
         text_response = response_json['candidates'][0]['content']['parts'][0]['text']
-        
-        # ניקוי ה-JSON
         json_match = re.search(r'\{.*\}', text_response, re.DOTALL)
         json_str = json_match.group(0) if json_match else text_response
         
@@ -114,47 +105,31 @@ def generate_smart_mockup(data):
     product_url = data.get('productUrl')
     design_base64 = data.get('designImage')
     product_name = data.get('productName', 'Product')
-
     base_img = load_image(product_url, "Product Image")
     design_img = load_image(design_base64, "Design Image")
-
-    # קריאה ל-AI
     area = get_print_area_from_ai(base_img, product_name)
     
-    # אם ה-AI נכשל (area הוא None), נשתמש בברירת מחדל
     if not area:
-        # ברירת מחדל: מרוכז באמצע, 40% גודל
         area = {"top": 30, "left": 30, "width": 40, "height": 40}
         print("Using DEFAULT coordinates (AI failed or returned bad data)")
     else:
         print(f"Using AI coordinates: {area}")
 
     img_w, img_h = base_img.size
-    
-    # המרת אחוזים לפיקסלים עם הגנות
     top_pct = max(0, min(100, area.get('top', 30)))
     left_pct = max(0, min(100, area.get('left', 30)))
     width_pct = max(5, min(100, area.get('width', 40)))
     height_pct = max(5, min(100, area.get('height', 40)))
-
     target_w = int(img_w * (width_pct / 100))
     target_h = int(img_h * (height_pct / 100))
     target_x = int(img_w * (left_pct / 100))
     target_y = int(img_h * (top_pct / 100))
-
-    # שינוי גודל העיצוב (Contain)
     design_img_resized = ImageOps.contain(design_img, (target_w, target_h))
-    
-    # מרכוז
     paste_x = target_x + (target_w - design_img_resized.width) // 2
     paste_y = target_y + (target_h - design_img_resized.height) // 2
-
-    # הדבקה
     composite = Image.new('RGBA', base_img.size, (0, 0, 0, 0))
     composite.paste(design_img_resized, (paste_x, paste_y))
     final_img = Image.alpha_composite(base_img, composite)
-
-    # המרה ל-Base64
     buffered = io.BytesIO()
     final_img.convert("RGB").save(buffered, format="JPEG", quality=95)
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -168,7 +143,6 @@ if __name__ == "__main__":
             sys.exit(0)
         data = json.loads(input_data)
         result = generate_smart_mockup(data)
-        # הדפסת התוצאה ל-stdout כדי ש-Node.js יקרא אותה
         print(result)
     except Exception as e:
         sys.stderr.write(f"Critical Error: {str(e)}")

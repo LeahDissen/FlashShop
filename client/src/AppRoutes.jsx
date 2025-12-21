@@ -1,16 +1,4 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import AdminRoute from "./components/AdminRoute";
-import Layout from "./components/Layout";
-import HomePage from "./pages/HomePage";
-import BlogPage from "./pages/BlogPage"
-import Terms from "./components/Terms";
-import LoginPage from "./pages/LoginPage";
-import TipsPage from "./pages/TipsPage";
-import ProductsPage from "./pages/productsPage";
-import EditorPage from "./pages/EditorPage";
-import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
-import SignUpPage from "./pages/SignUpPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import AdminDashboardPage from "./adminPage/AdminDashboardPage";
 import EditPages from "./adminPage/EditPages";
 import OrdersManagement from "./adminPage/OrdersManagement";
@@ -18,8 +6,20 @@ import ProductsManagement from "./adminPage/ProductsManagement";
 import SendMailToClub from "./adminPage/SendMailToClub";
 import UpdateCatalog from "./adminPage/UpdateCatalog";
 import ViewMessages from "./adminPage/ViewMessages";
-import ShoppingCartPage from "./pages/ShoppingCartPage";
+import AdminRoute from "./components/AdminRoute";
+import Layout from "./components/Layout";
+import Terms from "./components/Terms";
+import BlogPage from "./pages/BlogPage";
+import EditorPage from "./pages/EditorPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
+import ProductsPage from "./pages/productsPage";
 import ProfilePage from "./pages/profilePage";
+import ShoppingCartPage from "./pages/ShoppingCartPage";
+import SignUpPage from "./pages/SignUpPage";
+import TipsPage from "./pages/TipsPage";
 import ProductSelectionPage from "./pages/ProductSelectionPage";
 
 const ProductsPageWrapper = () => {

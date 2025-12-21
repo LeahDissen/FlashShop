@@ -2,6 +2,8 @@ import express from "express";
 import {
     getAboutPage,
     updateAboutPage,
+    getClubPage,
+    updateClubPage,
     getHeaderPage,
     updateHeaderPage,
     getFooterPage,
@@ -12,8 +14,6 @@ import {
     updateHomePage,
     getTipsPage,
     updateTipsPage,
-    getClubPage,
-    updateClubPage,
     getProductsPage,
     updateProductsPage,
     getPhotosPage,
@@ -22,6 +22,7 @@ import {
     updateCartPage
 } from "../controllers/pageController.js";
 import { authAdmin } from "../middlewares/auth.js";
+
 const router = express.Router();
 
 // Headers Page Routes

@@ -1,10 +1,9 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const AuthContext = createContext(undefined)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    // Load user from localStorage when the app starts
     const storedUser = localStorage.getItem('user')
     return storedUser ? JSON.parse(storedUser) : null
   })
@@ -14,7 +13,6 @@ export function AuthProvider({ children }) {
     checkAuth()
   }, [])
 
-  // Keep localStorage in sync with the current user
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user))

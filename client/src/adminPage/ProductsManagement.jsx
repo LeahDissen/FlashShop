@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { FaBoxOpen, FaPlus, FaTrash, FaEdit, FaSave, FaTimes } from "react-icons/fa";
+import { FaBoxOpen, FaEdit, FaPlus, FaSave, FaTimes, FaTrash } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
-import { getProducts, addProduct, deleteProduct, updateProduct } from "../api/products";
+import { Link } from "react-router-dom";
+import { addProduct, deleteProduct, getProducts, updateProduct } from "../api/products";
 
 const PRODUCT_CATEGORIES = [
     'T-shirt', 'Hoodie', 'Baseball Cap', 'Coffee Mug', 
@@ -81,7 +81,6 @@ export default function ProductsManagement() {
         if(confirm("למחוק את המוצר?")) {
             try {
                 await deleteProduct(id);
-                // If we deleted the item currently being edited, reset the form
                 if (isEditing && editId === id) {
                     resetForm();
                 }

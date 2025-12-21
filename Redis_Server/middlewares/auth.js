@@ -1,5 +1,5 @@
-import jwt from "jsonwebtoken";
-import config from "../config/secret.js"; 
+import config from "../config/secret.js";
+import jwt from "jsonwebtoken"; 
 
 export const authAdmin = (req, res, next) => {
     let token = req.cookies?.authToken || req.header("x-api-key");

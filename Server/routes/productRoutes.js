@@ -2,8 +2,6 @@ const express = require("express");
 const router = express.Router();
 const productController = require("../controllers/productController");
 const { authAdmin } = require("../middlewares/auth");
-// --- Multer setup ---
-
 
 router.get("/", productController.getProducts);
 

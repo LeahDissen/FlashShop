@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {forgotPasswordRequest} from '../api/auth';
 import { Link } from 'react-router-dom';
 
@@ -26,8 +26,6 @@ export default function ForgotPasswordPage() {
       .catch((err) => {
         setError('Failed to send reset email. Please try again.');
       });
-    
-    // Auto-hide success message after 5 seconds
     setTimeout(() => {
       setResetSuccess(false);
       setResetEmail('');
@@ -41,7 +39,6 @@ export default function ForgotPasswordPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
-      // UPDATED: Theme color gradient
       background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
     }}>
       <style>{`
@@ -81,7 +78,6 @@ export default function ForgotPasswordPage() {
             width: '64px',
             height: '64px',
             borderRadius: '50%',
-            // UPDATED: Circle background
             background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
             display: 'flex',
             alignItems: 'center',
@@ -173,9 +169,7 @@ export default function ForgotPasswordPage() {
             }}
             onFocus={(e) => {
               if (!error) {
-                // UPDATED: Focus border color
                 e.target.style.borderColor = '#f2665e';
-                // UPDATED: Focus shadow color
                 e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
               }
             }}
@@ -203,7 +197,6 @@ export default function ForgotPasswordPage() {
           style={{
             width: '100%',
             padding: '16px',
-            // UPDATED: Button gradient
             background: resetSuccess ? '#d1d5db' : 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
             color: 'white',
             border: 'none',
@@ -212,7 +205,6 @@ export default function ForgotPasswordPage() {
             fontWeight: 600,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             cursor: resetSuccess ? 'not-allowed' : 'pointer',
-            // UPDATED: Button shadow
             boxShadow: resetSuccess ? 'none' : '0 4px 15px rgba(242, 102, 94, 0.4)',
             transition: 'all 0.3s ease',
             marginBottom: '16px'
@@ -240,7 +232,6 @@ export default function ForgotPasswordPage() {
             width: '100%',
             padding: '16px',
             background: 'transparent',
-            // UPDATED: Text color
             color: '#f2665e',
             border: 'none',
             borderRadius: '12px',
@@ -286,13 +277,11 @@ export default function ForgotPasswordPage() {
             <Link
               to="/login"
               style={{
-                // UPDATED: Link color
                 color: '#f2665e',
                 textDecoration: 'none',
                 fontWeight: 600,
                 transition: 'color 0.3s ease'
               }}
-              // UPDATED: Hover colors
               onMouseEnter={(e) => e.target.style.color = '#d95248'}
               onMouseLeave={(e) => e.target.style.color = '#f2665e'}
             >

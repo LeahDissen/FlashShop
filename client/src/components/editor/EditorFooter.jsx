@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { GridIcon } from '../icons';
 
 const EditorFooter = ({ showGrid, setShowGrid, gridSize, setGridSize, zoom, setZoom }) => {

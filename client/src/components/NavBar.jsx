@@ -1,27 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { FaShoppingCart, FaUser, FaDownload, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import MiniCart from './MiniCart';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore'; 
-import MiniCart from './MiniCart'; 
 
 export default function NavBar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false); 
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // New state for mobile menu
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const logout = useAuthStore(state => state.logout);
     const isAdmin = useAuthStore(state => state.isAdmin());
-    
     const cartItems = useCartStore(state => state.cartItems);
     const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-
     const cartRef = useRef(null);
 
-    // Close cart when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (cartRef.current && !cartRef.current.contains(event.target)) {

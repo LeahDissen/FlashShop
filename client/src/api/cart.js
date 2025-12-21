@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:5000/orders';
+const API_URL = `${import.meta.env.VITE_MONGO_API}/orders`;
 
 export const saveCartToDB = async (userId, cartItems) => {
     if (!userId || cartItems.length === 0) return;
@@ -21,7 +20,6 @@ export const fetchCartFromDB = async (userId) => {
     if (!userId) return [];
     try {
         const response = await axios.get(`${API_URL}/pending/user/${userId}`);
-        // If an order exists, return its items. Otherwise return empty array.
         return (response.data && response.data.length > 0) ? response.data[0].items : [];
     } catch (error) {
         console.error("Failed to fetch cart:", error);

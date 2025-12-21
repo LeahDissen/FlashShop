@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { checkCouponRequest } from "../api/club";
+import { getPage } from "../api/pages";
+import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
 import CartSummary from "../components/CartSummary";
 import RecommendedProduct from "../components/RecommendedProduct";
-import { useCartStore } from "../store/cartStore";
-import useAuthStore from "../store/authStore";
-import { checkCouponRequest } from "../api/club";
-import AdminControls from "../components/AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
-import { getPage } from "../api/pages";
+import useAuthStore from "../store/authStore";
+import { useCartStore } from "../store/cartStore";
 
 const RECOMMENDED_PRODUCTS = [
   {
@@ -158,8 +158,6 @@ export default function ShoppingCartPage() {
           />
         </div>
       </div>
-
-      {/* חלק תחתון - עריכת סיכום הזמנה */}
       <h3 className="font-bold text-lg border-b pb-2 mt-6 text-[#f2665e]">עריכת סיכום הזמנה וקופונים</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>

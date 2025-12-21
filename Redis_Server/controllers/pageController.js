@@ -1,6 +1,5 @@
 import redis from "../config/redis.js";
 
-// Generic factory for GET handler
 const createGetHandler = (key) => {
     return async (req, res) => {
         try {
@@ -13,7 +12,6 @@ const createGetHandler = (key) => {
     };
 };
 
-// Generic factory for UPDATE handler
 const createUpdateHandler = (key) => {
     return async (req, res) => {
         try {
@@ -39,7 +37,6 @@ const createUpdateHandler = (key) => {
     };
 };
 
-// Exports using factories — שמות פונקציות לא השתנו
 export const getHeaderPage = createGetHandler("header");
 export const updateHeaderPage = createUpdateHandler("header");
 
