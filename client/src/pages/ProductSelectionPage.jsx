@@ -86,14 +86,13 @@ const ProductSelectionPage = () => {
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-12 px-4">
             <div className="max-w-4xl mx-auto space-y-8">
-                
                 {/* כרטיס עליון - פאזל מודפס */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
                     <div className="flex items-center justify-between">
                         {/* תמונת מוצר - שמאל */}
                         <div className="w-64">
-                            <img 
-                                src={product.image || "https://images.unsplash.com/photo-1587731556938-38755b4803a6?w=300"} 
+                            <img
+                                src={product.image || "https://images.unsplash.com/photo-1587731556938-38755b4803a6?w=300"}
                                 alt={product.name}
                                 className="w-full h-48 object-cover rounded-lg bg-gray-100"
                             />
@@ -138,64 +137,6 @@ const ProductSelectionPage = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* כרטיס תחתון - תמונה מודפסת */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                    {/* תמונה גדולה עם רקע גרדיאנט */}
-                    <div className="mb-6">
-                        <div className="relative bg-gradient-to-br from-purple-100 via-pink-50 to-yellow-100 rounded-xl p-8 h-64 flex items-center justify-center">
-                            <img 
-                                src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600" 
-                                alt="תמונה לדוגמה"
-                                className="h-full rounded-lg shadow-lg"
-                            />
-                        </div>
-                    </div>
-
-                    {/* כותרת */}
-                    <div className="text-center mb-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">תמונה מודפסת</h3>
-                        <p className="text-sm text-gray-500">צרו מוצר ייחודי משלכם</p>
-                    </div>
-
-                    {/* 4 תמונות קטנות */}
-                    <div className="grid grid-cols-4 gap-4 mb-6">
-                        {[
-                            "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200",
-                            "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?w=200",
-                            "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=200",
-                            "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=200"
-                        ].map((img, idx) => (
-                            <div key={idx} className="relative group">
-                                <div className="aspect-square rounded-lg overflow-hidden border-4 border-pink-200">
-                                    <img 
-                                        src={img}
-                                        alt={`תמונה ${idx + 1}`}
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* כפתורים תחתונים */}
-                    <div className="flex gap-3 justify-center">
-                        <button
-                            onClick={handleDesignClick}
-                            className="px-8 py-2.5 bg-pink-50 hover:bg-pink-100 text-gray-700 rounded-full text-sm font-medium transition-colors"
-                        >
-                            עריכת תמונה
-                        </button>
-                        <button
-                            onClick={handleUploadClick}
-                            disabled={isUploading}
-                            className="px-8 py-2.5 bg-pink-400 hover:bg-pink-500 text-white rounded-full text-sm font-medium transition-colors disabled:opacity-50"
-                        >
-                            {isUploading ? 'מעלה...' : 'הזמינו עכשיו'}
-                        </button>
-                    </div>
-                </div>
-
             </div>
         </div>
     );
