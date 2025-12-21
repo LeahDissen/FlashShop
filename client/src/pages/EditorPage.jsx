@@ -4,7 +4,7 @@ import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
 import EditorHeader from '../components/editor/EditorHeader';
-import EditorSidebar from '../components/editor/EditorSideBar.jsx';
+import EditorSidebar from '../components/editor/EditorSidebar.jsx';
 import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
 import { generatePersonalizedProduct } from '../services/geminiService';
