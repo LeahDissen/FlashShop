@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { SparklesIcon } from './icons';
+import { useNavigate } from 'react-router-dom';
 import { getProducts } from '../api/products';
 
-const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedProduct, content }) => {
-    const navigate = useNavigate(); // 2. שימוש ב-hook
+const PersonalizationSection = ({ onSelectProduct, content }) => {
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState(["הכל"]);
     const [activeCategory, setActiveCategory] = useState("הכל");
@@ -28,7 +28,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
 
     const filteredProducts = products.filter(product => {
         if (activeCategory === "הכל") return true;
-        return product.category === activeCategory; 
+        return product.category === activeCategory;
     });
 
     const handleCategoryChange = (category) => {
@@ -36,9 +36,7 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
         onSelectProduct(null);
     };
 
-    // 3. פונקציה חדשה לטיפול בלחיצה על מוצר
     const handleProductClick = (product) => {
-        // ניווט לעמוד הביניים עם העברת אובייקט המוצר
         navigate(`/product-selection/${product._id}`, { state: { product } });
     };
 
@@ -54,11 +52,10 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                         <button
                             key={cat}
                             onClick={() => handleCategoryChange(cat)}
-                            className={`transition-colors hover:text-[#f2665e] ${
-                                activeCategory === cat 
-                                ? "text-[#f2665e] font-bold border-b-2 border-[#f2665e]" 
-                                : ""
-                            }`}
+                            className={`transition-colors hover:text-[#f2665e] ${activeCategory === cat
+                                    ? "text-[#f2665e] font-bold border-b-2 border-[#f2665e]"
+                                    : ""
+                                }`}
                         >
                             {cat}
                         </button>
@@ -69,17 +66,16 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                     {filteredProducts.map(product => (
                         <div
                             key={product._id || product.name}
-                            // 4. שינוי ה-onClick כאן לניווט ישיר
                             onClick={() => handleProductClick(product)}
                             className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white border-transparent shadow-md hover:shadow-xl hover:border-red-300`}
                         >
                             <div className="h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
                                 <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                             </div>
-                            
+
                             <div className="p-3 flex flex-col items-center gap-1 bg-white">
                                 <h3 className="font-bold text-sm md:text-base text-gray-800">
-                                    {product.name} 
+                                    {product.name}
                                 </h3>
                                 {product.price && (
                                     <span className="text-gray-500 text-xs">
@@ -90,15 +86,6 @@ const PersonalizationSection = ({ onNavigateToEditor, onSelectProduct, selectedP
                         </div>
                     ))}
                 </div>
-
-                {/* הכפתור הישן הוסתר כי הלחיצה על המוצר עצמו מעבירה הלאה */}
-                {/* <button
-                    disabled={!selectedProduct}
-                    className="..."
-                >
-                    <SparklesIcon className="w-6 h-6 ml-2" /> {content.buttonText}
-                </button> 
-                */}
             </div>
         </section>
     );
