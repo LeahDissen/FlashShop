@@ -9,74 +9,10 @@
 * **שרת תוכן (CMS):** שירות נוסף מבוסס Redis לניהול תכנים דינמיים באתר (כמו טקסטים בדף הבית).
 
 
-# התקנה והפעלה
-כדי להריץ את האפליקציה באופן מקומי, עקוב אחרי השלבים הבאים:
-מכיוון שהפרויקט מורכב משלושה חלקים (קליינט, שרת, ושרת-רדיס), יש להתקין כל אחד מהם.
+# הפעלה
+כדי להריץ את האפליקציה:
+**https://flashshop.onrender.com**
 
-- פתח את שורת הפקודה (Command Line):
-(1. לחץ על מקש Windows + R, 2. הקלד cmd, 3. לחץ Enter)
-
-- הורד את המאגר (repository) מגיטהאב:
-
-    ```bash
-    git clone https://github.com/Noa123715/FlashShop.git
-    ```
-
-    ```bash
-    cd FlashShop
-    ```
-
-- התקן את התלויות (dependencies) גם בצד הלקוח וגם בצד השרת:
-
-    ```bash
-    cd client
-    ```
-
-    ```bash
-    npm install
-    ```
-
-    ```bash
-    cd ../Server
-    ```
-
-    ```bash 
-    npm install
-    ```
-
-    ```bash
-    cd ../Redis_Server
-    ```
-
-    ```bash 
-    npm install
-    ```
-
-- הפעל את השרת (Backend):
-
-    ```bash
-    node index.js &
-    ```
-
-  ```bash
-  cd ../Server
-  ```
-
-  ```bash
-    npm run dev &
-    ```
-
-- הפעל את האפליקציה (Frontend):
-
-    ```bash
-    cd ../client
-    ```
-
-    ```bash
-    npm run dev &
-    ```
-
-- אם הדפדפן לא נפתח אוטומטית, ניתן לגשת לכתובת: http://localhost:5173
 
 # הוראות שימוש
 לאחר שהאפליקציה פועלת, ניתן להשתמש בה כך:
