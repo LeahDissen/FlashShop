@@ -20,10 +20,8 @@ import UpdateCatalog from "./adminPage/UpdateCatalog";
 import ViewMessages from "./adminPage/ViewMessages";
 import ShoppingCartPage from "./pages/ShoppingCartPage";
 import ProfilePage from "./pages/profilePage";
+import ProductSelectionPage from "./pages/ProductSelectionPage";
 
-// Wrapper to provide navigation prop to ProductsPage if needed, 
-// though ProductsPage could also use useNavigate directly.
-// For now, keeping onNavigate prop as requested in original code structure.
 const ProductsPageWrapper = () => {
     const navigate = useNavigate();
     return <ProductsPage onNavigate={(path) => navigate(path)} />;
@@ -48,6 +46,7 @@ export default function AppRoutes() {
                 <Route path="/terms" element={<Layout><Terms /></Layout>} />
                 <Route path="/tips" element={<Layout><TipsPage /></Layout>} />
                 <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
+                <Route path="/product-selection/:productId" element={<Layout><ProductSelectionPage /></Layout>} />
                 {/* Only admin can see this link */}
                 <Route path="/admindashboard" element={<AdminRoute><Layout><AdminDashboardPage /></Layout></AdminRoute>} />
                 <Route path="/editpages" element={<AdminRoute><Layout><EditPages /></Layout></AdminRoute>} />
@@ -58,7 +57,7 @@ export default function AppRoutes() {
                 <Route path="/viewmessages" element={<AdminRoute><Layout><ViewMessages /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
-                <Route path="/editor" element={<Layout> <EditorPageWrapper /> </Layout>} />
+                <Route path="/editor/:productId" element={<Layout> <EditorPageWrapper /> </Layout>} />
                 <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />
                 {/* Redirect to home */}
                 <Route path="*" element={<Navigate to="/" />} />
