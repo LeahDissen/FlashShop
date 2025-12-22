@@ -50,7 +50,7 @@ export default function NavBar() {
                 </button>
             </li>
             <li>
-                <Link to="/My-Product-Catalog.pdf" download="Our-Catalog-2025.pdf" className={style} onClick={onClick}>
+                <Link to="/My-Product-Catalog.pdf" download="My-Product-Catalog.pdf" className={style} onClick={onClick}>
                     קטלוג
                     <FaDownload size={14} />
                 </Link>
