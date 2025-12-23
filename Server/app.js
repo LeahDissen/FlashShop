@@ -13,6 +13,7 @@ const orderRoutes = require("./routes/ordersRoutes");
 const photoPriceRoutes = require("./routes/photoPriceRoutes.js");
 const productRoutes = require("./routes/productRoutes");
 const tipsRoutes = require("./routes/tipsRoutes.js");
+const catalogRoutes = require("./routes/catalogRoutes.js");
 
 const PORT = config.PORT;
 const HOST_NAME = config.HOST_NAME;
@@ -34,6 +35,7 @@ app.use("/orders", orderRoutes);
 app.use("/photo-prices", photoPriceRoutes);
 app.use("/products", productRoutes);
 app.use("/tips", tipsRoutes);
+app.use("/catalog", catalogRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);

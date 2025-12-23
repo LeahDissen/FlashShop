@@ -4,13 +4,14 @@ import { Link } from 'react-router-dom';
 import MiniCart from './MiniCart';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
-import { useCartStore } from '../store/cartStore'; 
+import { useCartStore } from '../store/cartStore';
+const API_URL = import.meta.env.VITE_MONGO_API;
 
 export default function NavBar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [isCartOpen, setIsCartOpen] = useState(false); 
+    const [isCartOpen, setIsCartOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    
+
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const logout = useAuthStore(state => state.logout);
@@ -45,12 +46,15 @@ export default function NavBar() {
             <li><Link to="/photo-development" className={style} onClick={onClick}>פיתוח תמונות</Link></li>
             <li><Link to="/tips" className={style} onClick={onClick}>בלוג</Link></li>
             <li>
-                <button onClick={() => { setClubOpen(true); if(onClick) onClick(); }} className={`${style} bg-transparent border-none font-inherit cursor-pointer w-full text-right`}>
+                <button onClick={() => { setClubOpen(true); if (onClick) onClick(); }} className={`${style} bg-transparent border-none font-inherit cursor-pointer w-full text-right`}>
                     הצטרפות למועדון
                 </button>
             </li>
             <li>
-                <a href="/My-Product-Catalog.pdf" download="My-Product-Catalog.pdf" className={style} onClick={onClick}>
+                <a href={`${API_URL}/catalog/download-catalog`}
+                    rel="noopener noreferrer"
+                    className={style}
+                    onClick={onClick}>
                     קטלוג
                     <FaDownload size={14} />
                 </a>
@@ -63,7 +67,7 @@ export default function NavBar() {
 
             {/* Hamburger Button (Mobile Only) */}
             <div className="md:hidden pr-4">
-                <button 
+                <button
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     className="text-[#f2665e] p-2 hover:bg-[#f2665e]/10 rounded-full transition-colors"
                 >
@@ -80,7 +84,7 @@ export default function NavBar() {
             <div className="flex items-center gap-3 sm:gap-5">
                 {/* Cart Icon Section */}
                 <div className="relative" ref={cartRef}>
-                    <button 
+                    <button
                         onClick={() => setIsCartOpen(!isCartOpen)}
                         className="text-[#f2665e] hover:text-[#d95248] transition-colors p-2 rounded-full hover:bg-[#f2665e]/10 relative"
                     >
@@ -109,8 +113,8 @@ export default function NavBar() {
                             </button>
                             {isMenuOpen && (
                                 <div className="absolute top-full left-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 text-right" dir="rtl">
-                                   <Link 
-                                        to="/profile" 
+                                    <Link
+                                        to="/profile"
                                         className="w-full px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors border-b border-gray-50"
                                         onClick={() => setIsMenuOpen(false)}
                                     >
@@ -134,9 +138,9 @@ export default function NavBar() {
             {isMobileMenuOpen && (
                 <div className="absolute top-full right-0 w-full bg-white shadow-xl z-40 border-t border-gray-100 md:hidden flex flex-col py-2">
                     <ul className="flex flex-col w-full" dir="rtl">
-                        <NavLinks 
-                            style={mobileLinkStyle} 
-                            onClick={() => setIsMobileMenuOpen(false)} 
+                        <NavLinks
+                            style={mobileLinkStyle}
+                            onClick={() => setIsMobileMenuOpen(false)}
                         />
                     </ul>
                 </div>
