@@ -9,6 +9,8 @@ export default function UpdateCatalog() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
+    const DOWNLOAD_URL = `${import.meta.env.VITE_MONGO_API}/catalog/download-catalog`;
+
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
         if (selectedFile && selectedFile.type === 'application/pdf') {
@@ -68,9 +70,11 @@ export default function UpdateCatalog() {
                             <p className="text-sm text-gray-500">זמין להורדה ללקוחות</p>
                         </div>
                     </div>
+
                     <a
-                        href="/My-Product-Catalog.pdf"
+                        href={DOWNLOAD_URL}
                         target="_blank"
+                        rel="noopener noreferrer"
                         className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
                         צפייה בקובץ
                     </a>
