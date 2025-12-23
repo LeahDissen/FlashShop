@@ -50,10 +50,10 @@ export default function NavBar() {
                 </button>
             </li>
             <li>
-                <Link to="/My-Product-Catalog.pdf" download="My-Product-Catalog.pdf" className={style} onClick={onClick}>
+                <a href="/My-Product-Catalog.pdf" download="My-Product-Catalog.pdf" className={style} onClick={onClick}>
                     קטלוג
                     <FaDownload size={14} />
-                </Link>
+                </a>
             </li>
         </>
     );
