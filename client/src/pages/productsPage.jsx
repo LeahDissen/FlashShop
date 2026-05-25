@@ -5,12 +5,11 @@ import PersonalizationSection from '../components/PersonalizationSection';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
 
-
 const ProductsPage = ({ onNavigate }) => {
     const { selectedProduct, setSelectedProduct } = useProductStore();
     const adminControls = useAdminControl({
-        title: "",
-        img: "",
+        title: "המוצרים שלנו", // ברירת מחדל מהפיגמה
+        img: "", 
         sectionTitle: "",
         sectionDescription: "",
         buttonText: "",
@@ -25,6 +24,7 @@ const ProductsPage = ({ onNavigate }) => {
         });
     }, []);
 
+    // אזור עריכת מנהל (Admin)
     const EditContent = (
         <div className="bg-white p-6 rounded-lg space-y-4 text-right" dir="rtl">
             <h3 className="font-bold text-lg border-b pb-2">עריכת כותרת עליונה (Hero)</h3>
@@ -33,7 +33,7 @@ const ProductsPage = ({ onNavigate }) => {
                 <input type="text" value={draft.title} onChange={(e) => updateDraft({ title: e.target.value })} className="w-full border p-2 rounded" />
             </div>
             <div>
-                <label className="block text-sm font-bold text-gray-700">קישור לתמונת רקע עליונה:</label>
+                <label className="block text-sm font-bold text-gray-700">קישור לתמונת רקע עליונה (אופציונלי):</label>
                 <input type="text" value={draft.img} onChange={(e) => updateDraft({ img: e.target.value })} className="w-full border p-2 rounded ltr" />
             </div>
 
@@ -46,34 +46,39 @@ const ProductsPage = ({ onNavigate }) => {
                 <label className="block text-sm font-bold text-gray-700">תיאור:</label>
                 <textarea value={draft.sectionDescription} onChange={(e) => updateDraft({ sectionDescription: e.target.value })} className="w-full border p-2 rounded h-24" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-bold text-gray-700">טקסט כפתור:</label>
-                    <input type="text" value={draft.buttonText} onChange={(e) => updateDraft({ buttonText: e.target.value })} className="w-full border p-2 rounded" />
-                </div>
-                <div>
-                    <label className="block text-sm font-bold text-gray-700">הודעת שגיאה (כשלא נבחר מוצר):</label>
-                    <input type="text" value={draft.msg} onChange={(e) => updateDraft({ msg: e.target.value })} className="w-full border p-2 rounded" />
-                </div>
-            </div>
         </div>
     );
 
+    // תצוגת הגולש (View)
     const ViewContent = (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-[#faf8f6] text-right" dir="rtl">
+            
+            {/* Hero Banner בגובה ובעיצוב המדויק מהפיגמה */}
             <div className="w-full relative">
-                <div
-                    className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
-                    style={{ backgroundImage: `url(${draft.img})` }}
+                <div 
+                    className="relative h-[280px] sm:h-[320px] flex items-center justify-center text-white"
+                    style={{ 
+                        backgroundColor: '#a39589', // צבע הרקע הניטרלי מהפיגמה
+                        backgroundImage: draft.img ? `url(${draft.img})` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                    }}
                 >
-                    <div className="absolute inset-0 bg-black/20"></div>
-                    <h1 className="relative z-10 text-5xl sm:text-6xl font-bold text-center drop-shadow-lg tracking-wide">
-                        {draft.title}
+                    {/* שכבת כהות עדינה מאוד רק אם קיימת תמונת רקע כדי שהטקסט הלבן ייקרא טוב */}
+                    {draft.img && <div className="absolute inset-0 bg-black/10"></div>}
+                    
+                    {/* כותרת בעיצוב המדויק: גודל 50px, פונט Noto Sans Hebrew, משקל Bold */}
+                    <h1 
+                        className="relative z-10 text-[50px] font-bold text-center text-white tracking-wide drop-shadow-sm"
+                        style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}
+                    >
+                        {draft.title || "המוצרים שלנו"}
                     </h1>
 
+                    {/* הגל הלבן שמתמזג עם הרקע החדש */}
                     <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] rotate-180">
                         <svg
-                            className="relative block w-[calc(100%+1.3px)] h-[50px] md:h-[70px]"
+                            className="relative block w-[calc(100%+1.3px)] h-[60px] md:h-[90px]"
                             data-name="Layer 1"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 1200 120"
@@ -81,14 +86,15 @@ const ProductsPage = ({ onNavigate }) => {
                         >
                             <path
                                 d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-                                fill="#ffffff"
+                                fill="#faf8f6" // מתמזג לחלוטין עם רקע העמוד החדש
                             ></path>
                         </svg>
                     </div>
                 </div>
             </div>
 
-            <div className="pt-8 min-h-[60vh]">
+            {/* אזור גריד המוצרים והקטגוריות */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
                 <PersonalizationSection
                     onNavigateToEditor={() => onNavigate('/editor')}
                     onSelectProduct={setSelectedProduct}
@@ -96,6 +102,7 @@ const ProductsPage = ({ onNavigate }) => {
                     content={draft}
                 />
             </div>
+
         </div>
     );
 

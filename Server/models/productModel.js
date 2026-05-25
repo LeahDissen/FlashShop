@@ -7,5 +7,8 @@ let productSchema = new mongoose.Schema({
     image: {type:String,required:true},
     category: { type: String, required: true },
     stock: { type: Number, required: true },
+    /** מידות אזור ההדפסה בס"מ – משמשות לגודל משטח העבודה בעורך */
+    printWidth: { type: Number, default: 12 },
+    printHeight: { type: Number, default: 18 },
 }, { timestamps: true });
 exports.ProductModel = mongoose.model("products", productSchema);

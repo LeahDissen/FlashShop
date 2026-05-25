@@ -16,7 +16,9 @@ const INITIAL_FORM_DATA = {
     price: "",
     category: "T-shirt",
     stock: 100,
-    image: ""
+    image: "",
+    printWidth: 12,
+    printHeight: 18,
 };
 
 export default function ProductsManagement() {
@@ -47,12 +49,19 @@ export default function ProductsManagement() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const payload = {
+            ...formData,
+            price: Number(formData.price),
+            stock: Number(formData.stock),
+            printWidth: Number(formData.printWidth) || 12,
+            printHeight: Number(formData.printHeight) || 18,
+        };
         try {
             if (isEditing) {
-                await updateProduct(editId, formData);
+                await updateProduct(editId, payload);
                 alert("מוצר עודכן בהצלחה!");
             } else {
-                await addProduct(formData);
+                await addProduct(payload);
                 alert("מוצר נוסף בהצלחה!");
             }
             resetForm();
@@ -70,7 +79,9 @@ export default function ProductsManagement() {
             price: product.price,
             category: product.category,
             stock: product.stock,
-            image: product.image
+            image: product.image,
+            printWidth: product.printWidth ?? 12,
+            printHeight: product.printHeight ?? 18,
         });
         setEditId(product._id);
         setIsEditing(true);
@@ -155,6 +166,41 @@ export default function ProductsManagement() {
                             <label className="block text-sm font-medium text-gray-700">URL תמונה</label>
                             <input type="text" name="image" value={formData.image} onChange={handleChange} placeholder="https://..." className="w-full p-2 border rounded-lg" required />
                         </div>
+
+                        <div className="rounded-lg border border-dashed border-[#f2665e]/40 bg-[#fff5f4] p-3 space-y-2">
+                            <p className="text-sm font-bold text-gray-800">גודל משטח ההדפסה (ס"מ)</p>
+                            <p className="text-xs text-gray-500">הלקוח יראה בעורך משטח עבודה בפרופורציה הזו — לדוגמה חולצה לרכב 12×12</p>
+                            <div className="flex gap-4">
+                                <div className="w-1/2">
+                                    <label className="block text-xs font-medium text-gray-600">רוחב</label>
+                                    <input
+                                        type="number"
+                                        name="printWidth"
+                                        min="1"
+                                        max="100"
+                                        step="0.5"
+                                        value={formData.printWidth}
+                                        onChange={handleChange}
+                                        className="w-full p-2 border rounded-lg"
+                                        required
+                                    />
+                                </div>
+                                <div className="w-1/2">
+                                    <label className="block text-xs font-medium text-gray-600">גובה</label>
+                                    <input
+                                        type="number"
+                                        name="printHeight"
+                                        min="1"
+                                        max="100"
+                                        step="0.5"
+                                        value={formData.printHeight}
+                                        onChange={handleChange}
+                                        className="w-full p-2 border rounded-lg"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        </div>
                         
                         <div className="flex gap-2 pt-2">
                             <button 
@@ -192,6 +238,11 @@ export default function ProductsManagement() {
                                         <div>
                                             <h3 className="font-bold text-gray-800">{product.name}</h3>
                                             <p className="text-xs text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded mt-1">{product.category}</p>
+                                            {(product.printWidth || product.printHeight) && (
+                                                <p className="text-xs text-[#f2665e] mt-1">
+                                                    הדפסה: {product.printWidth ?? 12}×{product.printHeight ?? 18} ס"מ
+                                                </p>
+                                            )}
                                         </div>
                                         <div className="mt-2 flex justify-between items-end">
                                             <span className="font-bold text-[#f2665e]">₪{product.price}</span>

@@ -12,17 +12,18 @@ exports.signup = async (req, res, next) => {
     let validateBody = validateUser(req.body);
     if (validateBody.error) {
       console.log(validateBody.error.details);
-      return res.status(400).json(validateBody.error.details);
+      const message = validateBody.error.details.map((d) => d.message).join(', ');
+      return res.status(400).json({ msg: message, details: validateBody.error.details });
     }
     let user = new UserModel(req.body);
     console.log(user);
-    user.password = bcrypt.hash(user.password, 10);
+    user.password = await bcrypt.hash(user.password, 10);
     await user.save();
     user.password = "******"
     res.status(201).json(user);
   } catch (err) {
     if (err.code == 11000) {
-      return res.status(500).json({ msg: "Email already in system, try to log in", code: 11000 })
+      return res.status(409).json({ msg: "כתובת האימייל כבר רשומה במערכת. נסי להתחבר.", code: 11000 });
     }
     console.log(err);
     res.status(500).json({ msg: "There was an error, try again later", err });

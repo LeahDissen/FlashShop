@@ -70,22 +70,35 @@ export default function SignUpPage() {
                         });
                         console.log("User automatically added to club");
                     } catch (clubError) {
-                        alert('הרישום למועדון נכשל, אם זאת הכניסה לאתר הושלמה\nאפשר לנסות להצטרף למועדון מאוחר יותר')
                         console.error('Failed to join club automatically:', clubError);
                     }
                 }
-                alert('Account created successfully!');
+                alert('החשבון נוצר בהצלחה! עכשיו אפשר להתחבר.');
                 setFormData({
                     fullName: '',
                     email: '',
                     password: '',
                     confirmPassword: ''
                 });
-                Navigate('/logIn');
+                Navigate('/login');
             })
             .catch(error => {
                 console.error('Error creating account:', error);
-                alert('היצירת חשבון נכשלה. אנא נסה שוב.');
+                const serverMsg = error.response?.data?.msg;
+                if (error.response?.status === 409) {
+                    alert(serverMsg || 'כתובת האימייל כבר רשומה. נסי להתחבר.');
+                    Navigate('/login');
+                    return;
+                }
+                if (error.response?.status === 429 || error.response?.data?.message?.includes?.('Too many')) {
+                    alert('יותר מדי ניסיונות. המתיני דקה ונסי שוב.');
+                    return;
+                }
+                if (error.code === 'ERR_NETWORK' || !error.response) {
+                    alert('לא ניתן להתחבר לשרת. ודאי שהשרת רץ (פורט 5000) ונסי שוב.');
+                    return;
+                }
+                alert(serverMsg || error.response?.data?.details?.[0]?.message || 'יצירת החשבון נכשלה. אנא נסי שוב.');
             });
     };
 
