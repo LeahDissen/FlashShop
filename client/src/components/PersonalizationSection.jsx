@@ -8,17 +8,25 @@ const PersonalizationSection = ({ onSelectProduct, content }) => {
     const [categories, setCategories] = useState(["הכל"]);
     const [activeCategory, setActiveCategory] = useState("הכל");
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
+
+    const formatPrice = (price) => {
+        const num = typeof price === 'number' ? price : parseFloat(price);
+        return Number.isFinite(num) ? num.toFixed(2) : null;
+    };
 
     useEffect(() => {
         const fetchProducts = async () => {
+            setLoadError(null);
             try {
                 const data = await getProducts();
-                setProducts(data);
-                const uniqueCategories = [...new Set(data.map(p => p.category).filter(c => c))];
+                const list = Array.isArray(data) ? data : [];
+                setProducts(list);
+                const uniqueCategories = [...new Set(list.map(p => p.category).filter(c => c))];
                 setCategories(["הכל", ...uniqueCategories]);
-
             } catch (error) {
                 console.error("Failed to load products", error);
+                setLoadError('לא ניתן לטעון מוצרים. ודא שהשרת (פורט 5000) פועל.');
             } finally {
                 setLoading(false);
             }
@@ -37,6 +45,7 @@ const PersonalizationSection = ({ onSelectProduct, content }) => {
     };
 
     const handleProductClick = (product) => {
+        onSelectProduct?.(product);
         navigate(`/product-selection/${product._id}`, { state: { product } });
     };
 
@@ -62,8 +71,25 @@ const PersonalizationSection = ({ onSelectProduct, content }) => {
                     ))}
                 </div>
 
+                {loading && (
+                    <p className="text-gray-500 py-12">טוען מוצרים...</p>
+                )}
+
+                {loadError && (
+                    <div className="py-12 px-4 text-center">
+                        <p className="text-red-600 font-medium mb-2">{loadError}</p>
+                        <p className="text-gray-500 text-sm">הרץ בטרמינל: <code className="bg-gray-100 px-2 py-1 rounded">cd FlashShop/Server &amp;&amp; npm run dev</code></p>
+                    </div>
+                )}
+
+                {!loading && !loadError && filteredProducts.length === 0 && (
+                    <p className="text-gray-500 py-12">אין מוצרים להצגה</p>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
-                    {filteredProducts.map(product => (
+                    {!loading && !loadError && filteredProducts.map((product) => {
+                        const priceLabel = formatPrice(product.price);
+                        return (
                         <div
                             key={product._id || product.name}
                             onClick={() => handleProductClick(product)}
@@ -77,14 +103,15 @@ const PersonalizationSection = ({ onSelectProduct, content }) => {
                                 <h3 className="font-bold text-sm md:text-base text-gray-800">
                                     {product.name}
                                 </h3>
-                                {product.price && (
+                                {priceLabel && (
                                     <span className="text-gray-500 text-xs">
-                                        ₪{product.price.toFixed(2)}
+                                        ₪{priceLabel}
                                     </span>
                                 )}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>

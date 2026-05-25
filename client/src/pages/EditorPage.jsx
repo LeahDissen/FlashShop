@@ -1,5 +1,8 @@
 import { toPng } from 'html-to-image';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
+import { getProductById } from '../api/products';
+import { getCanvasDimensions, formatPrintSizeLabel } from '../utils/canvasDimensions';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
@@ -9,6 +12,7 @@ import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
 import { generatePersonalizedProduct } from '../services/geminiService';
 import { useProductStore } from '../store/productStore';
+import { useCartStore } from '../store/cartStore'; 
 
 const initialElements = [
     {
@@ -39,19 +43,47 @@ const initialElements = [
     },
 ];
 
-const EditorPage = ({ onNavigateToHome }) => {
+const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
+    const { productId } = useParams();
+    const location = useLocation();
+
+    // שליפת המוצר הנבחר מה-Store של המוצרים
     const { selectedProduct, setSelectedProduct } = useProductStore();
     const onSelectProduct = setSelectedProduct;
+    
+    // שליפת פונקציית ההוספה לסל מה-Store של העגלה
+    const addToCart = useCartStore((state) => state.addToCart);
 
-    const [history, setHistory] = useState([initialElements]);
+    const canvasDimensions = useMemo(
+        () => getCanvasDimensions(selectedProduct),
+        [selectedProduct]
+    );
+    const printSizeLabel = formatPrintSizeLabel(
+        canvasDimensions.widthCm,
+        canvasDimensions.heightCm
+    );
+
+    // --- ניהול סטייט מקומי וטיוטות ---
+    const [elements, setElements] = useState(() => {
+        const saved = localStorage.getItem('active_editor_elements');
+        return saved ? JSON.parse(saved) : initialElements;
+    });
+
+    const [canvasBackground, setCanvasBackground] = useState(() => {
+        const saved = localStorage.getItem('active_editor_bg');
+        return saved ? JSON.parse(saved) : { type: 'color', value: '#FFFFFF' };
+    });
+
+    const [projectName, setProjectName] = useState(() => {
+        return localStorage.getItem('active_editor_name') || 'הפרויקט שלי';
+    });
+
+    const [history, setHistory] = useState([elements]);
     const [historyIndex, setHistoryIndex] = useState(0);
-    const [elements, setElements] = useState(initialElements);
-    const [selectedElementId, setSelectedElementId] = useState(initialElements[0]?.id || null);
+    const [selectedElementId, setSelectedElementId] = useState(elements[0]?.id || null);
     const [uploadedImages, setUploadedImages] = useState([]);
     const [croppingElementId, setCroppingElementId] = useState(null);
-    const [canvasBackground, setCanvasBackground] = useState({ type: 'color', value: '#FFFFFF' });
     const [uploadedBackgrounds, setUploadedBackgrounds] = useState([]);
-    const [projectName, setProjectName] = useState('הפרויקט שלי');
     const [currentProjectId, setCurrentProjectId] = useState(undefined);
 
     const [showGrid, setShowGrid] = useState(false);
@@ -63,6 +95,40 @@ const EditorPage = ({ onNavigateToHome }) => {
     const [showLoadModal, setShowLoadModal] = useState(false);
     const [savedProjects, setSavedProjects] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        localStorage.setItem('active_editor_elements', JSON.stringify(elements));
+        localStorage.setItem('active_editor_bg', JSON.stringify(canvasBackground));
+        localStorage.setItem('active_editor_name', projectName);
+    }, [elements, canvasBackground, projectName]);
+
+    // טעינת המוצר שנבחר מעמוד המוצרים (state של הניווט או שליפה לפי מזהה ב-URL)
+    useEffect(() => {
+        const productFromNav = location.state?.product;
+        if (productFromNav) {
+            setSelectedProduct(productFromNav);
+            return;
+        }
+
+        if (!productId) return;
+
+        let cancelled = false;
+        getProductById(productId)
+            .then((product) => {
+                if (!cancelled && product) {
+                    setSelectedProduct(product);
+                }
+            })
+            .catch((err) => console.error('Failed to load product for editor', err));
+
+        return () => { cancelled = true; };
+    }, [productId, location.state, setSelectedProduct]);
+
+    const clearDraft = () => {
+        localStorage.removeItem('active_editor_elements');
+        localStorage.removeItem('active_editor_bg');
+        localStorage.removeItem('active_editor_name');
+    };
 
     const addToHistory = useCallback((newElements) => {
         const newHistory = history.slice(0, historyIndex + 1);
@@ -94,35 +160,113 @@ const EditorPage = ({ onNavigateToHome }) => {
         addToHistory(newElements);
     }, [addToHistory]);
 
+    // פונקציית שמירת פרויקט לבסיס הנתונים
+    const saveProjectToDB = async () => {
+        const node = document.getElementById('canvas-container');
+        let previewDataUrl = undefined;
+        if (node) {
+            setSelectedElementId(null);
+            await new Promise(resolve => setTimeout(resolve, 100));
+            previewDataUrl = await toPng(node, {
+                quality: 0.5,
+                pixelRatio: 0.5,
+                filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
+                backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
+            });
+        }
+
+        const projectData = {
+            _id: currentProjectId,
+            name: projectName,
+            elements,
+            canvasBackground,
+            uploadedImages,
+            uploadedBackgrounds,
+            selectedProduct,
+            canvasSize: {
+                width: canvasDimensions.width,
+                height: canvasDimensions.height,
+                widthCm: canvasDimensions.widthCm,
+                heightCm: canvasDimensions.heightCm,
+            },
+            preview: previewDataUrl || previewImage
+        };
+
+        const saved = await db.save(projectData);
+        setCurrentProjectId(saved._id);
+        return saved;
+    };
+
+    // --- 1. כפתור "אישור והזמנה" הראשי מתוך מסך התצוגה המקדימה ---
+    const handleConfirmAndOrder = useCallback(async () => {
+        setIsSaving(true);
+        try {
+            // א. שמירת הפרויקט לקבלת מזהה ייחודי
+            const savedProject = await saveProjectToDB();
+            
+            // ב. הגדרת משתני ברירת מחדל למקרה קיצוני שהאובייקט ריק
+            let productName = 'מוצר בעיצוב אישי';
+            let productPrice = 24.99; 
+            let productOriginalId = 'custom_product';
+
+            // ג. שליפה ישירה ומדויקת מתוך האובייקט שהגיע מהקליק של המשתמש (ללא ניחושים)
+            if (selectedProduct) {
+                if (typeof selectedProduct === 'object') {
+                    // שליפת השם המקורי של המוצר (למשל Travel Mug)
+                    productName = selectedProduct.name ? `${selectedProduct.name} בעיצוב אישי` : productName;
+                    productOriginalId = selectedProduct._id || selectedProduct.id || productOriginalId;
+                    
+                    // חילוץ חכם של המחיר: מנקה הכל חוץ ממספרים ונקודה (למשל מנקה סימני ₪ או רווחים)
+                    if (selectedProduct.price !== undefined && selectedProduct.price !== null) {
+                        const rawPrice = String(selectedProduct.price).replace(/[^\d.]/g, '');
+                        const parsedPrice = parseFloat(rawPrice);
+                        if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                            productPrice = parsedPrice; // המחיר המדויק מהאובייקט!
+                        }
+                    }
+                } else if (typeof selectedProduct === 'string') {
+                    productName = `${selectedProduct} בעיצוב אישי`;
+                }
+            }
+
+            // ד. בניית אובייקט עגלה תקין לחלוטין עם המחיר והשם המקוריים
+            const cartItem = {
+                id: `cart_${Date.now()}`,
+                productId: productOriginalId,
+                name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`, 
+                price: productPrice,            
+                image: previewImage || savedProject.preview, 
+                quantity: 1,
+                customDesign: {
+                    projectId: savedProject._id,
+                    projectName: savedProject.name,
+                    elements: savedProject.elements,
+                    canvasBackground: savedProject.canvasBackground
+                }
+            };
+
+            // ה. הזרקה לסל הקניות
+            addToCart([cartItem]);
+
+            alert('המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!');
+            setShowPreviewModal(false);
+            clearDraft();
+
+            if (onNavigateToCart) {
+                onNavigateToCart();
+            }
+        } catch (error) {
+            console.error("Failed to order project", error);
+            alert("אירעה שגיאה בעיבוד ההזמנה, אנא נסה שנית.");
+        } finally {
+            setIsSaving(false);
+        }
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart]);
+
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
         try {
-            const node = document.getElementById('canvas-container');
-            let previewDataUrl = undefined;
-            if (node) {
-                setSelectedElementId(null);
-                await new Promise(resolve => setTimeout(resolve, 100));
-                previewDataUrl = await toPng(node, {
-                    quality: 0.5,
-                    pixelRatio: 0.5,
-                    filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
-                    backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
-                });
-            }
-
-            const projectData = {
-                _id: currentProjectId,
-                name: projectName,
-                elements,
-                canvasBackground,
-                uploadedImages,
-                uploadedBackgrounds,
-                selectedProduct,
-                preview: previewDataUrl
-            };
-
-            const saved = await db.save(projectData);
-            setCurrentProjectId(saved._id);
+            await saveProjectToDB();
             alert('הפרויקט נשמר בהצלחה בספריה!');
         } catch (e) {
             console.error("Failed to save", e);
@@ -130,7 +274,62 @@ const EditorPage = ({ onNavigateToHome }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [currentProjectId, projectName, elements, canvasBackground, uploadedImages, uploadedBackgrounds, selectedProduct]);
+    }, [currentProjectId, projectName, elements, canvasBackground, uploadedImages, uploadedBackgrounds, selectedProduct, previewImage]);
+
+    // --- 2. כפתור הוספה ישירה לסל מתוך מסך "הפרויקטים שלי" ---
+    const handleAddExistingProjectToCart = useCallback((e, proj) => {
+        e.stopPropagation(); 
+        
+        try {
+            let productName = 'מוצר בעיצוב אישי';
+            let productPrice = 24.99;
+            let productOriginalId = 'custom_product';
+
+            if (proj.selectedProduct) {
+                if (typeof proj.selectedProduct === 'object') {
+                    productName = proj.selectedProduct.name ? `${proj.selectedProduct.name} בעיצוב אישי` : productName;
+                    productOriginalId = proj.selectedProduct._id || proj.selectedProduct.id || productOriginalId;
+                    
+                    if (proj.selectedProduct.price !== undefined && proj.selectedProduct.price !== null) {
+                        const rawPrice = String(proj.selectedProduct.price).replace(/[^\d.]/g, '');
+                        const parsedPrice = parseFloat(rawPrice);
+                        if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                            productPrice = parsedPrice;
+                        }
+                    }
+                } else if (typeof proj.selectedProduct === 'string') {
+                    productName = `${proj.selectedProduct} בעיצוב אישי`;
+                }
+            }
+
+            const cartItem = {
+                id: `cart_${Date.now()}`,
+                productId: productOriginalId,
+                name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`,
+                price: productPrice,
+                image: proj.preview,
+                quantity: 1,
+                customDesign: {
+                    projectId: proj._id,
+                    projectName: proj.name,
+                    elements: proj.elements,
+                    canvasBackground: proj.canvasBackground
+                }
+            };
+
+            addToCart([cartItem]);
+            
+            alert(`הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!`);
+            setShowLoadModal(false);
+            
+            if (onNavigateToCart) {
+                onNavigateToCart();
+            }
+        } catch (error) {
+            console.error("Error adding project to cart", error);
+            alert("שגיאה בהוספת הפרויקט לסל");
+        }
+    }, [addToCart, onNavigateToCart]);
 
     const handleOpenLoadModal = useCallback(async () => {
         setShowLoadModal(true);
@@ -174,7 +373,7 @@ const EditorPage = ({ onNavigateToHome }) => {
     }, [currentProjectId]);
 
     const addTextElement = useCallback(() => {
-        const config = { content: 'הוסף טקסט כאן', fontSize: 18, bold: false };
+        const config = { content: 'טקסט ניתן לעריכה', fontSize: 32, bold: false };
 
         const newElement = {
             id: `text_${Date.now()}`,
@@ -186,10 +385,10 @@ const EditorPage = ({ onNavigateToHome }) => {
             bold: config.bold,
             italic: false,
             underline: false,
-            textAlign: 'right',
+            textAlign: 'center',
             direction: 'rtl',
-            top: 100,
-            left: 100,
+            top: 230,
+            left: 75,
             backgroundColor: 'transparent',
             borderColor: '#000000',
             borderWidth: 0,
@@ -399,6 +598,7 @@ const EditorPage = ({ onNavigateToHome }) => {
         try {
             await new Promise(resolve => setTimeout(resolve, 250));
 
+            const productNameString = selectedProduct?.name || (typeof selectedProduct === 'string' ? selectedProduct : 'מוצר');
             const dataUrl = await toPng(node, {
                 quality: 0.95,
                 pixelRatio: 2,
@@ -411,7 +611,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                 setPreviewImage(dataUrl);
             } else {
                 try {
-                    const result = await generatePersonalizedProduct(selectedProduct, dataUrl);
+                    const result = await generatePersonalizedProduct(productNameString, dataUrl);
                     setPreviewImage(result);
                 } catch (aiError) {
                     console.error("AI generation failed, showing canvas fallback", aiError);
@@ -487,6 +687,8 @@ const EditorPage = ({ onNavigateToHome }) => {
                     showGrid={showGrid}
                     gridSize={gridSize}
                     zoom={zoom}
+                    canvasWidth={canvasDimensions.width}
+                    canvasHeight={canvasDimensions.height}
                 />
             </div>
             <EditorFooter
@@ -496,8 +698,10 @@ const EditorPage = ({ onNavigateToHome }) => {
                 setGridSize={setGridSize}
                 zoom={zoom}
                 setZoom={setZoom}
+                printSizeLabel={printSizeLabel}
             />
 
+            {/* מודאל פרויקטים שמורים */}
             {showLoadModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-75 p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden">
@@ -520,10 +724,9 @@ const EditorPage = ({ onNavigateToHome }) => {
                                             key={proj._id}
                                             onClick={(e) => {
                                                 e.preventDefault();
-                                                e.stopPropagation();
                                                 handleLoadProjectFromDB(proj);
                                             }}
-                                            className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-200 overflow-hidden cursor-pointer transition-all hover:border-red-300 group"
+                                            className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-200 overflow-hidden cursor-pointer transition-all hover:border-red-300 group relative flex flex-col"
                                         >
                                             <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                                                 {proj.preview ? (
@@ -533,26 +736,40 @@ const EditorPage = ({ onNavigateToHome }) => {
                                                 )}
                                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                                             </div>
-                                            <div className="p-4">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h4 className="font-bold text-gray-800 truncate flex-1 ml-2">{proj.name}</h4>
+                                            <div className="p-4 flex-1 flex flex-col justify-between">
+                                                <div>
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-bold text-gray-800 truncate flex-1 ml-2">{proj.name}</h4>
+                                                        <button
+                                                            onClick={(e) => handleDeleteProject(e, proj._id)}
+                                                            className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
+                                                            title="מחק פרויקט"
+                                                        >
+                                                            <TrashIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex items-center text-xs text-gray-500 mt-1">
+                                                        <ClockIcon className="w-3 h-3 ml-1" />
+                                                        {proj.updatedAt ? new Date(proj.updatedAt).toLocaleDateString('he-IL') : 'תאריך לא ידוע'}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                                                    {proj.selectedProduct ? (
+                                                        <span className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full max-w-[50%] truncate">
+                                                            {proj.selectedProduct?.name || (typeof proj.selectedProduct === 'string' ? proj.selectedProduct : 'מוצר')}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-400">מוצר כללי</span>
+                                                    )}
+                                                    
                                                     <button
-                                                        onClick={(e) => handleDeleteProject(e, proj._id)}
-                                                        className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-colors"
-                                                        title="מחק פרויקט"
+                                                        onClick={(e) => handleAddExistingProjectToCart(e, proj)}
+                                                        className="flex items-center bg-red-500 text-white text-xs font-bold py-1.5 px-3 rounded-lg hover:bg-red-600 transition-colors shadow-sm"
                                                     >
-                                                        <TrashIcon className="w-4 h-4" />
+                                                        <span>הוסף לסל</span>
                                                     </button>
                                                 </div>
-                                                <div className="flex items-center text-xs text-gray-500 mt-2">
-                                                    <ClockIcon className="w-3 h-3 ml-1" />
-                                                    {new Date(proj.updatedAt).toLocaleDateString('he-IL')}
-                                                </div>
-                                                {proj.selectedProduct && (
-                                                    <span className="inline-block mt-2 px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full">
-                                                        {proj.selectedProduct}
-                                                    </span>
-                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -563,36 +780,48 @@ const EditorPage = ({ onNavigateToHome }) => {
                 </div>
             )}
 
-            {/* Preview Modal */}
+            {/* Preview Modal – z גבוה מה-EditorHeader (60) כדי שלא ייחפוף מעל התמונה */}
             {showPreviewModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <SparklesIcon className="w-6 h-6 text-red-400" />
-                                תצוגה מקדימה: {selectedProduct || 'העיצוב שלך'}
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+                    <div
+                        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="shrink-0 p-3 border-b flex justify-between items-center bg-gray-50 gap-2">
+                            <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2 min-w-0">
+                                <SparklesIcon className="w-5 h-5 text-red-400 shrink-0" />
+                                <span className="truncate">
+                                    תצוגה מקדימה: {selectedProduct?.name || (typeof selectedProduct === 'string' ? selectedProduct : 'העיצוב שלך')}
+                                </span>
                             </h3>
-                            <button onClick={() => setShowPreviewModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                                <XIcon className="w-6 h-6 text-gray-500" />
+                            <button onClick={() => setShowPreviewModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0">
+                                <XIcon className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
-                        <div className="flex-1 p-6 overflow-auto bg-gray-100 flex items-center justify-center">
+                        <div className="flex-1 min-h-0 p-4 overflow-auto bg-gray-100 flex items-center justify-center">
                             {previewImage ? (
-                                <img src={previewImage} alt="Generated Preview" className="max-w-full max-h-full object-contain rounded-lg shadow-md" />
+                                <img
+                                    src={previewImage}
+                                    alt="Generated Preview"
+                                    className="max-w-full max-h-[50vh] w-auto h-auto object-contain rounded-lg shadow-md"
+                                />
                             ) : (
-                                <div className="text-center text-gray-500">
+                                <div className="text-center text-gray-500 py-8">
                                     <p>טוען תצוגה מקדימה...</p>
                                 </div>
                             )}
                         </div>
-                        <div className="p-4 border-t bg-white flex justify-end gap-3">
+                        <div className="shrink-0 p-3 border-t bg-white flex justify-end gap-3">
                             <button
                                 onClick={() => setShowPreviewModal(false)}
                                 className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium"
                             >
                                 חזור לעריכה
                             </button>
-                            <button className="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold shadow-lg">
+                            <button 
+                                onClick={handleConfirmAndOrder}
+                                className="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold shadow-lg"
+                            >
                                 אישור והזמנה
                             </button>
                         </div>
@@ -602,13 +831,13 @@ const EditorPage = ({ onNavigateToHome }) => {
 
             {/* Loading Overlay */}
             {(isPreviewLoading || isSaving) && !showPreviewModal && (
-                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white bg-opacity-80 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
                     <svg className="animate-spin h-16 w-16 text-red-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{isSaving ? 'שומר פרויקט...' : 'יוצר תצוגה מקדימה...'}</h2>
-                    <p className="text-gray-600">{isSaving ? 'נא להמתין בזמן שהפרויקט נשמר בספריה' : 'ה-AI שלנו מלביש את העיצוב שלך על המוצר'}</p>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{isSaving ? 'מעבד הזמנה...' : 'יוצר תצוגה מקדימה...'}</h2>
+                    <p className="text-gray-600">{isSaving ? 'נא להמתין בזמן שהמוצר מתווסף לעגלה שלך...' : 'ה-AI שלנו מלביש את העיצוב שלך על המוצר'}</p>
                 </div>
             )}
         </div>

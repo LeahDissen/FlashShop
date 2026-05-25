@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { GridIcon } from '../icons';
 
-const EditorFooter = ({ showGrid, setShowGrid, gridSize, setGridSize, zoom, setZoom }) => {
+const EditorFooter = ({ showGrid, setShowGrid, gridSize, setGridSize, zoom, setZoom, printSizeLabel }) => {
   const [isGridOpen, setIsGridOpen] = useState(false);
 
   return (
-    <footer className="bg-white p-2 flex items-center justify-center gap-8 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] border-t border-gray-100 z-10 relative">
+    <footer className="bg-white p-2 flex items-center justify-center gap-6 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] border-t border-gray-100 z-10 relative flex-wrap">
       
+      {printSizeLabel && (
+        <>
+          <span className="text-sm text-gray-600 font-medium">
+            משטח הדפסה: <span className="text-[#f2665e] font-bold">{printSizeLabel}</span>
+          </span>
+          <div className="h-6 w-px bg-gray-200 hidden sm:block" />
+        </>
+      )}
+
       {/* Grid Control */}
       <div className="relative">
         {isGridOpen && (

@@ -29,7 +29,12 @@ const ProductsPageWrapper = () => {
 
 const EditorPageWrapper = () => {
     const navigate = useNavigate();
-    return <EditorPage onNavigateToHome={() => navigate('/products')} />;
+    return (
+        <EditorPage
+            onNavigateToHome={() => navigate('/products')}
+            onNavigateToCart={() => navigate('/cart')}
+        />
+    );
 };
 
 export default function AppRoutes() {

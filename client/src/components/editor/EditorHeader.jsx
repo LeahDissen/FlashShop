@@ -17,23 +17,27 @@ const EditorHeader = ({
     <header className="bg-white shadow-md relative z-[60] p-2 flex items-center justify-between border-b">
       {/* Right side in RTL */}
       <div className="flex items-center gap-2">
-        <button className="bg-red-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-red-600 transition-colors">
-          המשך
+        <button 
+          onClick={onPreview}
+          disabled={isPreviewLoading}
+          className="bg-red-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isPreviewLoading ? (
+               <>
+                  <svg className="animate-spin -ml-1 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    טוען ומעביר לסל...
+               </>
+          ) : 'המשך'}
         </button>
         <button 
             onClick={onPreview}
             disabled={isPreviewLoading}
             className="border border-gray-300 text-gray-700 font-semibold py-2 px-6 rounded-md hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          {isPreviewLoading ? (
-               <>
-                  <svg className="animate-spin -ml-1 h-4 w-4 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    טוען...
-               </>
-          ) : 'תצוגה מקדימה'}
+          תצוגה מקדימה
         </button>
         <div className="h-8 w-px bg-gray-300 mx-1"></div>
         <button 

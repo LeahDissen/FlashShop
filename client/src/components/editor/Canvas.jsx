@@ -51,7 +51,9 @@ const Canvas = ({
   canvasBackground, 
   showGrid, 
   gridSize, 
-  zoom 
+  zoom,
+  canvasWidth = 350,
+  canvasHeight = 525,
 }) => {
   const [editingElementId, setEditingElementId] = useState(null);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -155,6 +157,7 @@ const Canvas = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [elements, selectedElementId, editingElementId, croppingElementId, updateElement, onDelete, onDuplicate, setSelectedElementId, onCancelCrop]);
+
   useEffect(() => {
     if (!isInteracting) return;
 
@@ -425,7 +428,7 @@ const Canvas = ({
         backgroundRepeat: canvasBackground.repeat || 'no-repeat',
       };
 
-  const gridCellSize = 350 / gridSize;
+  const gridCellSize = canvasWidth / gridSize;
 
   const renderElementContent = (el, isGhost = false) => {
     const elIsImage = el.type === 'image';
@@ -619,8 +622,8 @@ const Canvas = ({
         id="canvas-container"
         className="shadow-lg relative transition-transform duration-200 ease-in-out origin-center"
         style={{
-          width: '350px',
-          height: '525px',
+          width: `${canvasWidth}px`,
+          height: `${canvasHeight}px`,
           outline: '1px solid #fecaca',
           outlineOffset: '4px',
           transform: `scale(${scale})`,
@@ -685,6 +688,10 @@ const Canvas = ({
               aria-label={ariaLabel}
               aria-pressed={selectedElementId === el.id}
               onKeyDown={(e) => {
+                // במצב עריכת טקסט – לא לחסום רווח/Enter (נדרשים להקלדה)
+                if (el.type === 'text' && el.id === editingElementId) return;
+                if (e.target.isContentEditable) return;
+
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   if (croppingElementId) return;

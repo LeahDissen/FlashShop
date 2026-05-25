@@ -2,5 +2,5 @@ import { create } from 'zustand';
 
 export const useProductStore = create((set) => ({
     selectedProduct: null,
-    setSelectedProduct: (productName) => set({ selectedProduct: productName }),
+    setSelectedProduct: (product) => set({ selectedProduct: product }),
 }));
