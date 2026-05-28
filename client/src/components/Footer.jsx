@@ -8,12 +8,12 @@ import { useAdminControl } from "../hooks/useAdminControl";
 export default function Footer() {
     const adminControls = useAdminControl(
         {
-            noteTitle: "",
-            notePlaceholderName: "",
-            notePlaceholderEmail: "",
-            notePlaceholderMessage: "",
-            noteButtonText: "",
-            creditNote: "",
+            noteTitle: "שלחו לנו הודעה",
+            notePlaceholderName: "שם מלא",
+            notePlaceholderEmail: "אימייל",
+            notePlaceholderMessage: "איך נוכל לעזור?",
+            noteButtonText: "שלח",
+            creditNote: "FlashShop",
             contactAddress: "",
             contactPhone: "",
             contactEmail: "",
@@ -67,16 +67,17 @@ export default function Footer() {
 
     const formatPhoneForLink = (phone) => {
         if (!phone) return "";
-        return phone.replace(/[^+\d]/g, "");
+        return String(phone).replace(/[^+\d]/g, "");
     };
 
     const formatEmailForLink = (email) => {
         if (!email) return "";
-        return encodeURIComponent(email);
+        return encodeURIComponent(String(email));
     };
 
     useEffect(() => {
         getPage("footer").then((data) => {
+            if (!data || Object.keys(data).length === 0) return;
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });
@@ -98,13 +99,13 @@ export default function Footer() {
             <div className="max-w-screen-xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 px-4 lg:px-8 items-start" dir="rtl">
                 <div className="sendANote pr-0 md:pr-8">
                     <h2 dir="rtl" className="text-lg font-semibold mb-2 text-right" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
-                        {draft.noteTitle}
+                        {draft.noteTitle || "שלחו לנו הודעה"}
                     </h2>
                     <form className="flex flex-col gap-2" onSubmit={handleSubmit}>
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder={draft.notePlaceholderName}
+                                placeholder={draft.notePlaceholderName || "שם מלא"}
                                 value={contactForm.name}
                                 className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
@@ -114,7 +115,7 @@ export default function Footer() {
                         <div className="relative">
                             <input
                                 type="email"
-                                placeholder={draft.notePlaceholderEmail}
+                                placeholder={draft.notePlaceholderEmail || "אימייל"}
                                 value={contactForm.email}
                                 className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
@@ -124,7 +125,7 @@ export default function Footer() {
                         </div>
                         <div className="relative">
                             <textarea
-                                placeholder={draft.notePlaceholderMessage}
+                                placeholder={draft.notePlaceholderMessage || "איך נוכל לעזור?"}
                                 value={contactForm.message}
                                 className="w-full h-16 bg-white/70 px-3 py-2 rounded resize-none text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
@@ -141,7 +142,7 @@ export default function Footer() {
                             type="submit"
                             disabled={sending}
                             className="bg-white text-[#f2665e] px-6 py-2 rounded hover:bg-gray-100 font-semibold transition-colors" style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}>
-                            {sending ? 'שולח...' : 'שלח'}
+                            {sending ? 'שולח...' : (draft.noteButtonText || 'שלח')}
                         </button>
                     </form>
                 </div>
