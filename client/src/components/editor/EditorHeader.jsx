@@ -11,7 +11,9 @@ const EditorHeader = ({
     canUndo = false,
     canRedo = false,
     onSave,
-    onLoad
+    onLoad,
+    productLabel,
+    printSizeLabel,
 }) => {
   return (
     <header className="bg-white shadow-md relative z-[60] p-2 flex items-center justify-between border-b">
@@ -61,7 +63,7 @@ const EditorHeader = ({
       </div>
 
       {/* Middle */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col items-center gap-0.5 min-w-0">
         <input
             type="text"
             value={projectName}
@@ -69,6 +71,15 @@ const EditorHeader = ({
             className="text-gray-700 font-medium text-center bg-transparent border-b border-transparent hover:border-gray-300 focus:border-red-400 focus:outline-none transition-colors px-2 py-1 w-40 sm:w-64"
             aria-label="שם הפרויקט"
         />
+        {(productLabel || printSizeLabel) && (
+          <p className="text-xs text-gray-500 truncate max-w-[280px] sm:max-w-md text-center">
+            {productLabel}
+            {productLabel && printSizeLabel ? ' · ' : ''}
+            {printSizeLabel && <span className="text-[#f2665e] font-medium">משטח {printSizeLabel}</span>}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-4">
         <div className="h-6 w-px bg-gray-300 mx-2 hidden sm:block"></div>
         <button 
             onClick={onUndo}

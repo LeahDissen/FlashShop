@@ -14,8 +14,10 @@ exports.auth = (req, res, next) => {
         req.tokenData = verified;
         next();
     } catch (err) {
-        console.log(err);
-        res.status(401).json({ msg: "Invalid token" });
+        if (err.name === "TokenExpiredError") {
+            return res.status(401).json({ msg: "פג תוקף ההתחברות. יש להתחבר מחדש.", code: "TOKEN_EXPIRED" });
+        }
+        return res.status(401).json({ msg: "טוקן לא תקין", code: "INVALID_TOKEN" });
     }
 }
 
@@ -33,7 +35,9 @@ exports.authAdmin = (req, res, next) => {
         }
         next();
     } catch (err) {
-        console.log(err);
-        res.status(401).json({ msg: "Invalid token" });
+        if (err.name === "TokenExpiredError") {
+            return res.status(401).json({ msg: "פג תוקף ההתחברות. יש להתחבר מחדש.", code: "TOKEN_EXPIRED" });
+        }
+        return res.status(401).json({ msg: "טוקן לא תקין", code: "INVALID_TOKEN" });
     }
 }

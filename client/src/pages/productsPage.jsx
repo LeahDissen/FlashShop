@@ -58,7 +58,7 @@ const ProductsPage = ({ onNavigate }) => {
                 <div 
                     className="relative h-[280px] sm:h-[320px] flex items-center justify-center text-white"
                     style={{ 
-                        backgroundColor: '#a39589', // צבע הרקע הניטרלי מהפיגמה
+                        backgroundColor: '#f8dcdb', // בדיוק כמו הוורוד בעמוד העגלה
                         backgroundImage: draft.img ? `url(${draft.img})` : 'none',
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
