@@ -16,14 +16,9 @@ const createUpdateHandler = (key) => {
     return async (req, res) => {
         try {
             const data = req.body || {};
-            const existingKeys = await redis.hkeys(key);
-            const fieldsToUpdate = {};
-
-            for (const k of existingKeys) {
-                if (Object.prototype.hasOwnProperty.call(data, k)) {
-                    fieldsToUpdate[k] = data[k];
-                }
-            }
+            const fieldsToUpdate = Object.fromEntries(
+                Object.entries(data).filter(([, value]) => value !== undefined)
+            );
 
             if (Object.keys(fieldsToUpdate).length > 0) {
                 await redis.hset(key, fieldsToUpdate);

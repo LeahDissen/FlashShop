@@ -17,7 +17,8 @@ export default function NavBar() {
     const logout = useAuthStore(state => state.logout);
     const isAdmin = useAuthStore(state => state.isAdmin());
     const cartItems = useCartStore(state => state.cartItems);
-    const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+    const isCartItemsArray = Array.isArray(cartItems);
+    const cartCount = isCartItemsArray ? cartItems.reduce((acc, item) => acc + (item?.quantity || 0), 0) : 0;
     const cartRef = useRef(null);
 
     useEffect(() => {
