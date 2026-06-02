@@ -4,15 +4,19 @@ let orderSchema = new mongoose.Schema({
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'users' },
     items: [{
         productId: { type: mongoose.Schema.Types.ObjectId, ref: 'products', required: false },
-        name: String,     
-        size: String,     
+        name: String,
+        size: String,
         quantity: Number,
-        price: Number,    
-        image: String     
+        price: Number,
+        image: String
     }],
+    subtotal: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
+    coupon_code: { type: String },
     total_price: Number,
     status: {
-        type: String, default: "pending"
+        type: String,
+        default: "pending"
     },
     date_created: {
         type: Date,
