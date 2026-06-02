@@ -1,8 +1,15 @@
 import { toPng } from 'html-to-image';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { getProductById } from '../api/products';
-import { getCanvasDimensions, formatPrintSizeLabel } from '../utils/canvasDimensions';
+import {
+    getCanvasDimensions,
+    formatPrintSizeLabel,
+    getCanvasStorageKey,
+    createDefaultTextElement,
+    centerPosition,
+    scaleElementsToCanvas,
+} from '../utils/canvasDimensions';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
@@ -10,38 +17,11 @@ import EditorHeader from '../components/editor/EditorHeader';
 import EditorSidebar from '../components/editor/EditorSidebar.jsx';
 import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
-import { generatePersonalizedProduct } from '../services/geminiService';
 import { useProductStore } from '../store/productStore';
 import { useCartStore } from '../store/cartStore'; 
 
-const initialElements = [
-    {
-        id: `text_${Date.now()}`,
-        type: 'text',
-        fontFamily: 'Arial',
-        fontSize: 32,
-        color: '#333333',
-        bold: false,
-        italic: false,
-        underline: false,
-        textAlign: 'center',
-        direction: 'rtl',
-        content: 'טקסט ניתן לעריכה',
-        top: 230,
-        left: 75,
-        backgroundColor: 'transparent',
-        borderColor: '#000000',
-        borderWidth: 0,
-        textShadowEnabled: false,
-        textShadowColor: '#000000',
-        textShadowBlur: 2,
-        textShadowOffsetX: 2,
-        textShadowOffsetY: 2,
-        opacity: 1,
-        rotation: 0,
-        locked: false,
-    },
-];
+const CANVAS_KEY_STORAGE = 'active_editor_canvas_key';
+const CANVAS_SIZE_STORAGE = 'active_editor_canvas_size';
 
 const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const { productId } = useParams();
@@ -63,10 +43,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         canvasDimensions.heightCm
     );
 
+    const canvasAppliedKeyRef = useRef(null);
+    const lastCanvasPxRef = useRef({ width: 0, height: 0 });
+
     // --- ניהול סטייט מקומי וטיוטות ---
     const [elements, setElements] = useState(() => {
         const saved = localStorage.getItem('active_editor_elements');
-        return saved ? JSON.parse(saved) : initialElements;
+        return saved ? JSON.parse(saved) : [createDefaultTextElement(getCanvasDimensions(null))];
     });
 
     const [canvasBackground, setCanvasBackground] = useState(() => {
@@ -101,6 +84,64 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         localStorage.setItem('active_editor_bg', JSON.stringify(canvasBackground));
         localStorage.setItem('active_editor_name', projectName);
     }, [elements, canvasBackground, projectName]);
+
+    // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
+    useEffect(() => {
+        const storageKey = getCanvasStorageKey(selectedProduct, canvasDimensions);
+        const savedKey = localStorage.getItem(CANVAS_KEY_STORAGE);
+        const savedSizeRaw = localStorage.getItem(CANVAS_SIZE_STORAGE);
+        const savedSize = savedSizeRaw ? JSON.parse(savedSizeRaw) : null;
+
+        if (canvasAppliedKeyRef.current === storageKey) {
+            lastCanvasPxRef.current = {
+                width: canvasDimensions.width,
+                height: canvasDimensions.height,
+            };
+            return;
+        }
+
+        const savedElementsRaw = localStorage.getItem('active_editor_elements');
+        let nextElements;
+
+        if (savedKey === storageKey && savedElementsRaw) {
+            nextElements = JSON.parse(savedElementsRaw);
+        } else if (savedElementsRaw && savedSize?.width && savedSize?.height) {
+            nextElements = scaleElementsToCanvas(
+                JSON.parse(savedElementsRaw),
+                savedSize.width,
+                savedSize.height,
+                canvasDimensions.width,
+                canvasDimensions.height,
+            );
+        } else {
+            nextElements = [createDefaultTextElement(canvasDimensions)];
+        }
+
+        setElements(nextElements);
+        setHistory([nextElements]);
+        setHistoryIndex(0);
+        setSelectedElementId(nextElements[0]?.id || null);
+
+        localStorage.setItem(CANVAS_KEY_STORAGE, storageKey);
+        localStorage.setItem(
+            CANVAS_SIZE_STORAGE,
+            JSON.stringify({ width: canvasDimensions.width, height: canvasDimensions.height }),
+        );
+        localStorage.setItem('active_editor_elements', JSON.stringify(nextElements));
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = {
+            width: canvasDimensions.width,
+            height: canvasDimensions.height,
+        };
+    }, [
+        selectedProduct?._id,
+        selectedProduct?.id,
+        canvasDimensions.width,
+        canvasDimensions.height,
+        canvasDimensions.widthCm,
+        canvasDimensions.heightCm,
+    ]);
 
     // טעינת המוצר שנבחר מעמוד המוצרים (state של הניווט או שליפה לפי מזהה ב-URL)
     useEffect(() => {
@@ -161,7 +202,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [addToHistory]);
 
     // פונקציית שמירת פרויקט לבסיס הנתונים
-    const saveProjectToDB = async () => {
+    const saveProjectToDB = async (previewOverride) => {
         const node = document.getElementById('canvas-container');
         let previewDataUrl = undefined;
         if (node) {
@@ -172,6 +213,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 pixelRatio: 0.5,
                 filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
                 backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
+                cacheBust: true,
             });
         }
 
@@ -189,7 +231,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 widthCm: canvasDimensions.widthCm,
                 heightCm: canvasDimensions.heightCm,
             },
-            preview: previewDataUrl || previewImage
+            preview: previewOverride || previewDataUrl || previewImage,
         };
 
         const saved = await db.save(projectData);
@@ -197,12 +239,46 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         return saved;
     };
 
+    /** צילום משטח העיצוב – בלי מוקאפ AI (מציג בדיוק מה שעיצבת) */
+    const captureCanvasImage = useCallback(async (pixelRatio = 2) => {
+        const node = document.getElementById('canvas-container');
+        if (!node) return null;
+
+        setSelectedElementId(null);
+        const previousZoom = zoom;
+        if (zoom !== 100) {
+            setZoom(100);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        try {
+            return await toPng(node, {
+                quality: 1,
+                pixelRatio,
+                filter: (n) => !n.classList?.contains('canvas-grid-overlay'),
+                backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
+                style: { transform: 'scale(1)', outline: 'none', outlineOffset: 0 },
+                cacheBust: true,
+            });
+        } finally {
+            if (previousZoom !== 100) {
+                setZoom(previousZoom);
+            }
+        }
+    }, [canvasBackground, zoom]);
+
     // --- 1. כפתור "אישור והזמנה" הראשי מתוך מסך התצוגה המקדימה ---
     const handleConfirmAndOrder = useCallback(async () => {
         setIsSaving(true);
         try {
+            // תמונה קטנה לתצוגה בעגלה / שמירה מקומית (לא תמונת הדפסה ענקית)
+            const cartThumb = previewImage || (await captureCanvasImage(2));
+            if (cartThumb) {
+                setPreviewImage(cartThumb);
+            }
+
             // א. שמירת הפרויקט לקבלת מזהה ייחודי
-            const savedProject = await saveProjectToDB();
+            const savedProject = await saveProjectToDB(cartThumb || undefined);
             
             // ב. הגדרת משתני ברירת מחדל למקרה קיצוני שהאובייקט ריק
             let productName = 'מוצר בעיצוב אישי';
@@ -235,13 +311,18 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 productId: productOriginalId,
                 name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`, 
                 price: productPrice,            
-                image: previewImage || savedProject.preview, 
+                image: cartThumb || savedProject.preview, 
                 quantity: 1,
                 customDesign: {
                     projectId: savedProject._id,
                     projectName: savedProject.name,
                     elements: savedProject.elements,
-                    canvasBackground: savedProject.canvasBackground
+                    canvasBackground: savedProject.canvasBackground,
+                    canvasSize: savedProject.canvasSize,
+                    printSizeCm: {
+                        width: canvasDimensions.widthCm,
+                        height: canvasDimensions.heightCm,
+                    },
                 }
             };
 
@@ -261,7 +342,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart]);
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions]);
 
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
@@ -339,7 +420,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const handleLoadProjectFromDB = useCallback((project) => {
         try {
-            const loadedElements = (project.elements && project.elements.length > 0) ? project.elements : initialElements;
+            const productForDims = project.selectedProduct || selectedProduct;
+            const dims = getCanvasDimensions(productForDims);
+            let loadedElements = (project.elements && project.elements.length > 0)
+                ? project.elements
+                : [createDefaultTextElement(dims)];
+
+            if (project.canvasSize?.width && project.canvasSize?.height) {
+                loadedElements = scaleElementsToCanvas(
+                    loadedElements,
+                    project.canvasSize.width,
+                    project.canvasSize.height,
+                    dims.width,
+                    dims.height,
+                );
+            }
 
             setElements(loadedElements);
             setCanvasBackground(project.canvasBackground || { type: 'color', value: '#FFFFFF' });
@@ -355,12 +450,20 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setHistory([loadedElements]);
             setHistoryIndex(0);
             setSelectedElementId(null);
+            localStorage.setItem(CANVAS_KEY_STORAGE, getCanvasStorageKey(productForDims, dims));
+            localStorage.setItem(
+                CANVAS_SIZE_STORAGE,
+                JSON.stringify({ width: dims.width, height: dims.height }),
+            );
+            canvasAppliedKeyRef.current = getCanvasStorageKey(productForDims, dims);
+            lastCanvasPxRef.current = { width: dims.width, height: dims.height };
+
             setShowLoadModal(false);
         } catch (error) {
             console.error("Error loading project:", error);
             alert("אירעה שגיאה בטעינת הפרויקט");
         }
-    }, [onSelectProduct]);
+    }, [onSelectProduct, selectedProduct]);
 
     const handleDeleteProject = useCallback(async (e, id) => {
         e.stopPropagation();
@@ -387,8 +490,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             underline: false,
             textAlign: 'center',
             direction: 'rtl',
-            top: 230,
-            left: 75,
+            ...centerPosition(200, 40, canvasDimensions.width, canvasDimensions.height),
             backgroundColor: 'transparent',
             borderColor: '#000000',
             borderWidth: 0,
@@ -403,19 +505,23 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         const newElements = [...elements, newElement];
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
-    }, [elements, updateElementsWithHistory]);
+    }, [elements, updateElementsWithHistory, canvasDimensions]);
 
     const addImageElement = useCallback((src, width, height, naturalWidth, naturalHeight) => {
-        const canvasWidth = 350;
-        const canvasHeight = 525;
+        const { left, top } = centerPosition(
+            width,
+            height,
+            canvasDimensions.width,
+            canvasDimensions.height,
+        );
         const newElement = {
             id: `image_${Date.now()}`,
             type: 'image',
             src,
             width,
             height,
-            top: (canvasHeight - height) / 2,
-            left: (canvasWidth - width) / 2,
+            top,
+            left,
             opacity: 1,
             rotation: 0,
             naturalWidth,
@@ -432,13 +538,17 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
-    }, [elements, updateElementsWithHistory]);
+    }, [elements, updateElementsWithHistory, canvasDimensions]);
 
     const addShapeElement = useCallback((svgContent) => {
-        const canvasWidth = 350;
-        const canvasHeight = 525;
         const width = 100;
         const height = 100;
+        const { left, top } = centerPosition(
+            width,
+            height,
+            canvasDimensions.width,
+            canvasDimensions.height,
+        );
 
         const newElement = {
             id: `shape_${Date.now()}`,
@@ -447,8 +557,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             fill: '#3B82F6',
             width,
             height,
-            top: (canvasHeight - height) / 2,
-            left: (canvasWidth - width) / 2,
+            top,
+            left,
             opacity: 1,
             rotation: 0,
             scaleX: 1,
@@ -457,7 +567,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         const newElements = [...elements, newElement];
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
-    }, [elements, updateElementsWithHistory]);
+    }, [elements, updateElementsWithHistory, canvasDimensions]);
 
     const updateElement = useCallback((id, newProps) => {
         setElements(prev =>
@@ -588,44 +698,24 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, []);
 
     const handlePreview = useCallback(async () => {
-        const node = document.getElementById('canvas-container');
-        if (!node) return;
-
-        setSelectedElementId(null);
         setIsPreviewLoading(true);
         setPreviewImage(null);
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 250));
-
-            const productNameString = selectedProduct?.name || (typeof selectedProduct === 'string' ? selectedProduct : 'מוצר');
-            const dataUrl = await toPng(node, {
-                quality: 0.95,
-                pixelRatio: 2,
-                filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
-                backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
-                style: { transform: 'scale(1)', outline: 'none' }
-            });
-
-            if (!selectedProduct) {
-                setPreviewImage(dataUrl);
-            } else {
-                try {
-                    const result = await generatePersonalizedProduct(productNameString, dataUrl);
-                    setPreviewImage(result);
-                } catch (aiError) {
-                    console.error("AI generation failed, showing canvas fallback", aiError);
-                    setPreviewImage(dataUrl);
-                }
+            const dataUrl = await captureCanvasImage(2);
+            if (!dataUrl) {
+                alert('לא נמצא משטח העיצוב. נסה לרענן את הדף.');
+                return;
             }
+            setPreviewImage(dataUrl);
             setShowPreviewModal(true);
         } catch (error) {
-            console.error("Preview generation failed", error);
-            alert("אירעה שגיאה ביצירת התצוגה המקדימה. אנא נסה שוב.");
+            console.error('Preview generation failed', error);
+            alert('אירעה שגיאה ביצירת התצוגה המקדימה. אנא נסה שוב.');
         } finally {
             setIsPreviewLoading(false);
         }
-    }, [selectedProduct, canvasBackground]);
+    }, [captureCanvasImage]);
 
     return (
         <div className="h-screen flex flex-col" style={{ direction: 'rtl' }}>
@@ -641,6 +731,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 canRedo={historyIndex < history.length - 1}
                 onSave={handleSaveToDatabase}
                 onLoad={handleOpenLoadModal}
+                productLabel={selectedProduct?.name || null}
+                printSizeLabel={printSizeLabel}
             />
 
             <ContextualToolbar
@@ -798,13 +890,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                                 <XIcon className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
-                        <div className="flex-1 min-h-0 p-4 overflow-auto bg-gray-100 flex items-center justify-center">
+                        <div className="flex-1 min-h-0 p-4 overflow-auto bg-gray-100 flex flex-col items-center justify-center gap-3">
+                            <p className="text-sm text-gray-600 text-center">
+                                כך ייראה הקובץ להדפסה
+                                {printSizeLabel && (
+                                    <span className="text-[#f2665e] font-semibold"> · {printSizeLabel}</span>
+                                )}
+                            </p>
                             {previewImage ? (
-                                <img
-                                    src={previewImage}
-                                    alt="Generated Preview"
-                                    className="max-w-full max-h-[50vh] w-auto h-auto object-contain rounded-lg shadow-md"
-                                />
+                                <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 max-w-full">
+                                    <img
+                                        src={previewImage}
+                                        alt="תצוגת העיצוב להדפסה"
+                                        className="max-w-full max-h-[55vh] w-auto h-auto object-contain block mx-auto"
+                                    />
+                                </div>
                             ) : (
                                 <div className="text-center text-gray-500 py-8">
                                     <p>טוען תצוגה מקדימה...</p>
@@ -837,7 +937,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     <h2 className="text-2xl font-bold text-gray-800 mb-2">{isSaving ? 'מעבד הזמנה...' : 'יוצר תצוגה מקדימה...'}</h2>
-                    <p className="text-gray-600">{isSaving ? 'נא להמתין בזמן שהמוצר מתווסף לעגלה שלך...' : 'ה-AI שלנו מלביש את העיצוב שלך על המוצר'}</p>
+                    <p className="text-gray-600">{isSaving ? 'נא להמתין בזמן שהמוצר מתווסף לעגלה שלך...' : 'מכין את העיצוב שלך להדפסה'}</p>
                 </div>
             )}
         </div>

@@ -1,9 +1,90 @@
 const { OrderModel } = require("../models/ordersModel");
+const { CouponModel } = require("../models/couponModel");
+const { ClubModel } = require("../models/clubModel");
+const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 
+// פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
+const isSameUser = (a, b) => String(a) === String(b);
+
+// פונקציית עזר לבדיקת הרשאות (המשתמש עצמו או אדמין)
+const ensureSelfOrAdmin = (req, res, userId) => {
+    if (!isSameUser(req.tokenData._id, userId) && req.tokenData.role !== "admin") {
+        res.status(403).json({ msg: "אין הרשאה לצפות במידע זה" });
+        return false;
+    }
+    return true;
+};
+
+// חישוב הנחת קופון (כללי או מועדון)
+async function calculateCouponDiscount(couponCode, userId, subtotal) {
+    if (!couponCode) {
+        return { discount: 0 };
+    }
+
+    // 1. בדיקת קופון כללי במערכת
+    const generalCoupon = await CouponModel.findOne({ code: couponCode });
+
+    if (generalCoupon) {
+        if (!generalCoupon.isActive) {
+            return { error: "הקופון אינו פעיל" };
+        }
+        if (generalCoupon.expirationDate && new Date() > new Date(generalCoupon.expirationDate)) {
+            return { error: "תוקף הקופון פג" };
+        }
+        if (userId && generalCoupon.usedBy.some((id) => isSameUser(id, userId))) {
+            return { error: "כבר השתמשת בקופון זה בעבר" };
+        }
+
+        let discount = 0;
+        if (generalCoupon.type === "percent") {
+            discount = subtotal * (generalCoupon.value / 100);
+        } else if (generalCoupon.type === "fixed") {
+            discount = generalCoupon.value;
+        }
+
+        return { discount: Math.min(discount, subtotal), couponType: "general" };
+    }
+
+    // 2. בדיקת קוד הטבה של חבר מועדון
+    const member = await ClubModel.findOne({ giftCode: couponCode });
+    if (member) {
+        if (member.isUsed) {
+            return { error: "הקוד הזה כבר נוצל בעבר" };
+        }
+        const discount = subtotal * 0.15; // 15% הנחת מועדון קבועה
+        return { discount: Math.min(discount, subtotal), couponType: "club" };
+    }
+
+    return { error: "קופון לא תקין" };
+}
+
+// סימון קופון כמשומש לאחר רכישה מוצלחת
+async function markCouponAsUsed(couponCode, userId) {
+    if (!couponCode || !userId) return;
+
+    const generalCoupon = await CouponModel.findOne({ code: couponCode });
+    if (generalCoupon) {
+        if (!generalCoupon.usedBy.some((id) => isSameUser(id, userId))) {
+            generalCoupon.usedBy.push(userId);
+            await generalCoupon.save();
+        }
+        return;
+    }
+
+    await ClubModel.findOneAndUpdate({ giftCode: couponCode }, { isUsed: true });
+}
+
+// ============================================================================
+// ראוטים (Route Handlers)
+// ============================================================================
+
+// שליפת הזמנה זמנית (עגלת קניות) של משתמש ספציפי
 exports.getPendingOrderForUser = async (req, res) => {
     try {
-        const userId = req.params.userId;
-        let orders = await OrderModel.find({ user_id: userId, status: "pending" });
+        const { userId } = req.params;
+        if (!ensureSelfOrAdmin(req, res, userId)) return;
+
+        const orders = await OrderModel.find({ user_id: userId, status: "pending" });
         res.json(orders);
     } catch (err) {
         console.log(err);
@@ -11,21 +92,14 @@ exports.getPendingOrderForUser = async (req, res) => {
     }
 };
 
+// שליפת כל ההזמנות במערכת (לאדמין בלבד - יש לוודא חסימה גם ב-Router עצמו)
 exports.getOrders = async (req, res) => {
     try {
-        let orders = await OrderModel.find({});
-        res.json(orders);
-    }
-    catch (err) {
-        console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
-    }
-};
-
-exports.getOrdersByUserId = async (req, res) => {
-    try {
-        const userId = req.params.userId;
-        let orders = await OrderModel.find({ user_id: userId, status: { $ne: "pending" } });
+        if (req.tokenData.role !== "admin") {
+            return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
+        }
+        const orders = await OrderModel.find({ status: { $ne: "pending" } })
+            .sort({ date_created: -1 });
         res.json(orders);
     } catch (err) {
         console.log(err);
@@ -33,23 +107,48 @@ exports.getOrdersByUserId = async (req, res) => {
     }
 };
 
+// שליפת היסטוריית הזמנות (סגורות) של משתמש ספציפי
+exports.getOrdersByUserId = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!ensureSelfOrAdmin(req, res, userId)) return;
+
+        const orders = await OrderModel.find({
+            user_id: userId,
+            status: { $ne: "pending" },
+        }).sort({ date_created: -1 });
+
+        res.json(orders);
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "There was an error, try again later", err });
+    }
+};
+
+// עדכון/סנכרון עגלת הקניות הזמנית של המשתמש מה-Frontend
 exports.updateOrder = async (req, res) => {
     try {
-        const userId = req.params.userId;
-        const newItems = req.body.items;
-        const newTotalPrice = req.body.total_price;
+        // עדיף להשתמש ב-ID מהטוקן המאובטח למניעת מניפולציות URL
+        const userId = req.tokenData._id; 
 
-        let order = await OrderModel.findOneAndUpdate(
+        const newItems = req.body.items || [];
+        const newTotalPrice = req.body.total_price ?? 0;
+
+        const order = await OrderModel.findOneAndUpdate(
             { user_id: userId, status: "pending" },
-            { 
-                $set: { 
-                    items: newItems, 
+            {
+                $set: {
+                    items: newItems,
                     total_price: newTotalPrice,
-                    date_created: Date.now()
-                }
+                    subtotal: newTotalPrice,
+                    discount: 0,
+                    coupon_code: null,
+                    date_created: Date.now(),
+                },
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
         );
+
         res.json(order);
     } catch (err) {
         console.log(err);
@@ -57,64 +156,136 @@ exports.updateOrder = async (req, res) => {
     }
 };
 
+// עדכון סטטוס הזמנה (מאובטח - אדמין בלבד!)
 exports.updateOrderStatus = async (req, res) => {
     try {
-        const id = req.params.id;
-        const newStatus = req.body.status;
-        let order = await OrderModel.findOneAndUpdate(
+        if (req.tokenData.role !== "admin") {
+            return res.status(403).json({ msg: "אין הרשאה לעדכן סטטוס הזמנה זו" });
+        }
+
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const order = await OrderModel.findOneAndUpdate(
             { _id: id },
-            { status: newStatus },
+            { status },
             { new: true }
         );
+
+        if (!order) {
+            return res.status(404).json({ msg: "הזמנה לא נמצאה" });
+        }
+
         res.json(order);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "שגיאה בעדכון סטטוס ההזמנה", err });
     }
 };
 
+// יצירת הזמנה חדשה וסגירת עגלת הקניות (מאובטח לחלוטין מפני זיוף מחירים)
 exports.createOrder = async (req, res) => {
     try {
-        const { user_id, items, total_price, status, couponCode } = req.body;
+        const userId = req.tokenData._id;
+        const { items, couponCode } = req.body;
 
-        if (couponCode && user_id) {
-            const coupon = await CouponModel.findOne({ code: couponCode });
-            if (coupon) {
-                if (!coupon.usedBy.includes(user_id)) {
-                    coupon.usedBy.push(user_id);
-                    await coupon.save();
-                }
-            } 
-            else {
-                await ClubModel.findOneAndUpdate(
-                    { giftCode: couponCode },
-                    { isUsed: true }
-                );
-            }
+        if (!items || items.length === 0) {
+            return res.status(400).json({ msg: "העגלה ריקה" });
         }
 
+        // --- אבטחה: חישוב מחיר אמין ע"י שליפת הנתונים ישירות מה-DB ---
+        let subtotal = 0;
+        const verifiedItems = [];
+
+        for (const item of items) {
+            const product = await ProductModel.findById(item.product_id || item._id);
+            if (!product) {
+                return res.status(404).json({ msg: `המוצר המבוקש לא נמצא במערכת` });
+            }
+            
+            const qty = Number(item.quantity) || 1;
+            subtotal += product.price * qty;
+
+            // בניית אובייקט פריט מאובטח עבור מסמך ההזמנה
+            verifiedItems.push({
+                product_id: product._id,
+                name: product.name,
+                price: product.price, // המחיר האמיתי מה-DB
+                quantity: qty,
+                image: product.image
+            });
+        }
+        // ----------------==================================----------------
+
+        // חישוב הנחה על בסיס ה-subtotal המאומת
+        const couponResult = await calculateCouponDiscount(couponCode, userId, subtotal);
+        if (couponResult.error) {
+            return res.status(400).json({ msg: couponResult.error });
+        }
+
+        const discount = couponResult.discount || 0;
+        const total_price = Math.max(0, subtotal - discount);
+
+        // יצירת ההזמנה החדשה בסטטוס processing
         const newOrder = new OrderModel({
-            user_id,
-            items: items || [],
-            total_price: total_price || 0,
-            status: status || "pending",
+            user_id: userId,
+            items: verifiedItems,
+            subtotal,
+            discount,
+            coupon_code: couponCode || undefined,
+            total_price,
+            status: "processing",
         });
+
         const saved = await newOrder.save();
+
+        // מימוש הקופון במידה וקיים
+        if (couponCode) {
+            await markCouponAsUsed(couponCode, userId);
+        }
+
+        // איפוס וניקוי עגלת הקניות הזמנית (pending) של המשתמש
+        await OrderModel.findOneAndUpdate(
+            { user_id: userId, status: "pending" },
+            {
+                $set: {
+                    items: [],
+                    total_price: 0,
+                    subtotal: 0,
+                    discount: 0,
+                    coupon_code: null,
+                },
+            }
+        );
+
         res.status(201).json(saved);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error", err });
+        res.status(500).json({ msg: "שגיאה ביצירת ההזמנה", err });
     }
 };
 
+// שליפת מידע על הזמנה ספציפית לפי ה-ID שלה
 exports.getOrderById = async (req, res) => {
     try {
-        const id = req.params.id;
+        const { id } = req.params;
         const order = await OrderModel.findById(id);
-        if (!order) return res.status(404).json({ msg: "Order not found" });
+
+        if (!order) {
+            return res.status(404).json({ msg: "הזמנה לא נמצאה" });
+        }
+
+        // בדיקה שרק בעל ההזמנה או אדמין יכולים לצפות בה
+        if (
+            !isSameUser(req.tokenData._id, order.user_id) &&
+            req.tokenData.role !== "admin"
+        ) {
+            return res.status(403).json({ msg: "אין הרשאה לצפות בהזמנה זו" });
+        }
+
         res.json(order);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "שגיאה בטעינת ההזמנה", err });
     }
 };

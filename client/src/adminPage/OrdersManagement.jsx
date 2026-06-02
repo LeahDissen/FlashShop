@@ -2,81 +2,43 @@ import { useState, useEffect } from "react";
 import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEllipsisV, FaEye, FaSearch, FaShippingFast, FaTimesCircle } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { getOrders } from "../api/orders";
 
 export default function OrdersManagement() {
-    const mockOrders = [
-        {
-            _id: "ORD-789012",
-            customer: { name: "ישראל ישראלי", email: "israel@gmail.com", avatar: "https://i.pravatar.cc/150?u=1" },
-            items: [
-                { name: "פאזל מודפס", quantity: 1, price: 45.9 },
-                { name: "כרית מפנקת", quantity: 2, price: 29.8 }
-            ],
-            total_price: 105.5,
-            status: "pending",
-            date_created: "2025-11-24T10:00:00Z"
-        },
-        {
-            _id: "ORD-789013",
-            customer: { name: "נועה כהן", email: "noa@gmail.com", avatar: "https://i.pravatar.cc/150?u=2" },
-            items: [
-                { name: "תמונות לפיתוח (10x15)", quantity: 50, price: 1.2 }
-            ],
-            total_price: 60.0,
-            status: "shipped",
-            date_created: "2025-11-23T14:30:00Z"
-        },
-        {
-            _id: "ORD-789014",
-            customer: { name: "דני רופ", email: "danny@gmail.com", avatar: "https://i.pravatar.cc/150?u=3" },
-            items: [
-                { name: "קנבס 50x70", quantity: 1, price: 120.0 },
-                { name: "ספל מודפס", quantity: 3, price: 35.0 }
-            ],
-            total_price: 225.0,
-            status: "delivered",
-            date_created: "2025-11-20T09:15:00Z"
-        },
-        {
-            _id: "ORD-789015",
-            customer: { name: "רונית שחר", email: "ronit@gmail.com", avatar: "https://i.pravatar.cc/150?u=4" },
-            items: [
-                { name: "חולצה מודפסת", quantity: 10, price: 40.0 }
-            ],
-            total_price: 400.0,
-            status: "cancelled",
-            date_created: "2025-11-19T18:20:00Z"
-        }
-    ];
-
     const [orders, setOrders] = useState([]);
     const [filterStatus, setFilterStatus] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        setTimeout(() => {
-            setOrders(mockOrders);
-            setLoading(false);
-        }, 800);
+        const loadOrders = async () => {
+            try {
+                const data = await getOrders();
+                setOrders(data);
+            } catch (error) {
+                console.error("Failed to load orders:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadOrders();
     }, []);
 
     const filteredOrders = orders.filter(order => {
         const matchesStatus = filterStatus === "all" || order.status === filterStatus;
-        const matchesSearch =
-            order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.customer.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = order._id.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesStatus && matchesSearch;
     });
 
     const stats = {
         total: orders.length,
-        pending: orders.filter(o => o.status === 'pending').length,
-        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' ? sum + o.total_price : sum, 0)
+        pending: orders.filter(o => o.status === 'processing' || o.status === 'pending').length,
+        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' ? sum + (o.total_price || 0) : sum, 0)
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
+            case 'processing': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> בטיפול</span>;
             case 'pending': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
             case 'shipped': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 w-fit"><FaShippingFast /> נשלח</span>;
             case 'delivered': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1 w-fit"><FaCheckCircle /> סופק</span>;
@@ -146,7 +108,7 @@ export default function OrdersManagement() {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar">
-                    {['all', 'pending', 'shipped', 'delivered', 'cancelled'].map(status => (
+                    {['all', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
@@ -156,7 +118,7 @@ export default function OrdersManagement() {
                                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
                         >
                             {status === 'all' ? 'הכל' :
-                                status === 'pending' ? 'ממתין' :
+                                status === 'processing' ? 'בטיפול' :
                                     status === 'shipped' ? 'נשלח' :
                                         status === 'delivered' ? 'סופק' : 'בוטל'}
                         </button>
@@ -196,16 +158,8 @@ export default function OrdersManagement() {
                                             {order._id}
                                         </td>
                                         <td className="p-5">
-                                            <div className="flex items-center gap-3">
-                                                <img
-                                                    src={order.customer.avatar}
-                                                    alt={order.customer.name}
-                                                    className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                                                />
-                                                <div>
-                                                    <div className="font-bold text-gray-800">{order.customer.name}</div>
-                                                    <div className="text-xs text-gray-500">{order.customer.email}</div>
-                                                </div>
+                                            <div className="text-sm text-gray-600 font-mono">
+                                                {order.user_id ? String(order.user_id).slice(-8) : '—'}
                                             </div>
                                         </td>
                                         <td className="p-5">

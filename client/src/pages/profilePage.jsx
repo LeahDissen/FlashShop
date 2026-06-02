@@ -34,7 +34,8 @@ export default function ProfilePage() {
 
     const getStatusBadge = (status) => {
         const styles = {
-            pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'בטיפול', icon: <FaClock /> },
+            pending: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'ממתין', icon: <FaClock /> },
+            processing: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'בטיפול', icon: <FaClock /> },
             shipped: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'נשלח', icon: <FaTruck /> },
             delivered: { bg: 'bg-green-100', text: 'text-green-700', label: 'נמסר', icon: <FaCheckCircle /> },
             cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'בוטל', icon: <FaCheckCircle /> },

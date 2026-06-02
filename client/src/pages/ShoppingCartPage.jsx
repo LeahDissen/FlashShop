@@ -2,39 +2,27 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { checkCouponRequest } from "../api/club";
 import { getPage } from "../api/pages";
+import { saveCheckoutDraft } from "../utils/checkoutDraft";
 import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
-import CartSummary from "../components/CartSummary";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
 import { useCartStore } from "../store/cartStore";
 
+const DEFAULT_CART_HERO_IMG = "https://images.unsplash.com/photo-1515488042361-ee00e616997e?w=1600&q=80";
+
 const RECOMMENDED_PRODUCTS = [
-  {
-    id: 3,
-    name: "חולצה",
-    price: 45.9,
-    image: "https://c.animaapp.com/ssXwMPGd/img/shirt@2x.png",
-  },
-  {
-    id: 2,
-    name: "קנבס",
-    price: 45.9,
-    image: "https://c.animaapp.com/ssXwMPGd/img/canvas@2x.png",
-  },
-  {
-    id: 1,
-    name: "שעון קיר",
-    price: 45.9,
-    image:
-      "https://c.animaapp.com/ssXwMPGd/img/wall-clock-mockup-right-view@2x.png",
-  },
+  { id: 3, name: "חולצה", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/shirt@2x.png" },
+  { id: 2, name: "קנבס", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/canvas@2x.png" },
+  { id: 1, name: "שעון קיר", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/wall-clock-mockup-right-view@2x.png" },
 ];
 
 export default function ShoppingCartPage() {
   const cartItems = useCartStore((state) => state.cartItems);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
+  const updateItemQuantity = useCartStore((state) => state.updateItemQuantity);
+  const addToCart = useCartStore((state) => state.addToCart);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const navigate = useNavigate();
 
@@ -43,85 +31,73 @@ export default function ShoppingCartPage() {
   const [recommendedProducts] = useState(RECOMMENDED_PRODUCTS);
 
   const adminControls = useAdminControl({
-    img: "",
-    title: "",
-    emptyCartText: "",
-    recommendedTitle: "",
-    endText: "",
-    paySum: "",
-    payBtn: "",
-    codeLabel: "",
-    codePlaceholder: "",
-    codeBtn: ""
+    img: DEFAULT_CART_HERO_IMG,
+    title: "עגלת קניות",
+    emptyCartText: "העגלה שלך ריקה",
+    recommendedTitle: "אולי תאהבו גם את אלה...",
+    payBtn: "רוצה לשלם",
+    codePlaceholder: "הזן קוד קופון",
+    codeBtn: "החל",
   }, "cart");
   const { draft, updateDraft, editMode } = adminControls;
 
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const totalPrice = Math.max(0, subtotal - discount);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleRemoveItem = (itemId) => {
-    removeFromCart(itemId);
+  const handleRemoveItem = (itemId) => removeFromCart(itemId);
+  const handleQuantityChange = (itemId, delta) => updateItemQuantity(itemId, delta);
+
+  const handleAddRecommended = (product) => {
+    addToCart([
+      {
+        id: `cart_${Date.now()}`,
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        quantity: 1,
+      },
+    ]);
   };
 
   const handleCheckout = () => {
-    if (cartItems.length === 0) {
-      alert("העגלה ריקה!");
-      return;
-    }
+    if (cartItems.length === 0) return alert("העגלה ריקה!");
+    if (!isAuthenticated) return navigate('/login', { state: { from: '/checkout' } });
 
-    if (!isAuthenticated) {
-      if (confirm("עליך להתחבר כדי להמשיך לתשלום. לעבור להתחברות?")) {
-        navigate('/login', { state: { from: '/cart' } });
-      }
-      return;
-    }
-
-    console.log("Proceeding to checkout...", {
-      items: cartItems,
-      total: totalPrice,
-      coupon: appliedCoupon
-    });
-    alert("מעבר לתשלום...");
+    saveCheckoutDraft({ items: cartItems, subtotal, discount, totalPrice, appliedCoupon });
+    navigate('/checkout');
   };
 
   const handleCoupon = async (code) => {
     if (!code) return { success: false, msg: "נא להזין קוד" };
-
     if (appliedCoupon === code) return { success: false, msg: "קופון זה כבר הוזן" };
 
     const result = await checkCouponRequest(code);
-
     if (result.valid) {
-      let discountAmount = 0;
-
-      if (result.discountType === 'percent') {
-        discountAmount = subtotal * (result.discountValue / 100);
-      } else if (result.discountType === 'fixed') {
-        discountAmount = result.discountValue;
-      }
-
+      let discountAmount = result.discountType === 'percent' ? subtotal * (result.discountValue / 100) : result.discountValue;
       discountAmount = Math.min(discountAmount, subtotal);
-
       setDiscount(discountAmount);
       setAppliedCoupon(code);
-      return { success: true, msg: result.msg || `קופון התקבל! חסכת ${discountAmount.toFixed(2)} ש"ח` };
+      return { success: true, msg: `קופון התקבל!` };
     } else {
       setDiscount(0);
       setAppliedCoupon("");
-      return { success: false, msg: result.msg || "קופון לא תקין" };
+      return { success: false, msg: "קופון לא תקין" };
     }
   };
 
   useEffect(() => {
     getPage("cart").then((data) => {
       if (data && Object.keys(data).length > 0) {
-        adminControls.setPage(data);
-        adminControls.setDraft(data);
+        const merged = {
+          ...data,
+          img: data.img?.trim() || DEFAULT_CART_HERO_IMG,
+          title: data.title?.trim() || "עגלת קניות",
+          recommendedTitle: data.recommendedTitle?.trim() || "אולי תאהבו גם את אלה...",
+        };
+        adminControls.setPage(merged);
+        adminControls.setDraft(merged);
       }
     });
   }, []);
@@ -132,184 +108,135 @@ export default function ShoppingCartPage() {
       <div className="space-y-3">
         <div>
           <label className="block text-sm font-bold text-gray-700">תמונת כותרת (URL):</label>
-          <input
-            type="text"
-            value={draft.img}
-            onChange={(e) => updateDraft({ img: e.target.value })}
-            className="w-full border p-2 rounded ltr bg-gray-50"
-          />
+          <input type="text" value={draft.img} onChange={(e) => updateDraft({ img: e.target.value })} className="w-full border p-2 rounded ltr" />
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700">כותרת ראשית:</label>
-          <input
-            type="text"
-            value={draft.title}
-            onChange={(e) => updateDraft({ title: e.target.value })}
-            className="w-full border p-2 rounded"
-          />
+          <input type="text" value={draft.title} onChange={(e) => updateDraft({ title: e.target.value })} className="w-full border p-2 rounded" />
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700">טקסט עגלה ריקה:</label>
-          <input
-            type="text"
-            value={draft.emptyCartText}
-            onChange={(e) => updateDraft({ emptyCartText: e.target.value })}
-            className="w-full border p-2 rounded"
-          />
+          <input type="text" value={draft.emptyCartText} onChange={(e) => updateDraft({ emptyCartText: e.target.value })} className="w-full border p-2 rounded" />
         </div>
-      </div>
-      <h3 className="font-bold text-lg border-b pb-2 mt-6 text-[#f2665e]">עריכת סיכום הזמנה וקופונים</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-bold text-gray-700">כותרת הסיכום:</label>
-          <input
-            type="text"
-            value={draft.endText}
-            onChange={(e) => updateDraft({ endText: e.target.value })}
-            className="w-full border p-2 rounded"
-            placeholder="למשל: סיכום הזמנה"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-700">טקסט כפתור תשלום:</label>
-          <input
-            type="text"
-            value={draft.payBtn}
-            onChange={(e) => updateDraft({ payBtn: e.target.value })}
-            className="w-full border p-2 rounded"
-            placeholder="למשל: רוצה לשלם"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-700">כותרת שדה קופון:</label>
-          <input
-            type="text"
-            value={draft.codeLabel}
-            onChange={(e) => updateDraft({ codeLabel: e.target.value })}
-            className="w-full border p-2 rounded"
-            placeholder="למשל: הזן קוד קופון"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-700">טקסט בתוך שדה קופון (Placeholder):</label>
-          <input
-            type="text"
-            value={draft.codePlaceholder}
-            onChange={(e) => updateDraft({ codePlaceholder: e.target.value })}
-            className="w-full border p-2 rounded"
-            placeholder="למשל: יש לי קופון"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-bold text-gray-700">טקסט כפתור החל:</label>
-          <input
-            type="text"
-            value={draft.codeBtn}
-            onChange={(e) => updateDraft({ codeBtn: e.target.value })}
-            className="w-full border p-2 rounded"
-            placeholder="למשל: החל"
-          />
-        </div>
-      </div>
-
-      <div className="mt-4 pt-4 border-t">
-        <label className="block text-sm font-bold text-gray-700">כותרת מוצרים מומלצים:</label>
-        <input
-          type="text"
-          value={draft.recommendedTitle}
-          onChange={(e) => updateDraft({ recommendedTitle: e.target.value })}
-          className="w-full border p-2 rounded"
-        />
       </div>
     </div>
   );
 
-  const ViewContent = (
-    <div className="bg-white min-h-screen relative overflow-x-hidden">
-      <header className="relative h-48 md:h-64 flex items-center justify-center mb-8">
-        <img
-          src={draft.img}
-          alt="Header"
-          className="absolute top-0 left-0 w-full h-full object-cover"
-        />
-        <h1 className="text-5xl md:text-6xl font-bold text-white z-10 relative drop-shadow-md">
-          {draft.title}
-        </h1>
-      </header>
+  const heroImage = draft.img?.trim() || DEFAULT_CART_HERO_IMG;
 
-      <div className="max-w-screen-xl mx-auto px-4 md:px-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+  return (
+    <AdminControls editMode={editMode} previewContent={EditContent} adminControls={adminControls}>
+      <div className="bg-white min-h-screen text-gray-800 font-sans" dir="rtl">
+        
+        {/* באנר עליון */}
+        <header className="w-full relative select-none">
+          <div
+            className="relative h-[260px] sm:h-[320px] flex items-center justify-center overflow-hidden bg-[#f8dcdb]"
+            style={{
+              backgroundImage: `url(${heroImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center center',
+            }}
+          >
+            <div className="absolute inset-0 bg-black/5" />
+            <h1 className="relative z-10 text-[38px] sm:text-[46px] font-bold text-white text-center tracking-wide drop-shadow-sm">
+              {draft.title || "עגלת קניות"}
+            </h1>
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-white" style={{ clipPath: "ellipse(60% 100% at 50% 100%)" }} />
+          </div>
+        </header>
 
-          <main className="flex-grow lg:w-2/3 bg-gray-50 rounded-lg shadow-md border">
-            <div className="p-4 bg-[#f2665e] rounded-t-lg">
-              <h2 className="text-xl font-semibold text-white">
-                יש לי {totalItems} פריטים בסל
-              </h2>
-            </div>
+        {/* תוכן מרכזי */}
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          
+          {cartItems.length > 0 ? (
+            <div className="space-y-6">
+              
+              {/* באנר עליון: כמות הפריטים בסל - עודכן לגודל text-xl */}
+              <div className="w-full bg-[#f2665e] rounded-full py-3 px-6 text-center shadow-sm max-w-2xl mx-auto">
+                <p className="text-xl font-bold text-white tracking-wide">
+                  יש לי {totalItems} פריטים בסל
+                </p>
+              </div>
 
-            <div className="hidden md:grid grid-cols-6 gap-4 p-4 font-semibold text-gray-600 border-b">
-              <div className="col-span-3">פריט</div>
-              <div className="col-span-1 text-center">מחיר</div>
-              <div className="col-span-1 text-center">כמות</div>
-              <div className="col-span-1 text-center">סה"כ</div>
-            </div>
+              {/* כותרות עמודות הטבלה - מיושרות לפי חלוקת גריד מדויקת של 6-3-3 */}
+              <div className="max-w-2xl mx-auto grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
+                <div className="col-span-6 text-right">פריטים</div>
+                <div className="col-span-3 text-center">כמות</div>
+                <div className="col-span-3 text-center">מחיר</div>
+              </div>
 
-            <div className="divide-y divide-gray-200">
-              {cartItems.length > 0 ? (
-                cartItems.map((item) => (
+              {/* רשימת כרטיסי המוצרים */}
+              <div className="max-w-2xl mx-auto space-y-4">
+                {cartItems.map((item) => (
                   <CartItem
                     key={item.id}
                     item={item}
                     onRemove={handleRemoveItem}
+                    onQuantityChange={handleQuantityChange}
                   />
-                ))
-              ) : (
-                <p className="p-12 text-center text-gray-500 text-lg">
-                  {draft.emptyCartText}
-                </p>
-              )}
-            </div>
-          </main>
+                ))}
+              </div>
 
-          <aside className="lg:w-1/3">
-            <CartSummary
-              subtotal={subtotal}
-              discount={discount}
-              totalPrice={totalPrice}
-              onCheckout={handleCheckout}
-              onCoupon={handleCoupon}
-              content={draft}
-            />
-          </aside>
+              {/* באר סיכום הזמנה ותשלום תחתון */}
+              <div className="max-w-2xl mx-auto pt-2">
+                <div className="w-full bg-[#f2665e] rounded-full py-4 px-6 sm:px-8 shadow-md flex flex-row items-center justify-between text-white">
+                  
+                  {/* כפתורי פעולה */}
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={handleCheckout}
+                      className="bg-white text-[#f2665e] hover:bg-[#f8dcdb] text-xs sm:text-sm font-medium px-6 py-2 rounded-full transition-all duration-200 shadow-sm whitespace-nowrap"
+                    >
+                      {draft.payBtn || "רוצה לשלם"}
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        const code = prompt(draft.codePlaceholder || "הזן קוד קופון");
+                        if (code !== null) handleCoupon(code).then(res => alert(res.msg));
+                      }}
+                      className="bg-[#f8dcdb]/80 text-[#f2665e] hover:bg-white text-xs sm:text-sm font-medium px-5 py-2 rounded-full transition-all duration-200 shadow-sm whitespace-nowrap"
+                    >
+                      {appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
+                    </button>
+                  </div>
+
+                  {/* סה"כ לתשלום - עודכן לגודל אחיד text-xl עבור הכיתוב והמחיר כאחד */}
+                  <div className="text-left flex flex-row items-center gap-2 text-xl font-bold">
+                    <span className="opacity-95">סה"כ לתשלום:</span>
+                    <span className="tracking-tight">₪{totalPrice.toFixed(2)}</span>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <p className="text-gray-400">{draft.emptyCartText || "העגלה שלך ריקה"}</p>
+            </div>
+          )}
         </div>
 
-        <img
-          className="absolute w-full top-1/2 left-0 -z-10 opacity-60 pointer-events-none"
-          alt="Wavy background"
-          src="https://c.animaapp.com/ssXwMPGd/img/vector.svg"
-        />
-
-        <section className="mt-16 mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-[#f2665e] mb-8">
-            {draft.recommendedTitle}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {recommendedProducts.map((product) => (
-              <RecommendedProduct key={product.id} product={product} />
-            ))}
+        {/* מומלצים */}
+        <section className="relative mt-20 bg-[#f8dcdb] pb-16 pt-16">
+          <div className="absolute top-0 left-0 right-0 h-12 bg-white" style={{ clipPath: "ellipse(60% 100% at 50% 0%)" }} />
+          <div className="max-w-4xl mx-auto px-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-center text-[#f2665e] mb-10">
+              {draft.recommendedTitle || "אולי תאהבו גם את אלה..."}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {recommendedProducts.map((product) => (
+                <div key={product.id} className="bg-white rounded-3xl p-4 shadow-sm hover:shadow-md transition-all">
+                  <RecommendedProduct product={product} onAddToCart={handleAddRecommended} />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
-      </div>
-    </div>
-  );
 
-  return (
-    <AdminControls
-      editMode={editMode}
-      previewContent={EditContent}
-      adminControls={adminControls}
-    >
-      {ViewContent}
+      </div>
     </AdminControls>
   );
 }

@@ -1,42 +1,59 @@
-export default function CartItem({ item, onRemove }) {
-  const lineItemTotal = item.price * item.quantity;
+export default function CartItem({ item, onRemove, onQuantityChange }) {
+  const itemKey = item.id || item._id;
+  const lineTotal = item.price * item.quantity;
 
   return (
-    <div className="p-4 grid grid-cols-6 gap-4 items-center border-b">
-      
-      <div className="col-span-6 sm:col-span-3 flex items-center gap-4">
-        <button
-          onClick={() => onRemove(item.id)}
-          className="text-red-500 hover:text-red-700 text-xl font-bold p-2"
-        >
-          X
-        </button>
-
-        <img
-          src={item.image}
-          alt={item.name}
-          className="w-20 h-20 object-cover rounded-md border"
-        />
-        
-        <div>
-            <h3 className="font-semibold text-lg text-gray-800">{item.name}</h3>
+    <tr className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50/80">
+      <td className="py-3 px-4 align-middle">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onRemove(itemKey)}
+            className="text-[#f2665e] hover:text-[#d95248] text-lg font-bold shrink-0"
+            aria-label="הסר פריט"
+          >
+            ×
+          </button>
+          <img
+            src={item.image}
+            alt=""
+            className="w-14 h-14 object-cover rounded border border-gray-200 bg-gray-50 shrink-0"
+          />
+          <div className="min-w-0">
+            <span className="font-medium text-gray-800 block">{item.name}</span>
             {item.size && (
-                <span className="text-sm text-gray-500">גודל: {item.size} ס"מ</span>
+              <span className="text-xs text-gray-500">גודל: {item.size} ס&quot;מ</span>
             )}
+          </div>
         </div>
-      </div>
-
-      <div className="col-span-3 sm:col-span-1 text-center text-gray-700">
-        {item.price.toFixed(2)} ש"ח
-      </div>
-
-      <div className="col-span-3 sm:col-span-1 text-center text-gray-700">
-        {item.quantity}
-      </div>
-
-      <div className="col-span-3 sm:col-span-1 text-center font-semibold text-gray-900">
-        {lineItemTotal.toFixed(2)} ש"ח
-      </div>
-    </div>
+      </td>
+      <td className="py-3 px-4 align-middle text-center">
+        <div className="inline-flex items-center border border-gray-300 rounded overflow-hidden bg-white">
+          <button
+            type="button"
+            onClick={() => onQuantityChange(itemKey, -1)}
+            disabled={item.quantity <= 1}
+            className="px-2.5 py-1 text-gray-700 hover:bg-gray-100 disabled:opacity-40"
+            aria-label="הפחת כמות"
+          >
+            −
+          </button>
+          <span className="px-3 py-1 border-x border-gray-300 font-medium min-w-[2rem] text-center">
+            {item.quantity}
+          </span>
+          <button
+            type="button"
+            onClick={() => onQuantityChange(itemKey, 1)}
+            className="px-2.5 py-1 text-gray-700 hover:bg-gray-100"
+            aria-label="הוסף כמות"
+          >
+            +
+          </button>
+        </div>
+      </td>
+      <td className="py-3 px-4 align-middle text-center font-semibold text-gray-800 whitespace-nowrap">
+        {lineTotal.toFixed(2)} ₪
+      </td>
+    </tr>
   );
 }

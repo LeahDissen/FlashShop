@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function CartSummary({ subtotal, discount, totalPrice, onCheckout, onCoupon, content }) {
+export default function CartSummary({ subtotal, discount, totalPrice, onCheckout, onCoupon, content, isCheckoutDisabled = false }) {
   const [couponCode, setCouponCode] = useState("");
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,8 @@ export default function CartSummary({ subtotal, discount, totalPrice, onCheckout
       {/* Checkout Button */}
       <button
         onClick={onCheckout}
-        className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity text-lg mb-6 shadow-md"
+        disabled={isCheckoutDisabled}
+        className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-md hover:opacity-90 transition-opacity text-lg mb-6 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
       >{content.payBtn}</button>
 
       {/* Coupon Area */}

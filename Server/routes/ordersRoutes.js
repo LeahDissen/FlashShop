@@ -1,12 +1,13 @@
 const router = require("express").Router();
 const orderController = require("../controllers/ordersController");
+const { auth, authAdmin } = require("../middlewares/auth");
 
-router.post('/', orderController.createOrder);
-router.get('/pending/user/:userId', orderController.getPendingOrderForUser);
-router.get('/', orderController.getOrders);
-router.put('/pending/user/:userId', orderController.updateOrder);
-router.put('/:id/status', orderController.updateOrderStatus);
-router.get('/user/:userId', orderController.getOrdersByUserId);
-router.get('/:id', orderController.getOrderById);
+router.post("/", auth, orderController.createOrder);
+router.get("/pending/user/:userId", auth, orderController.getPendingOrderForUser);
+router.put("/pending/user/:userId", auth, orderController.updateOrder);
+router.get("/user/:userId", auth, orderController.getOrdersByUserId);
+router.get("/:id", auth, orderController.getOrderById);
+router.get("/", authAdmin, orderController.getOrders);
+router.put("/:id/status", authAdmin, orderController.updateOrderStatus);
 
 module.exports = router;

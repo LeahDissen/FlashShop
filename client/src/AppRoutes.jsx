@@ -21,6 +21,8 @@ import ShoppingCartPage from "./pages/ShoppingCartPage";
 import SignUpPage from "./pages/SignUpPage";
 import TipsPage from "./pages/TipsPage";
 import ProductSelectionPage from "./pages/ProductSelectionPage";
+import OrderConfirmationPage from "./pages/OrderConfirmationPage";
+import CheckoutPage from "./pages/CheckoutPage";
 
 const ProductsPageWrapper = () => {
     const navigate = useNavigate();
@@ -61,6 +63,8 @@ export default function AppRoutes() {
                 <Route path="/updatecatalog" element={<AdminRoute><Layout><UpdateCatalog /></Layout></AdminRoute>} />
                 <Route path="/viewmessages" element={<AdminRoute><Layout><ViewMessages /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
+                <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
+                <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />
                 <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
                 <Route path="/editor/:productId" element={<Layout> <EditorPageWrapper /> </Layout>} />
                 <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />
