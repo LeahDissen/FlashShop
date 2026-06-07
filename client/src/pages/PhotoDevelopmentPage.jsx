@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPage } from '../api/pages';
 import { getPhotoPrices } from '../api/photo';
@@ -7,10 +7,22 @@ import Gallery from '../components/Gallery';
 import Hero from '../components/Hero';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useCartStore } from '../store/cartStore';
+import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
+import { DEFAULT_CROP } from '../utils/printSizes';
+import PhotoPrintAdjustModal from '../components/PhotoPrintAdjustModal';
+import {
+    getAlbumDiscount,
+    getNextPricingTierHint,
+    getOrderPricing,
+    getUnitPriceByQuantity,
+} from '../utils/photoQuantityPricing';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [images, setImages] = useState([]);
     const [priceList, setPriceList] = useState([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadStatus, setUploadStatus] = useState('');
+    const [adjustImageId, setAdjustImageId] = useState(null);
     const addToCart = useCartStore((state) => state.addToCart);
     const navigate = useNavigate();
 
@@ -39,69 +51,75 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         fetchPrices();
     }, []);
 
-    const getPriceBySize = (size) => {
-        if (priceList.length > 0) {
-            const found = priceList.find(p => p.size === size);
-            return found ? found.price : 1.20;
-        }
-        switch (size) {
-            case '13x18': return 1.50;
-            case '20x30': return 2.50;
-            case '10x15': default: return 1.20;
-        }
-    };
-
-    const uploadImage = async (file) => {
-        const formData = new FormData();
-        formData.append("file", file);
-
-
-        formData.append("upload_preset", "ml_default");
-
-        try {
-            const response = await fetch(
-                "https://api.cloudinary.com/v1_1/dwqywo11u/image/upload",
-                { method: "POST", body: formData }
-            );
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Cloudinary Error:", errorData);
-                return null;
-            }
-
-            const data = await response.json();
-            return data.secure_url;
-        } catch (error) {
-            console.error("Error uploading image:", error);
-            return null;
-        }
-    };
+    const orderPricing = useMemo(() => getOrderPricing(images), [images]);
+    const nextTierHint = useMemo(
+        () => getNextPricingTierHint(orderPricing.totalPrints),
+        [orderPricing.totalPrints],
+    );
+    const albumDiscount = useMemo(
+        () => getAlbumDiscount(orderPricing.totalPrints),
+        [orderPricing.totalPrints],
+    );
 
     const handleFilesSelected = async (files) => {
+        const fileList = Array.from(files);
+        if (fileList.length === 0) return;
+
         const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
+        const total = fileList.length;
 
-        const newImagesPromises = Array.from(files).map(async (file) => {
-            const secureUrl = await uploadImage(file);
-            if (secureUrl) {
-                return {
-                    id: Date.now() + Math.random(),
-                    src: secureUrl,
-                    alt: file.name,
-                    quantity: 1,
-                    size: defaultSize
-                };
+        setIsUploading(true);
+        setUploadStatus(
+            total === 1
+                ? 'מעלה תמונה, אנא המתינו...'
+                : `מעלה ${total} תמונות, אנא המתינו...`,
+        );
+
+        const newImages = [];
+        let failedCount = 0;
+
+        try {
+            for (let i = 0; i < fileList.length; i++) {
+                const file = fileList[i];
+                setUploadStatus(`מעלה תמונה ${i + 1} מתוך ${total}...`);
+
+                try {
+                    const secureUrl = await uploadImageToCloudinary(file);
+                    newImages.push({
+                        id: `${Date.now()}_${i}_${Math.random()}`,
+                        src: secureUrl,
+                        alt: file.name,
+                        quantity: 1,
+                        size: defaultSize,
+                        crop: { ...DEFAULT_CROP },
+                    });
+                } catch (error) {
+                    failedCount += 1;
+                    console.error('Error uploading image:', error);
+                }
             }
-            return null;
-        });
 
-        const newImages = (await Promise.all(newImagesPromises)).filter(img => img !== null);
-        setImages(prev => [...prev, ...newImages]);
+            if (newImages.length > 0) {
+                setImages((prev) => [...prev, ...newImages]);
+            }
+
+            if (failedCount > 0) {
+                const uploadedCount = newImages.length;
+                alert(
+                    uploadedCount > 0
+                        ? `${uploadedCount} תמונות הועלו בהצלחה. ${failedCount} תמונות נכשלו.`
+                        : 'העלאת התמונות נכשלה. נסו תמונות קטנות יותר.',
+                );
+            }
+        } finally {
+            setIsUploading(false);
+            setUploadStatus('');
+        }
     };
 
     const handleQuantityChange = (id, delta) => {
         setImages(prev => prev.map(img =>
-            img.id === id ? { ...img, quantity: Math.max(0, img.quantity + delta) } : img
+            img.id === id ? { ...img, quantity: Math.max(1, img.quantity + delta) } : img
         ));
     };
 
@@ -109,24 +127,50 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         setImages(prev => prev.filter(img => img.id !== id));
     };
 
-    const handleSizeChange = (id, newSize) => {
-        setImages(prev => prev.map(img =>
-            img.id === id ? { ...img, size: newSize } : img
-        ));
+    const handleClearAllImages = () => {
+        const isConfirmed = window.confirm("האם את בטוחה שברצונך למחוק את כל התמונות?");
+        if (!isConfirmed) return;
+        setImages([]);
     };
 
-    const handleSendOrder = () => {
-        const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
+    const handleSizeChange = (id, newSize) => {
+        setImages((prev) =>
+            prev.map((img) =>
+                img.id === id
+                    ? { ...img, size: newSize, crop: { ...DEFAULT_CROP } }
+                    : img,
+            ),
+        );
+        setAdjustImageId(id);
+    };
 
-        const cartItems = images.map(img => {
+    const handleSaveCrop = (id, crop) => {
+        setImages((prev) =>
+            prev.map((img) => (img.id === id ? { ...img, crop } : img)),
+        );
+    };
+
+    const adjustImage = adjustImageId
+        ? images.find((img) => img.id === adjustImageId)
+        : null;
+
+    const handleSendOrder = () => {
+        if (images.length === 0) return;
+
+        const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
+        const unitPrice = getUnitPriceByQuantity(orderPricing.totalPrints);
+
+        const cartItems = images.map((img) => {
             const size = img.size || defaultSize;
+            const qty = Math.max(1, img.quantity);
             return {
                 id: img.id,
-                size: size,
+                size,
                 name: `פיתוח תמונה ${size} (${img.alt})`,
-                price: getPriceBySize(size),
-                quantity: img.quantity,
-                image: img.src
+                price: unitPrice,
+                quantity: qty,
+                image: img.src,
+                crop: img.crop,
             };
         });
 
@@ -190,14 +234,20 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                 title={draft.title}
                 subtitle={draft.subtitle}
                 btnText={draft.btnText}
+                isUploading={isUploading}
             />
             <Gallery
                 images={images}
                 onQuantityChange={handleQuantityChange}
                 onRemove={handleRemove}
+                onClearAll={handleClearAllImages}
                 onSizeChange={handleSizeChange}
+                onAdjustPrint={setAdjustImageId}
                 onSendOrder={handleSendOrder}
                 availableSizes={priceList}
+                orderPricing={orderPricing}
+                nextTierHint={nextTierHint}
+                albumDiscount={albumDiscount}
             />
         </div>
     );
@@ -209,6 +259,55 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             adminControls={adminControls}
         >
             {ViewContent}
+
+            {adjustImage && (
+                <PhotoPrintAdjustModal
+                    image={adjustImage}
+                    availableSizes={priceList}
+                    onSave={handleSaveCrop}
+                    onClose={() => setAdjustImageId(null)}
+                />
+            )}
+
+            {isUploading && (
+                <div
+                    className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    dir="rtl"
+                    role="alertdialog"
+                    aria-live="polite"
+                    aria-busy="true"
+                    aria-label="מעלה תמונות"
+                >
+                    <div className="bg-white rounded-2xl shadow-2xl px-8 py-10 max-w-sm w-full text-center">
+                        <svg
+                            className="animate-spin h-14 w-14 text-[#f2665e] mb-5 mx-auto"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                            />
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                        </svg>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">מעלה תמונות</h2>
+                        <p className="text-gray-600 text-sm">{uploadStatus}</p>
+                        <p className="text-gray-400 text-xs mt-3">
+                            התמונות נדחסות ומועלות — אל תסגרו את הדף
+                        </p>
+                    </div>
+                </div>
+            )}
         </AdminControls>
     );
 };

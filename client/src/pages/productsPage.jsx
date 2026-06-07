@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getPage } from '../api/pages';
 import AdminControls from '../components/AdminControls';
 import PersonalizationSection from '../components/PersonalizationSection';
@@ -6,6 +7,8 @@ import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
 
 const ProductsPage = ({ onNavigate }) => {
+    const [searchParams] = useSearchParams();
+    const categoryFromUrl = searchParams.get('category');
     const { selectedProduct, setSelectedProduct } = useProductStore();
     const adminControls = useAdminControl({
         title: "המוצרים שלנו", // ברירת מחדל מהפיגמה
@@ -100,6 +103,7 @@ const ProductsPage = ({ onNavigate }) => {
                     onSelectProduct={setSelectedProduct}
                     selectedProduct={selectedProduct}
                     content={draft}
+                    initialCategory={categoryFromUrl || undefined}
                 />
             </div>
 

@@ -14,11 +14,20 @@ export default function CartItem({ item, onRemove, onQuantityChange }) {
           >
             ×
           </button>
-          <img
-            src={item.image}
-            alt=""
-            className="w-14 h-14 object-cover rounded border border-gray-200 bg-gray-50 shrink-0"
-          />
+          {item.image ? (
+            <img
+              src={item.image}
+              alt=""
+              className="w-14 h-14 object-cover rounded border border-gray-200 bg-gray-50 shrink-0"
+            />
+          ) : (
+            <div
+              className="w-14 h-14 rounded border border-dashed border-gray-300 bg-gray-100 shrink-0 flex items-center justify-center text-[10px] text-gray-400 text-center px-1"
+              title="תצוגת עיצוב"
+            >
+              עיצוב אישי
+            </div>
+          )}
           <div className="min-w-0">
             <span className="font-medium text-gray-800 block">{item.name}</span>
             {item.size && (

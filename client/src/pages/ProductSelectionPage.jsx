@@ -4,6 +4,7 @@ import { ArrowLeft, User, Mail, Phone, FileText, Upload, Image as ImageIcon, Loa
 import { useCartStore } from '../store/cartStore';
 import { useProductStore } from '../store/productStore';
 import { getPage } from '../api/pages';
+import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -57,26 +58,6 @@ const ProductSelectionPage = () => {
         return null;
     }
 
-    // פונקציית העלאה גנרית ל-Cloudinary
-    const uploadImage = async (file) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", "ml_default");
-
-        try {
-            const response = await fetch(
-                "https://api.cloudinary.com/v1_1/dwqywo11u/image/upload",
-                { method: "POST", body: formData }
-            );
-            if (!response.ok) return null;
-            const data = await response.json();
-            return data.secure_url;
-        } catch (error) {
-            console.error("Error uploading image:", error);
-            return null;
-        }
-    };
-
     // מעבר לעמוד עריכה עצמית ومסירת המוצר המלא בסטייט
     const handleDesignClick = () => {
         setSelectedProduct(product);
@@ -128,18 +109,15 @@ const ProductSelectionPage = () => {
         e.target.value = '';
         setIsUploading(true);
         try {
-            const imageUrl = await uploadImage(file);
-            if (!imageUrl) {
-                alert("העלאת התמונה נכשלה, אנא נסה שוב.");
-                return;
-            }
+            const imageUrl = await uploadImageToCloudinary(file);
             setUploadedImage(imageUrl);
             setShowDesignerForm(false); // סוגר את טופס הגרפיקאית למניעת בלבול
             setTimeout(() => {
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }, 100);
         } catch (error) {
-            alert("הייתה שגיאה בהעלאת התמונה.");
+            console.error("Error uploading image:", error);
+            alert(error?.message || "הייתה שגיאה בהעלאת התמונה.");
         } finally {
             setIsUploading(false);
         }
@@ -155,16 +133,14 @@ const ProductSelectionPage = () => {
     const handleDesignerFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        e.target.value = '';
         setIsDesignerUploading(true);
         try {
-            const imageUrl = await uploadImage(file);
-            if (imageUrl) {
-                setDesignerDetails({ ...designerDetails, referenceImage: imageUrl });
-            } else {
-                alert("העלאת הקובץ נכשלה.");
-            }
+            const imageUrl = await uploadImageToCloudinary(file);
+            setDesignerDetails((prev) => ({ ...prev, referenceImage: imageUrl }));
         } catch (error) {
-            alert("שגיאה בהעלאת הקובץ לגרפיקאית.");
+            console.error("Designer reference upload failed:", error);
+            alert(error?.message || "העלאת הקובץ נכשלה.");
         } finally {
             setIsDesignerUploading(false);
         }
@@ -362,7 +338,7 @@ const ProductSelectionPage = () => {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-800">רוצים לצרף תמונה או לוגו כבסיס?</p>
-                                                <p className="text-xs text-gray-400">הגרפיקאית תשתמש בקובץ זה כדי לבנות את העיצוב שלכם</p>
+                                                <p className="text-xs text-gray-400">הגרפיקאית תשתמש בקובץ זה כדי לבנות את העיצוב שלכם (עד ~10MB, מומלץ תמונות מהטלפון)</p>
                                             </div>
                                         </div>
                                         
