@@ -19,7 +19,9 @@ import {
     getPhotosPage,
     updatePhotosPage,
     getCartPage,
-    updateCartPage
+    updateCartPage,
+    getProductCategoriesPage,
+    updateProductCategoriesPage,
 } from "../controllers/pageController.js";
 import { authAdmin } from "../middlewares/auth.js";
 
@@ -64,4 +66,9 @@ router.put("/cart", authAdmin, updateCartPage);
 // Footer Page Routes
 router.get("/footer", getFooterPage);
 router.put("/footer", authAdmin, updateFooterPage);
+
+// Product Categories (custom admin-defined)
+router.get("/product-categories", getProductCategoriesPage);
+router.put("/product-categories", authAdmin, updateProductCategoriesPage);
+
 export default router;
