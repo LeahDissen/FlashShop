@@ -8,7 +8,14 @@ import Hero from '../components/Hero';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useCartStore } from '../store/cartStore';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
-import { DEFAULT_CROP } from '../utils/printSizes';
+import { blobToFile } from '../utils/cropImage';
+import {
+    DEFAULT_CROP,
+    DEFAULT_PHOTO_PRINT_SIZE,
+    getDefaultOrientation,
+    getImageDimensions,
+    mergePhotoPricesWithCatalog,
+} from '../utils/printSizes';
 import PhotoPrintAdjustModal from '../components/PhotoPrintAdjustModal';
 import {
     getAlbumDiscount,
@@ -23,6 +30,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
     const [adjustImageId, setAdjustImageId] = useState(null);
+    const [isCropSaving, setIsCropSaving] = useState(false);
     const addToCart = useCartStore((state) => state.addToCart);
     const navigate = useNavigate();
 
@@ -42,10 +50,10 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         const fetchPrices = async () => {
             try {
                 const data = await getPhotoPrices();
-                setPriceList(data);
+                setPriceList(mergePhotoPricesWithCatalog(data));
             } catch (err) {
                 console.error("Failed to load prices from DB:", err);
-                setPriceList([]);
+                setPriceList(mergePhotoPricesWithCatalog([]));
             }
         };
         fetchPrices();
@@ -65,7 +73,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         const fileList = Array.from(files);
         if (fileList.length === 0) return;
 
-        const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
+        const defaultSize = DEFAULT_PHOTO_PRINT_SIZE;
         const total = fileList.length;
 
         setIsUploading(true);
@@ -85,13 +93,16 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
 
                 try {
                     const secureUrl = await uploadImageToCloudinary(file);
+                    const dims = await getImageDimensions(secureUrl);
                     newImages.push({
                         id: `${Date.now()}_${i}_${Math.random()}`,
                         src: secureUrl,
+                        originalSrc: secureUrl,
                         alt: file.name,
                         quantity: 1,
                         size: defaultSize,
                         crop: { ...DEFAULT_CROP },
+                        orientation: getDefaultOrientation(dims.w, dims.h),
                     });
                 } catch (error) {
                     failedCount += 1;
@@ -124,11 +135,11 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     };
 
     const handleRemove = (id) => {
-        setImages(prev => prev.filter(img => img.id !== id));
+        setImages((prev) => prev.filter((img) => img.id !== id));
     };
 
     const handleClearAllImages = () => {
-        const isConfirmed = window.confirm("האם את בטוחה שברצונך למחוק את כל התמונות?");
+        const isConfirmed = window.confirm("האם אתם בטוחים שברצונכם למחוק את כל התמונות?");
         if (!isConfirmed) return;
         setImages([]);
     };
@@ -137,16 +148,54 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         setImages((prev) =>
             prev.map((img) =>
                 img.id === id
-                    ? { ...img, size: newSize, crop: { ...DEFAULT_CROP } }
+                    ? { ...img, size: newSize, crop: { ...DEFAULT_CROP }, cropState: null }
                     : img,
             ),
         );
-        setAdjustImageId(id);
     };
 
-    const handleSaveCrop = (id, crop) => {
+    const handleSaveCrop = async (id, { crop, cropState, orientation, croppedBlob, fileName }) => {
+        setIsCropSaving(true);
+        setIsUploading(true);
+        setUploadStatus('שומר תמונה חתוכה...');
+
+        try {
+            const file = blobToFile(croppedBlob, fileName);
+            const secureUrl = await uploadImageToCloudinary(file);
+
+            setImages((prev) =>
+                prev.map((img) =>
+                    img.id === id
+                        ? {
+                            ...img,
+                            src: secureUrl,
+                            originalSrc: img.originalSrc || img.src,
+                            crop,
+                            cropState,
+                            orientation: orientation ?? img.orientation,
+                        }
+                        : img,
+                ),
+            );
+            setAdjustImageId(null);
+        } catch (error) {
+            console.error('Error saving cropped image:', error);
+            alert('שגיאה בשמירת התמונה החתוכה. נסו שוב.');
+            throw error;
+        } finally {
+            setIsCropSaving(false);
+            setIsUploading(false);
+            setUploadStatus('');
+        }
+    };
+
+    const handleToggleOrientation = (id) => {
         setImages((prev) =>
-            prev.map((img) => (img.id === id ? { ...img, crop } : img)),
+            prev.map((img) => {
+                if (img.id !== id) return img;
+                const next = img.orientation === 'landscape' ? 'portrait' : 'landscape';
+                return { ...img, orientation: next, crop: { ...DEFAULT_CROP } };
+            }),
         );
     };
 
@@ -157,7 +206,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const handleSendOrder = () => {
         if (images.length === 0) return;
 
-        const defaultSize = priceList.length > 0 ? priceList[0].size : '10x15';
+        const defaultSize = DEFAULT_PHOTO_PRINT_SIZE;
         const unitPrice = getUnitPriceByQuantity(orderPricing.totalPrints);
 
         const cartItems = images.map((img) => {
@@ -171,6 +220,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                 quantity: qty,
                 image: img.src,
                 crop: img.crop,
+                orientation: img.orientation ?? 'landscape',
             };
         });
 
@@ -243,6 +293,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                 onClearAll={handleClearAllImages}
                 onSizeChange={handleSizeChange}
                 onAdjustPrint={setAdjustImageId}
+                onToggleOrientation={handleToggleOrientation}
                 onSendOrder={handleSendOrder}
                 availableSizes={priceList}
                 orderPricing={orderPricing}
@@ -263,9 +314,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             {adjustImage && (
                 <PhotoPrintAdjustModal
                     image={adjustImage}
-                    availableSizes={priceList}
                     onSave={handleSaveCrop}
                     onClose={() => setAdjustImageId(null)}
+                    isSaving={isCropSaving}
                 />
             )}
 

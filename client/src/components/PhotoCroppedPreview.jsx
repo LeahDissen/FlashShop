@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
-import { DEFAULT_CROP, getCropTransformStyle, parsePrintSize } from '../utils/printSizes';
+import {
+    DEFAULT_CROP,
+    DEFAULT_PHOTO_PRINT_SIZE,
+    getCropTransformStyle,
+    normalizeZoomCrop,
+    resolvePrintDimensions,
+} from '../utils/printSizes';
 
 /**
- * תצוגת תמונה ביחס הדפסה (cover + crop/zoom)
+ * תצוגת תמונה ביחס הדפסה (cover + זום/הזזה)
  */
 const PhotoCroppedPreview = ({
     src,
     alt = '',
-    size = '10x15',
+    size = DEFAULT_PHOTO_PRINT_SIZE,
+    orientation = 'portrait',
     crop = DEFAULT_CROP,
     className = '',
     frameClassName = '',
@@ -21,9 +28,10 @@ const PhotoCroppedPreview = ({
         img.src = src;
     }, [src]);
 
-    const print = parsePrintSize(size);
+    const print = resolvePrintDimensions(size, orientation);
     const imageAspect = dims.w && dims.h ? dims.w / dims.h : print.aspect;
-    const transformStyle = getCropTransformStyle(crop, imageAspect, print.aspect);
+    const zoomCrop = normalizeZoomCrop(crop);
+    const transformStyle = getCropTransformStyle(zoomCrop, imageAspect, print.aspect);
 
     return (
         <div

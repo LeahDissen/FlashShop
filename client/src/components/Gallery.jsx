@@ -12,6 +12,7 @@ const Gallery = ({
     onSendOrder,
     onSizeChange,
     onAdjustPrint,
+    onToggleOrientation,
     availableSizes,
     orderPricing,
     nextTierHint,
@@ -47,6 +48,7 @@ const Gallery = ({
                                     onImageSelect={onImageSelect}
                                     onSizeChange={onSizeChange}
                                     onAdjustPrint={onAdjustPrint}
+                                    onToggleOrientation={onToggleOrientation}
                                     isSelected={image.id === selectedImageId}
                                     availableSizes={availableSizes}
                                 />
