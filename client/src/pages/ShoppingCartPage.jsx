@@ -11,6 +11,22 @@ import useAuthStore from "../store/authStore";
 import { useCartStore } from "../store/cartStore";
 
 const DEFAULT_CART_HERO_IMG = "https://images.unsplash.com/photo-1515488042361-ee00e616997e?w=1600&q=80";
+const DEFAULT_RECOMMENDED_TITLE = "אולי תאהבו גם את אלה...";
+
+/** כותרות ישנות/שגויות ב-Redis — מוחלפות בברירת המחדל */
+const LEGACY_RECOMMENDED_TITLES = new Set([
+  "מוצרים מומלצים",
+  "מיצרים מומלצים",
+  "מומלצים",
+]);
+
+function normalizeRecommendedTitle(value) {
+  const trimmed = value?.trim();
+  if (!trimmed || LEGACY_RECOMMENDED_TITLES.has(trimmed)) {
+    return DEFAULT_RECOMMENDED_TITLE;
+  }
+  return trimmed;
+}
 
 const RECOMMENDED_PRODUCTS = [
   { id: 3, name: "חולצה", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/shirt@2x.png" },
@@ -34,7 +50,7 @@ export default function ShoppingCartPage() {
     img: DEFAULT_CART_HERO_IMG,
     title: "עגלת קניות",
     emptyCartText: "העגלה שלך ריקה",
-    recommendedTitle: "אולי תאהבו גם את אלה...",
+    recommendedTitle: DEFAULT_RECOMMENDED_TITLE,
     payBtn: "רוצה לשלם",
     codePlaceholder: "הזן קוד קופון",
     codeBtn: "החל",
@@ -94,7 +110,7 @@ export default function ShoppingCartPage() {
           ...data,
           img: data.img?.trim() || DEFAULT_CART_HERO_IMG,
           title: data.title?.trim() || "עגלת קניות",
-          recommendedTitle: data.recommendedTitle?.trim() || "אולי תאהבו גם את אלה...",
+          recommendedTitle: normalizeRecommendedTitle(data.recommendedTitle),
         };
         adminControls.setPage(merged);
         adminControls.setDraft(merged);
@@ -117,6 +133,10 @@ export default function ShoppingCartPage() {
         <div>
           <label className="block text-sm font-bold text-gray-700">טקסט עגלה ריקה:</label>
           <input type="text" value={draft.emptyCartText} onChange={(e) => updateDraft({ emptyCartText: e.target.value })} className="w-full border p-2 rounded" />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-gray-700">כותרת מוצרים מומלצים:</label>
+          <input type="text" value={draft.recommendedTitle} onChange={(e) => updateDraft({ recommendedTitle: e.target.value })} className="w-full border p-2 rounded" />
         </div>
       </div>
     </div>
@@ -159,18 +179,16 @@ export default function ShoppingCartPage() {
                 </p>
               </div>
 
-              {/* כותרות עמודות הטבלה - מיושרות לפי חלוקת גריד מדויקת של 6-3-3 */}
-              <div className="max-w-2xl mx-auto grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
-                <div className="col-span-6 text-right">פריטים</div>
-                <div className="col-span-3 text-center">כמות</div>
-                <div className="col-span-3 text-center">מחיר</div>
-              </div>
-
-              {/* רשימת כרטיסי המוצרים */}
-              <div className="max-w-2xl mx-auto space-y-4">
+              {/* כותרות + פריטים — אותה פריסת grid (6-3-3) */}
+              <div className="max-w-2xl mx-auto">
+                <div className="grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
+                  <div className="col-span-6 text-right">פריטים</div>
+                  <div className="col-span-3 text-center">כמות</div>
+                  <div className="col-span-3 text-center">מחיר</div>
+                </div>
                 {cartItems.map((item) => (
                   <CartItem
-                    key={item.id}
+                    key={item.id || item._id}
                     item={item}
                     onRemove={handleRemoveItem}
                     onQuantityChange={handleQuantityChange}
@@ -224,7 +242,7 @@ export default function ShoppingCartPage() {
           <div className="absolute top-0 left-0 right-0 h-12 bg-white" style={{ clipPath: "ellipse(60% 100% at 50% 0%)" }} />
           <div className="max-w-4xl mx-auto px-4">
             <h2 className="text-xl sm:text-2xl font-bold text-center text-[#f2665e] mb-10">
-              {draft.recommendedTitle || "אולי תאהבו גם את אלה..."}
+              {draft.recommendedTitle || DEFAULT_RECOMMENDED_TITLE}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {recommendedProducts.map((product) => (

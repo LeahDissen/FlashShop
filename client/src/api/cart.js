@@ -29,6 +29,9 @@ const compactCartItemForSync = (item) => {
         size: item.size,
         image: imageForSync,
         customDesign: compactCustomDesign,
+        customization: item.customization?.type
+            ? { type: item.customization.type }
+            : undefined,
     };
 };
 
