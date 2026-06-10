@@ -51,7 +51,7 @@ export default function Footer() {
             setStatusMsg(null);
             const res = await sendMessageRequest(contactForm)
 
-            if (res.ok === 200 || res.ok === 201 || res.msg) {
+            if (res.ok === true || res.ok === 200 || res.ok === 201 || res.message) {
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });
                 setContactForm({ name: '', email: '', message: '' });
             } else {
@@ -85,7 +85,13 @@ export default function Footer() {
 
     const EditContent = (
         <div className="bg-white p-4 rounded text-black space-y-2">
+            <p className="text-sm font-semibold text-gray-600">טופס יצירת קשר</p>
             <input type="text" value={draft.noteTitle} onChange={(e) => updateDraft({ noteTitle: e.target.value })} className="border p-1 w-full" placeholder="כותרת טופס" />
+            <input type="text" value={draft.notePlaceholderName} onChange={(e) => updateDraft({ notePlaceholderName: e.target.value })} className="border p-1 w-full" placeholder="שדה שם - טקסט מנחה" />
+            <input type="text" value={draft.notePlaceholderEmail} onChange={(e) => updateDraft({ notePlaceholderEmail: e.target.value })} className="border p-1 w-full" placeholder="שדה אימייל - טקסט מנחה" />
+            <input type="text" value={draft.notePlaceholderMessage} onChange={(e) => updateDraft({ notePlaceholderMessage: e.target.value })} className="border p-1 w-full" placeholder="שדה הודעה - טקסט מנחה" />
+            <input type="text" value={draft.noteButtonText} onChange={(e) => updateDraft({ noteButtonText: e.target.value })} className="border p-1 w-full" placeholder="טקסט כפתור שליחה" />
+            <p className="text-sm font-semibold text-gray-600 pt-2">פרטי התקשרות</p>
             <input type="text" value={draft.contactAddress} onChange={(e) => updateDraft({ contactAddress: e.target.value })} className="border p-1 w-full" placeholder="כתובת" />
             <input type="text" value={draft.contactInfo} onChange={(e) => updateDraft({ contactInfo: e.target.value })} className="border p-1 w-full" placeholder="שעות פעילות" />
             <input type="text" value={draft.contactPhone} onChange={(e) => updateDraft({ contactPhone: e.target.value })} className="border p-1 w-full" placeholder="טלפון" />
