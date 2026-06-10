@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProducts } from '../api/products';
 
-const PersonalizationSection = ({ onSelectProduct, content }) => {
+const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState(["הכל"]);
@@ -33,6 +33,23 @@ const PersonalizationSection = ({ onSelectProduct, content }) => {
         };
         fetchProducts();
     }, []);
+
+    useEffect(() => {
+        if (!initialCategory || categories.length <= 1) return;
+
+        const exact = categories.find((c) => c === initialCategory);
+        if (exact) {
+            setActiveCategory(exact);
+            return;
+        }
+
+        const fuzzy = categories.find(
+            (c) =>
+                c !== 'הכל' &&
+                (c.includes(initialCategory) || initialCategory.includes(c)),
+        );
+        if (fuzzy) setActiveCategory(fuzzy);
+    }, [initialCategory, categories]);
 
     const filteredProducts = products.filter(product => {
         if (activeCategory === "הכל") return true;

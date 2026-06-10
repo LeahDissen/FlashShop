@@ -2,6 +2,31 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
 import useAuthStore from './authStore';
+import { prepareCartDisplayImage } from '../utils/cartThumbnail';
+
+const compactCartItem = (item) => {
+  const compactCustomDesign = item?.customDesign
+    ? {
+        projectId: item.customDesign.projectId,
+        projectName: item.customDesign.projectName,
+        canvasSize: item.customDesign.canvasSize,
+        printSizeCm: item.customDesign.printSizeCm,
+      }
+    : undefined;
+
+  return {
+    ...item,
+    customDesign: compactCustomDesign,
+  };
+};
+
+const prepareCartItems = async (items) =>
+  Promise.all(
+    items.map(async (item) => {
+      const image = await prepareCartDisplayImage(item.image);
+      return compactCartItem({ ...item, image });
+    }),
+  );
 
 export const useCartStore = create(
   persist(
@@ -10,13 +35,14 @@ export const useCartStore = create(
       loadCart: async (userId) => {
           const dbItems = await fetchCartFromDB(userId);
           if (dbItems && dbItems.length > 0) {
-              set({ cartItems: dbItems });
+              set({ cartItems: dbItems.map(compactCartItem) });
           }
       },
 
-      addToCart: (newItems) => {
+      addToCart: async (newItems) => {
+          const preparedItems = await prepareCartItems(newItems);
           set((state) => {
-              const updatedCart = [...state.cartItems, ...newItems];
+              const updatedCart = [...state.cartItems, ...preparedItems];
               const userId = useAuthStore.getState().userId;
               if (userId) {
                   saveCartToDB(userId, updatedCart);
@@ -68,6 +94,9 @@ export const useCartStore = create(
     }),
     {
       name: 'cart-storage',
+      partialize: (state) => ({
+        cartItems: state.cartItems.map(compactCartItem),
+      }),
     }
   )
 );

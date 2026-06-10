@@ -26,8 +26,19 @@ export default function HomePage() {
     const setCurrentTip = useTipsStore(state => state.setCurrentTip);
 
     useEffect(() => {
-        setClubOpen(true);
-        
+        const dismissed = sessionStorage.getItem("club-popup-dismissed");
+        if (dismissed) return;
+
+        const timer = setTimeout(() => {
+            if (!sessionStorage.getItem("club-popup-dismissed")) {
+                setClubOpen(true);
+            }
+        }, 8000);
+
+        return () => clearTimeout(timer);
+    }, [setClubOpen]);
+
+    useEffect(() => {
         getPage("home").then((data) => {
             if (typeof data.products === "string") {
                 try {
@@ -196,7 +207,7 @@ export default function HomePage() {
                                     {draft.title}
                                 </h1>
                                 <button
-                                    onClick={() => Navigate('/about')}
+                                    onClick={() => setClubOpen(true)}
                                     className="px-8 py-2 rounded-full text-white font-medium shadow-lg hover:shadow-xl transition-all"
                                     style={{ backgroundColor: '#ff5555' }}
                                 >

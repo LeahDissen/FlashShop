@@ -22,6 +22,35 @@ import { useCartStore } from '../store/cartStore';
 
 const CANVAS_KEY_STORAGE = 'active_editor_canvas_key';
 const CANVAS_SIZE_STORAGE = 'active_editor_canvas_size';
+const ACTIVE_ELEMENTS_STORAGE = 'active_editor_elements';
+const ACTIVE_BG_STORAGE = 'active_editor_bg';
+const ACTIVE_NAME_STORAGE = 'active_editor_name';
+
+const safeJsonParse = (raw, fallback) => {
+    if (!raw) return fallback;
+    try {
+        return JSON.parse(raw);
+    } catch (error) {
+        console.warn('Invalid JSON in storage:', error);
+        return fallback;
+    }
+};
+
+const isQuotaExceededError = (error) =>
+    error?.name === 'QuotaExceededError' || error?.code === 22 || error?.code === 1014;
+
+const safeStorageSetItem = (key, value) => {
+    try {
+        localStorage.setItem(key, value);
+        return true;
+    } catch (error) {
+        if (isQuotaExceededError(error)) {
+            console.warn(`localStorage quota exceeded for key: ${key}`);
+            return false;
+        }
+        throw error;
+    }
+};
 
 const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const { productId } = useParams();
@@ -45,20 +74,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const canvasAppliedKeyRef = useRef(null);
     const lastCanvasPxRef = useRef({ width: 0, height: 0 });
+    const storageWarningShownRef = useRef(false);
 
     // --- ניהול סטייט מקומי וטיוטות ---
     const [elements, setElements] = useState(() => {
-        const saved = localStorage.getItem('active_editor_elements');
-        return saved ? JSON.parse(saved) : [createDefaultTextElement(getCanvasDimensions(null))];
+        const saved = localStorage.getItem(ACTIVE_ELEMENTS_STORAGE);
+        return safeJsonParse(saved, [createDefaultTextElement(getCanvasDimensions(null))]);
     });
 
     const [canvasBackground, setCanvasBackground] = useState(() => {
-        const saved = localStorage.getItem('active_editor_bg');
-        return saved ? JSON.parse(saved) : { type: 'color', value: '#FFFFFF' };
+        const saved = localStorage.getItem(ACTIVE_BG_STORAGE);
+        return safeJsonParse(saved, { type: 'color', value: '#FFFFFF' });
     });
 
     const [projectName, setProjectName] = useState(() => {
-        return localStorage.getItem('active_editor_name') || 'הפרויקט שלי';
+        return localStorage.getItem(ACTIVE_NAME_STORAGE) || 'הפרויקט שלי';
     });
 
     const [history, setHistory] = useState([elements]);
@@ -80,9 +110,14 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        localStorage.setItem('active_editor_elements', JSON.stringify(elements));
-        localStorage.setItem('active_editor_bg', JSON.stringify(canvasBackground));
-        localStorage.setItem('active_editor_name', projectName);
+        const savedElements = safeStorageSetItem(ACTIVE_ELEMENTS_STORAGE, JSON.stringify(elements));
+        safeStorageSetItem(ACTIVE_BG_STORAGE, JSON.stringify(canvasBackground));
+        safeStorageSetItem(ACTIVE_NAME_STORAGE, projectName);
+
+        if (!savedElements && !storageWarningShownRef.current) {
+            storageWarningShownRef.current = true;
+            alert('נפח האחסון המקומי מלא. השינויים ימשיכו לעבוד, אבל לא יישמרו מקומית עד לניקוי אחסון בדפדפן.');
+        }
     }, [elements, canvasBackground, projectName]);
 
     // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
@@ -90,7 +125,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         const storageKey = getCanvasStorageKey(selectedProduct, canvasDimensions);
         const savedKey = localStorage.getItem(CANVAS_KEY_STORAGE);
         const savedSizeRaw = localStorage.getItem(CANVAS_SIZE_STORAGE);
-        const savedSize = savedSizeRaw ? JSON.parse(savedSizeRaw) : null;
+        const savedSize = safeJsonParse(savedSizeRaw, null);
 
         if (canvasAppliedKeyRef.current === storageKey) {
             lastCanvasPxRef.current = {
@@ -100,19 +135,24 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             return;
         }
 
-        const savedElementsRaw = localStorage.getItem('active_editor_elements');
+        const savedElementsRaw = localStorage.getItem(ACTIVE_ELEMENTS_STORAGE);
         let nextElements;
 
         if (savedKey === storageKey && savedElementsRaw) {
-            nextElements = JSON.parse(savedElementsRaw);
+            nextElements = safeJsonParse(savedElementsRaw, [createDefaultTextElement(canvasDimensions)]);
         } else if (savedElementsRaw && savedSize?.width && savedSize?.height) {
+            const parsedSavedElements = safeJsonParse(savedElementsRaw, null);
+            if (!parsedSavedElements) {
+                nextElements = [createDefaultTextElement(canvasDimensions)];
+            } else {
             nextElements = scaleElementsToCanvas(
-                JSON.parse(savedElementsRaw),
+                parsedSavedElements,
                 savedSize.width,
                 savedSize.height,
                 canvasDimensions.width,
                 canvasDimensions.height,
             );
+            }
         } else {
             nextElements = [createDefaultTextElement(canvasDimensions)];
         }
@@ -122,12 +162,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setHistoryIndex(0);
         setSelectedElementId(nextElements[0]?.id || null);
 
-        localStorage.setItem(CANVAS_KEY_STORAGE, storageKey);
-        localStorage.setItem(
+        safeStorageSetItem(CANVAS_KEY_STORAGE, storageKey);
+        safeStorageSetItem(
             CANVAS_SIZE_STORAGE,
             JSON.stringify({ width: canvasDimensions.width, height: canvasDimensions.height }),
         );
-        localStorage.setItem('active_editor_elements', JSON.stringify(nextElements));
+        safeStorageSetItem(ACTIVE_ELEMENTS_STORAGE, JSON.stringify(nextElements));
 
         canvasAppliedKeyRef.current = storageKey;
         lastCanvasPxRef.current = {
@@ -166,9 +206,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [productId, location.state, setSelectedProduct]);
 
     const clearDraft = () => {
-        localStorage.removeItem('active_editor_elements');
-        localStorage.removeItem('active_editor_bg');
-        localStorage.removeItem('active_editor_name');
+        localStorage.removeItem(ACTIVE_ELEMENTS_STORAGE);
+        localStorage.removeItem(ACTIVE_BG_STORAGE);
+        localStorage.removeItem(ACTIVE_NAME_STORAGE);
     };
 
     const addToHistory = useCallback((newElements) => {
@@ -311,7 +351,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 productId: productOriginalId,
                 name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`, 
                 price: productPrice,            
-                image: cartThumb || savedProject.preview, 
+                image: cartThumb || savedProject.preview || selectedProduct?.image,
                 quantity: 1,
                 customDesign: {
                     projectId: savedProject._id,
@@ -326,8 +366,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             };
 
-            // ה. הזרקה לסל הקניות
-            addToCart([cartItem]);
+            // ה. הזרקה לסל הקניות (תמונה ממוזערת/URL קל לתצוגה בעגלה)
+            await addToCart([cartItem]);
 
             alert('המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!');
             setShowPreviewModal(false);
@@ -358,7 +398,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [currentProjectId, projectName, elements, canvasBackground, uploadedImages, uploadedBackgrounds, selectedProduct, previewImage]);
 
     // --- 2. כפתור הוספה ישירה לסל מתוך מסך "הפרויקטים שלי" ---
-    const handleAddExistingProjectToCart = useCallback((e, proj) => {
+    const handleAddExistingProjectToCart = useCallback(async (e, proj) => {
         e.stopPropagation(); 
         
         try {
@@ -398,7 +438,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             };
 
-            addToCart([cartItem]);
+            await addToCart([cartItem]);
             
             alert(`הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!`);
             setShowLoadModal(false);
@@ -450,8 +490,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setHistory([loadedElements]);
             setHistoryIndex(0);
             setSelectedElementId(null);
-            localStorage.setItem(CANVAS_KEY_STORAGE, getCanvasStorageKey(productForDims, dims));
-            localStorage.setItem(
+            safeStorageSetItem(CANVAS_KEY_STORAGE, getCanvasStorageKey(productForDims, dims));
+            safeStorageSetItem(
                 CANVAS_SIZE_STORAGE,
                 JSON.stringify({ width: dims.width, height: dims.height }),
             );

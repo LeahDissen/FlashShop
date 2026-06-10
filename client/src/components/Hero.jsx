@@ -6,21 +6,24 @@ const Hero = ({
   backgroundImage,
   title,
   subtitle,
-  btnText
+  btnText,
+  isUploading = false,
 }) => {
   const fileInputRef = useRef(null);
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event) => {
-    if (event.target.files && event.target.files.length > 0) {
+  const handleFileChange = async (event) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
       if (onFilesSelected) {
-        onFilesSelected(event.target.files);
+        await onFilesSelected(files);
       } else {
         onStartEditor();
       }
     }
+    event.target.value = '';
   };
 
   return (
@@ -42,9 +45,10 @@ const Hero = ({
           <div className="flex flex-col sm:flex-row gap-4">
             <button
               onClick={handleButtonClick}
-              className="bg-[#f2665e] text-white font-bold py-3 px-10 rounded-full hover:bg-[#d95248] transition-all transform hover:scale-105 shadow-md text-lg"
+              disabled={isUploading}
+              className="bg-[#f2665e] text-white font-bold py-3 px-10 rounded-full hover:bg-[#d95248] transition-all transform hover:scale-105 shadow-md text-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              {btnText}
+              {isUploading ? 'מעלה תמונות...' : btnText}
             </button>
           </div>
 

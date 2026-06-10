@@ -1,14 +1,49 @@
 import axios from 'axios';
 const API_URL = `${import.meta.env.VITE_MONGO_API}/orders`;
+const MAX_IMAGE_LENGTH_FOR_SYNC = 500_000;
+
+const compactCartItemForSync = (item) => {
+    const compactCustomDesign = item?.customDesign
+        ? {
+            projectId: item.customDesign.projectId,
+            projectName: item.customDesign.projectName,
+            canvasSize: item.customDesign.canvasSize,
+            printSizeCm: item.customDesign.printSizeCm,
+        }
+        : undefined;
+
+    const imageForSync =
+        typeof item?.image === 'string' &&
+            item.image.startsWith('data:') &&
+            item.image.length > MAX_IMAGE_LENGTH_FOR_SYNC
+            ? null
+            : item?.image ?? null;
+
+    return {
+        id: item.id,
+        _id: item._id,
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        size: item.size,
+        image: imageForSync,
+        customDesign: compactCustomDesign,
+        customization: item.customization?.type
+            ? { type: item.customization.type }
+            : undefined,
+    };
+};
 
 export const saveCartToDB = async (userId, cartItems) => {
-    if (!userId || cartItems.length === 0) return;
+    if (!userId) return;
 
     const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const compactItems = cartItems.map(compactCartItemForSync);
 
     try {
         await axios.put(`${API_URL}/pending/user/${userId}`, {
-            items: cartItems,
+            items: compactItems,
             total_price: totalPrice
         });
     } catch (error) {

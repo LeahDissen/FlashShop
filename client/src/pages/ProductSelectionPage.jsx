@@ -1,9 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, User, Mail, Phone, FileText, Upload, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { getProductById } from '../api/products';
 import { useCartStore } from '../store/cartStore';
 import { useProductStore } from '../store/productStore';
 import { getPage } from '../api/pages';
+import { MAGNET_SIZES } from '../constants/productCategories';
+import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
+import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -11,12 +15,14 @@ const ProductSelectionPage = () => {
     const location = useLocation();
     const { addToCart } = useCartStore();
     const setSelectedProduct = useProductStore((state) => state.setSelectedProduct);
-    
-    // סטייטס להעלאת תמונה במסלול ישיר
+
+    const [product, setProduct] = useState(location.state?.product ?? null);
+    const [loadingProduct, setLoadingProduct] = useState(!location.state?.product);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedImage, setUploadedImage] = useState(null);
-    
-    // סטייטס למסלול גרפיקאית
+    const [magnetImage, setMagnetImage] = useState(null);
+    const [selectedMagnetSize, setSelectedMagnetSize] = useState(MAGNET_SIZES[0]);
+
     const [showDesignerForm, setShowDesignerForm] = useState(false);
     const [isDesignerUploading, setIsDesignerUploading] = useState(false);
     const [designerDetails, setDesignerDetails] = useState({
@@ -24,19 +30,30 @@ const ProductSelectionPage = () => {
         email: '',
         phone: '',
         description: '',
-        referenceImage: null // התמונה המצורפת לבקשה של הגרפיקאית
+        referenceImage: null
     });
 
     const [heroBgImage, setHeroBgImage] = useState("");
     const fileInputRef = useRef(null);
+    const magnetFileRef = useRef(null);
     const designerFileRef = useRef(null);
-    const product = location.state?.product;
 
     useEffect(() => {
         if (product) {
             setSelectedProduct(product);
+            return;
         }
-    }, [product, setSelectedProduct]);
+        if (!productId) return;
+
+        setLoadingProduct(true);
+        getProductById(productId)
+            .then((data) => {
+                setProduct(data);
+                setSelectedProduct(data);
+            })
+            .catch(() => navigate('/products'))
+            .finally(() => setLoadingProduct(false));
+    }, [product, productId, setSelectedProduct, navigate]);
 
     useEffect(() => {
         const fetchPageDesign = async () => {
@@ -52,29 +69,94 @@ const ProductSelectionPage = () => {
         fetchPageDesign();
     }, []);
 
+    if (loadingProduct) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#faf8f6]" dir="rtl">
+                <p className="text-gray-500">טוען מוצר...</p>
+            </div>
+        );
+    }
+
     if (!product) {
-        navigate('/');
         return null;
     }
 
-    // פונקציית העלאה גנרית ל-Cloudinary
-    const uploadImage = async (file) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", "ml_default");
+    const simpleProduct = isSimpleProduct(product);
+    const magnetProduct = isMagnetProduct(product);
 
+    const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
-            const response = await fetch(
-                "https://api.cloudinary.com/v1_1/dwqywo11u/image/upload",
-                { method: "POST", body: formData }
-            );
-            if (!response.ok) return null;
-            const data = await response.json();
-            return data.secure_url;
+            await addToCart(items);
+            if (successMessage) {
+                alert(successMessage);
+            }
+            navigate('/cart');
         } catch (error) {
-            console.error("Error uploading image:", error);
-            return null;
+            console.error('Failed to add to cart:', error);
+            alert('לא ניתן להוסיף לסל כרגע. נסו שוב.');
         }
+    };
+
+    const handleSimpleAddToCart = async () => {
+        await addToCartAndNavigate([{
+            ...product,
+            id: `${product._id}-simple-${Date.now()}`,
+            quantity: 1,
+            price: product.price || 0,
+        }]);
+    };
+
+    const handleMagnetFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        e.target.value = '';
+        setIsUploading(true);
+        try {
+            const imageUrl = await uploadImageToCloudinary(file);
+            setMagnetImage(imageUrl);
+        } catch (error) {
+            alert(error?.message || "הייתה שגיאה בהעלאת התמונה.");
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleRemoveMagnetImage = () => {
+        setMagnetImage(null);
+        if (magnetFileRef.current) magnetFileRef.current.value = '';
+    };
+
+    const handleUploadAddToCart = async () => {
+        if (!uploadedImage) return;
+        await addToCartAndNavigate([{
+            ...product,
+            id: `${product._id}-upload-${Date.now()}`,
+            image: uploadedImage,
+            quantity: 1,
+            price: product.price || 0,
+            customization: { type: 'upload-only', originalImage: product.image },
+        }]);
+    };
+
+    const handleMagnetAddToCart = async () => {
+        if (!magnetImage) {
+            alert("יש להעלות תמונה למגנט");
+            return;
+        }
+        await addToCartAndNavigate([{
+            ...product,
+            id: `${product._id}-magnet-${Date.now()}`,
+            quantity: 1,
+            price: selectedMagnetSize.price,
+            image: magnetImage,
+            size: selectedMagnetSize.label,
+            customization: {
+                type: 'magnet',
+                printSize: selectedMagnetSize.label,
+                width: selectedMagnetSize.width,
+                height: selectedMagnetSize.height,
+            },
+        }]);
     };
 
     // מעבר לעמוד עריכה עצמית ومסירת המוצר המלא בסטייט
@@ -103,7 +185,7 @@ const ProductSelectionPage = () => {
 
         const cartItem = {
             ...product,
-            cartItemId: `${product._id}-designer-${Date.now()}`,
+            id: `${product._id}-designer-${Date.now()}`,
             quantity: 1,
             price: (product.price || 0) + 15, // תוספת תשלום של 15 ש"ח לגרפיקאית
             customization: { 
@@ -112,13 +194,9 @@ const ProductSelectionPage = () => {
             }
         };
 
-        try {
-            await addToCart([cartItem]);
-            alert("הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!");
-            navigate('/cart');
-        } catch (error) {
-            console.error("Failed to process designer request:", error);
-        }
+        await addToCartAndNavigate([cartItem], {
+            successMessage: 'הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!',
+        });
     };
 
     // טיפול בקובץ של מסלול העלאה ישירה
@@ -128,18 +206,15 @@ const ProductSelectionPage = () => {
         e.target.value = '';
         setIsUploading(true);
         try {
-            const imageUrl = await uploadImage(file);
-            if (!imageUrl) {
-                alert("העלאת התמונה נכשלה, אנא נסה שוב.");
-                return;
-            }
+            const imageUrl = await uploadImageToCloudinary(file);
             setUploadedImage(imageUrl);
             setShowDesignerForm(false); // סוגר את טופס הגרפיקאית למניעת בלבול
             setTimeout(() => {
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }, 100);
         } catch (error) {
-            alert("הייתה שגיאה בהעלאת התמונה.");
+            console.error("Error uploading image:", error);
+            alert(error?.message || "הייתה שגיאה בהעלאת התמונה.");
         } finally {
             setIsUploading(false);
         }
@@ -155,16 +230,14 @@ const ProductSelectionPage = () => {
     const handleDesignerFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        e.target.value = '';
         setIsDesignerUploading(true);
         try {
-            const imageUrl = await uploadImage(file);
-            if (imageUrl) {
-                setDesignerDetails({ ...designerDetails, referenceImage: imageUrl });
-            } else {
-                alert("העלאת הקובץ נכשלה.");
-            }
+            const imageUrl = await uploadImageToCloudinary(file);
+            setDesignerDetails((prev) => ({ ...prev, referenceImage: imageUrl }));
         } catch (error) {
-            alert("שגיאה בהעלאת הקובץ לגרפיקאית.");
+            console.error("Designer reference upload failed:", error);
+            alert(error?.message || "העלאת הקובץ נכשלה.");
         } finally {
             setIsDesignerUploading(false);
         }
@@ -222,17 +295,91 @@ const ProductSelectionPage = () => {
                                     <div>
                                         <h2 className="text-3xl font-bold text-[#f2665e] mb-2">{product.name}</h2>
                                         <div className="mb-6">
-                                            <span className="text-2xl font-bold text-gray-900">{product.price} ₪</span>
-                                            {(product.printWidth || product.printHeight) && (
+                                            {magnetProduct ? (
+                                                <>
+                                                    <span className="text-2xl font-bold text-gray-900">{selectedMagnetSize.price} ₪</span>
+                                                    <p className="text-sm text-gray-500 mt-1">מחיר לפי גודל מגנט: {selectedMagnetSize.label} ס&quot;מ</p>
+                                                </>
+                                            ) : (
+                                                <span className="text-2xl font-bold text-gray-900">{product.price} ₪</span>
+                                            )}
+                                            {!simpleProduct && !magnetProduct && (product.printWidth || product.printHeight) && (
                                                 <p className="text-sm text-[#f2665e] font-medium mt-2">
-                                                    משטח הדפסה: {product.printWidth ?? 12} × {product.printHeight ?? 18} ס"מ
+                                                    משטח הדפסה: {product.printWidth ?? 12} × {product.printHeight ?? 18} ס&quot;מ
                                                 </p>
                                             )}
-                                            <p className="text-sm text-gray-500 mt-1">עיצוב אישי ומקצועי על ידי הגרפיקאית שלנו בתוספת 15 ₪ בלבד</p>
+                                            {!simpleProduct && !magnetProduct && (
+                                                <p className="text-sm text-gray-500 mt-1">עיצוב אישי ומקצועי על ידי הגרפיקאית שלנו בתוספת 15 ₪ בלבד</p>
+                                            )}
                                         </div>
                                     </div>
 
-                                    {/* סידור כפתורים מעודכן: שטוחים ונמוכים יותר, 2 ימניים באותו עיצוב, כולם עם cursor-pointer */}
+                                    {simpleProduct && (
+                                        <button
+                                            onClick={handleSimpleAddToCart}
+                                            className="w-full max-w-sm py-3 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-full text-sm font-bold transition-all shadow-sm cursor-pointer"
+                                        >
+                                            הוסף לסל
+                                        </button>
+                                    )}
+
+                                    {magnetProduct && (
+                                        <div className="space-y-4 w-full">
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-700 mb-2">בחרו גודל מגנט:</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {MAGNET_SIZES.map((size) => (
+                                                        <button
+                                                            key={size.label}
+                                                            type="button"
+                                                            onClick={() => setSelectedMagnetSize(size)}
+                                                            className={`px-4 py-2 rounded-full text-sm font-bold border transition-all cursor-pointer ${
+                                                                selectedMagnetSize.label === size.label
+                                                                    ? 'bg-[#f2665e] text-white border-[#f2665e]'
+                                                                    : 'bg-white text-[#f2665e] border-[#f2665e]/30 hover:bg-[#f2665e]/10'
+                                                            }`}
+                                                        >
+                                                            {size.label} — {size.price} ₪
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="w-full max-w-sm space-y-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => magnetFileRef.current?.click()}
+                                                    disabled={isUploading}
+                                                    className="w-full py-2 bg-[#f2665e]/10 hover:bg-[#f2665e]/20 text-[#f2665e] rounded-full text-sm font-bold transition-all border border-[#f2665e]/10 cursor-pointer disabled:opacity-50"
+                                                >
+                                                    {isUploading ? 'מעלה תמונה...' : magnetImage ? 'החליפו תמונה' : 'העלו תמונה למגנט'}
+                                                </button>
+                                                <input type="file" ref={magnetFileRef} onChange={handleMagnetFileChange} className="hidden" accept="image/*" />
+                                                {magnetImage && (
+                                                    <div className="relative inline-block">
+                                                        <img src={magnetImage} alt="תצוגת מגנט" className="max-w-[200px] rounded-lg border" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleRemoveMagnetImage}
+                                                            className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-md transition-all cursor-pointer"
+                                                            title="מחק תמונה"
+                                                            aria-label="מחק תמונה"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={handleMagnetAddToCart}
+                                                    className="w-full py-3 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-full text-sm font-bold transition-all shadow-sm cursor-pointer"
+                                                >
+                                                    הוסף לסל {selectedMagnetSize.price} ₪
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!simpleProduct && !magnetProduct && (
+                                    <>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mt-4">
                                         
                                         {/* כפתור 1: עיצוב עצמי */}
@@ -270,12 +417,14 @@ const ProductSelectionPage = () => {
                                     </div>
 
                                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                                    </>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
                         {/* תצוגה מקדימה - מסלול העלאה ישירה (כולל כפתור מחיקה חדש להתחרטות) */}
-                        {uploadedImage && (
+                        {uploadedImage && !simpleProduct && !magnetProduct && (
                             <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">הקובץ שהעלית להדפסה ישירה:</h3>
                                 <div className="flex flex-col items-center gap-4">
@@ -291,18 +440,11 @@ const ProductSelectionPage = () => {
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
-                                    <button onClick={async () => {
-                                        const cartItem = {
-                                            ...product,
-                                            cartItemId: `${product._id}-${Date.now()}`,
-                                            image: uploadedImage,
-                                            quantity: 1,
-                                            price: product.price || 0,
-                                            customization: { type: 'upload-only', originalImage: product.image }
-                                        };
-                                        await addToCart([cartItem]);
-                                        navigate('/cart');
-                                    }} className="w-full max-w-xs bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-6 rounded-full shadow-sm transition-all text-sm cursor-pointer">
+                                    <button
+                                        type="button"
+                                        onClick={handleUploadAddToCart}
+                                        className="w-full max-w-xs bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-6 rounded-full shadow-sm transition-all text-sm cursor-pointer"
+                                    >
                                         הוסף לסל והמשך לקופה
                                     </button>
                                 </div>
@@ -310,7 +452,7 @@ const ProductSelectionPage = () => {
                         )}
 
                         {/* טופס בקשת עיצוב מהגרפיקאית */}
-                        {showDesignerForm && (
+                        {showDesignerForm && !simpleProduct && !magnetProduct && (
                             <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-1">עיצוב מותאם אישית על ידי גרפיקאית</h3>
@@ -362,7 +504,7 @@ const ProductSelectionPage = () => {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-800">רוצים לצרף תמונה או לוגו כבסיס?</p>
-                                                <p className="text-xs text-gray-400">הגרפיקאית תשתמש בקובץ זה כדי לבנות את העיצוב שלכם</p>
+                                                <p className="text-xs text-gray-400">הגרפיקאית תשתמש בקובץ זה כדי לבנות את העיצוב שלכם (עד ~10MB, מומלץ תמונות מהטלפון)</p>
                                             </div>
                                         </div>
                                         
