@@ -1,14 +1,38 @@
 import { useState, useEffect } from "react";
-import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEllipsisV, FaEye, FaSearch, FaShippingFast, FaTimesCircle } from "react-icons/fa";
+import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEnvelope, FaEye, FaSearch, FaShippingFast, FaTimes, FaTimesCircle, FaUser } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { getOrders } from "../api/orders";
+import { getOrders, updateOrderStatus } from "../api/orders";
+
+const STATUS_OPTIONS = [
+    { value: "processing", label: "בטיפול", icon: FaClock, color: "yellow" },
+    { value: "shipped", label: "נשלח", icon: FaShippingFast, color: "blue" },
+    { value: "delivered", label: "סופק", icon: FaCheckCircle, color: "green" },
+    { value: "cancelled", label: "בוטל", icon: FaTimesCircle, color: "red" },
+];
+
+const STATUS_STYLES = {
+    processing: "bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100",
+    shipped: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100",
+    delivered: "bg-green-50 border-green-200 text-green-700 hover:bg-green-100",
+    cancelled: "bg-red-50 border-red-200 text-red-700 hover:bg-red-100",
+};
+
+const STATUS_ACTIVE = {
+    processing: "ring-2 ring-yellow-400 bg-yellow-100 border-yellow-300",
+    shipped: "ring-2 ring-blue-400 bg-blue-100 border-blue-300",
+    delivered: "ring-2 ring-green-400 bg-green-100 border-green-300",
+    cancelled: "ring-2 ring-red-400 bg-red-100 border-red-300",
+};
 
 export default function OrdersManagement() {
     const [orders, setOrders] = useState([]);
     const [filterStatus, setFilterStatus] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [statusEditOrder, setStatusEditOrder] = useState(null);
+    const [updatingStatus, setUpdatingStatus] = useState(false);
 
     useEffect(() => {
         const loadOrders = async () => {
@@ -24,9 +48,38 @@ export default function OrdersManagement() {
         loadOrders();
     }, []);
 
+    const getCustomerName = (order) => {
+        if (order.user_id && typeof order.user_id === "object") {
+            return order.user_id.name || "—";
+        }
+        return "—";
+    };
+
+    const handleStatusChange = async (orderId, newStatus) => {
+        setUpdatingStatus(true);
+        try {
+            const updated = await updateOrderStatus(orderId, { status: newStatus });
+            setOrders((prev) => prev.map((o) => (o._id === orderId ? { ...o, status: updated.status } : o)));
+            if (selectedOrder?._id === orderId) {
+                setSelectedOrder((prev) => ({ ...prev, status: updated.status }));
+            }
+            setStatusEditOrder(null);
+        } catch (error) {
+            console.error("Failed to update order status:", error);
+            alert("שגיאה בעדכון סטטוס ההזמנה");
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
+    const shortOrderId = (id) => String(id).slice(-8).toUpperCase();
+
     const filteredOrders = orders.filter(order => {
         const matchesStatus = filterStatus === "all" || order.status === filterStatus;
-        const matchesSearch = order._id.toLowerCase().includes(searchTerm.toLowerCase());
+        const term = searchTerm.toLowerCase();
+        const matchesSearch =
+            order._id.toLowerCase().includes(term) ||
+            getCustomerName(order).toLowerCase().includes(term);
         return matchesStatus && matchesSearch;
     });
 
@@ -154,12 +207,14 @@ export default function OrdersManagement() {
                             <tbody className="divide-y divide-gray-100">
                                 {filteredOrders.map((order) => (
                                     <tr key={order._id} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="p-5 font-mono text-sm font-bold text-gray-700">
-                                            {order._id}
+                                        <td className="p-5">
+                                            <span className="font-mono text-sm font-bold text-gray-700" title={order._id}>
+                                                #{shortOrderId(order._id)}
+                                            </span>
                                         </td>
                                         <td className="p-5">
-                                            <div className="text-sm text-gray-600 font-mono">
-                                                {order.user_id ? String(order.user_id).slice(-8) : '—'}
+                                            <div className="text-sm text-gray-800 font-medium">
+                                                {getCustomerName(order)}
                                             </div>
                                         </td>
                                         <td className="p-5">
@@ -181,11 +236,21 @@ export default function OrdersManagement() {
                                         </td>
                                         <td className="p-5 text-center">
                                             <div className="flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100" title="צפה בפרטים">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                    className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                                    title="צפה בפרטים"
+                                                >
                                                     <FaEye />
                                                 </button>
-                                                <button className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200" title="ערוך סטטוס">
-                                                    <FaEllipsisV />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setStatusEditOrder(order)}
+                                                    className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                                    title="ערוך סטטוס"
+                                                >
+                                                    <FaEdit />
                                                 </button>
                                             </div>
                                         </td>
@@ -207,6 +272,156 @@ export default function OrdersManagement() {
                     </div>
                 </div>
             </div>
+
+            {selectedOrder && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={() => setSelectedOrder(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="bg-gradient-to-l from-[#f2665e] to-[#e8554d] px-6 py-5 text-white relative">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedOrder(null)}
+                                className="absolute left-4 top-4 p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+                            >
+                                <FaTimes size={14} />
+                            </button>
+                            <p className="text-white/80 text-sm mb-1">הזמנה</p>
+                            <h2 className="text-2xl font-bold font-mono">#{shortOrderId(selectedOrder._id)}</h2>
+                            <p className="text-white/70 text-xs mt-1">{formatDate(selectedOrder.date_created)}</p>
+                        </div>
+
+                        <div className="p-6 space-y-5">
+                            <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                <div className="w-12 h-12 rounded-full bg-[#f2665e]/10 flex items-center justify-center shrink-0">
+                                    <FaUser className="text-[#f2665e]" size={18} />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-gray-800 truncate">{getCustomerName(selectedOrder)}</p>
+                                    {selectedOrder.user_id?.email && (
+                                        <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5 truncate">
+                                            <FaEnvelope size={11} className="shrink-0" />
+                                            {selectedOrder.user_id.email}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="mr-auto shrink-0">
+                                    {getStatusBadge(selectedOrder.status)}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">פריטים בהזמנה</h3>
+                                <div className="space-y-2">
+                                    {selectedOrder.items.map((item, i) => (
+                                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                                            {item.image && (
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    className="w-12 h-12 rounded-lg object-cover border border-gray-100 shrink-0"
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-gray-800 text-sm truncate">{item.name}</p>
+                                                <p className="text-xs text-gray-400 mt-0.5">כמות: {item.quantity} · ₪{item.price.toFixed(2)} ליחידה</p>
+                                            </div>
+                                            <p className="font-bold text-[#f2665e] text-sm shrink-0">
+                                                ₪{(item.price * item.quantity).toFixed(2)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100">
+                                {selectedOrder.subtotal > 0 && selectedOrder.subtotal !== selectedOrder.total_price && (
+                                    <div className="flex justify-between text-sm text-gray-500">
+                                        <span>סכום ביניים</span>
+                                        <span>₪{selectedOrder.subtotal.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                {selectedOrder.discount > 0 && (
+                                    <div className="flex justify-between text-sm text-green-600">
+                                        <span>הנחה{selectedOrder.coupon_code ? ` (${selectedOrder.coupon_code})` : ""}</span>
+                                        <span>-₪{selectedOrder.discount.toFixed(2)}</span>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                                    <span className="font-semibold text-gray-700">סה"כ לתשלום</span>
+                                    <span className="text-2xl font-bold text-[#f2665e]">₪{selectedOrder.total_price.toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => { setStatusEditOrder(selectedOrder); setSelectedOrder(null); }}
+                                className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-600 text-sm font-medium hover:border-[#f2665e] hover:text-[#f2665e] transition-colors flex items-center justify-center gap-2"
+                            >
+                                <FaEdit size={13} />
+                                עדכון סטטוס הזמנה
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {statusEditOrder && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={() => !updatingStatus && setStatusEditOrder(null)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-800">עדכון סטטוס</h2>
+                                <p className="text-sm text-gray-500 mt-0.5">
+                                    הזמנה #{shortOrderId(statusEditOrder._id)} · {getCustomerName(statusEditOrder)}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                disabled={updatingStatus}
+                                onClick={() => setStatusEditOrder(null)}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 disabled:opacity-50"
+                            >
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="p-4 grid grid-cols-2 gap-3">
+                            {STATUS_OPTIONS.map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    disabled={updatingStatus || statusEditOrder.status === value}
+                                    onClick={() => handleStatusChange(statusEditOrder._id, value)}
+                                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-sm font-medium
+                                        ${statusEditOrder.status === value
+                                            ? `${STATUS_ACTIVE[value]} cursor-default`
+                                            : `${STATUS_STYLES[value]} cursor-pointer`
+                                        } disabled:opacity-60`}
+                                >
+                                    <Icon size={20} />
+                                    {label}
+                                    {statusEditOrder.status === value && (
+                                        <span className="text-xs opacity-70">(נוכחי)</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                        {updatingStatus && (
+                            <p className="text-center text-sm text-gray-400 pb-4">מעדכן...</p>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
