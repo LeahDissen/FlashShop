@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const { OrderModel } = require("../models/ordersModel");
 const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
@@ -5,6 +6,25 @@ const { ProductModel } = require("../models/productModel"); // יבוא מודל
 
 // פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
 const isSameUser = (a, b) => String(a) === String(b);
+
+const isValidObjectId = (id) =>
+    mongoose.Types.ObjectId.isValid(id) &&
+    String(new mongoose.Types.ObjectId(id)) === String(id);
+
+const sanitizeCartItem = (item) => {
+    const sanitized = {
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image,
+    };
+    const rawId = item.product_id || item.productId || item._id;
+    if (isValidObjectId(rawId)) {
+        sanitized.productId = rawId;
+    }
+    return sanitized;
+};
 
 // פונקציית עזר לבדיקת הרשאות (המשתמש עצמו או אדמין)
 const ensureSelfOrAdmin = (req, res, userId) => {
@@ -99,6 +119,7 @@ exports.getOrders = async (req, res) => {
             return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
         }
         const orders = await OrderModel.find({ status: { $ne: "pending" } })
+            .populate("user_id", "name email")
             .sort({ date_created: -1 });
         res.json(orders);
     } catch (err) {
@@ -131,7 +152,7 @@ exports.updateOrder = async (req, res) => {
         // עדיף להשתמש ב-ID מהטוקן המאובטח למניעת מניפולציות URL
         const userId = req.tokenData._id; 
 
-        const newItems = req.body.items || [];
+        const newItems = (req.body.items || []).map(sanitizeCartItem);
         const newTotalPrice = req.body.total_price ?? 0;
 
         const order = await OrderModel.findOneAndUpdate(
@@ -198,7 +219,13 @@ exports.createOrder = async (req, res) => {
         const verifiedItems = [];
 
         for (const item of items) {
-            const product = await ProductModel.findById(item.product_id || item._id);
+            const productId = item.product_id || item.productId || item._id;
+            if (!isValidObjectId(productId)) {
+                return res.status(400).json({
+                    msg: `מוצר "${item.name || "לא ידוע"}" לא תקין — נא להסיר אותו מהעגלה ולהוסיף מחדש מהקטלוג`,
+                });
+            }
+            const product = await ProductModel.findById(productId);
             if (!product) {
                 return res.status(404).json({ msg: `המוצר המבוקש לא נמצא במערכת` });
             }
@@ -208,7 +235,7 @@ exports.createOrder = async (req, res) => {
 
             // בניית אובייקט פריט מאובטח עבור מסמך ההזמנה
             verifiedItems.push({
-                product_id: product._id,
+                productId: product._id,
                 name: product.name,
                 price: product.price, // המחיר האמיתי מה-DB
                 quantity: qty,
@@ -269,7 +296,7 @@ exports.createOrder = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
-        const order = await OrderModel.findById(id);
+        const order = await OrderModel.findById(id).populate("user_id", "name email");
 
         if (!order) {
             return res.status(404).json({ msg: "הזמנה לא נמצאה" });
@@ -277,7 +304,7 @@ exports.getOrderById = async (req, res) => {
 
         // בדיקה שרק בעל ההזמנה או אדמין יכולים לצפות בה
         if (
-            !isSameUser(req.tokenData._id, order.user_id) &&
+            !isSameUser(req.tokenData._id, order.user_id?._id ?? order.user_id) &&
             req.tokenData.role !== "admin"
         ) {
             return res.status(403).json({ msg: "אין הרשאה לצפות בהזמנה זו" });
