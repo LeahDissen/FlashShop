@@ -12,6 +12,7 @@ import Terms from "./components/Terms";
 import BlogPage from "./pages/BlogPage";
 import EditorPage from "./pages/EditorPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
@@ -47,6 +48,7 @@ export default function AppRoutes() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/forgot" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 {/* All other routes - with Layout */}
                 <Route path="/" element={<Layout><HomePage /></Layout>} />
                 <Route path="/tips/*" element={<Layout><BlogPage /></Layout>} />

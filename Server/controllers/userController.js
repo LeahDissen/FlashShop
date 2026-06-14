@@ -4,8 +4,18 @@ const crypto = require("crypto");
 const { config } = require("../config/secret");
 const { Token } = require("../models/tokenModel");
 const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
-const { sendEmail } = require("../utils/sendEmail");
-const clientURL = process.env.CLIENT_URL;
+const { sendEmail, hasEmailCredentials } = require("../utils/sendEmail");
+const clientURL = process.env.CLIENT_URL || "http://localhost:5173";
+
+const setAuthCookie = (res, token) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.cookie("authToken", token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+};
 
 exports.signup = async (req, res, next) => {
   try {
@@ -54,13 +64,7 @@ exports.login = async (req, res, next) => {
     }
 
     let token = createToken(user._id, user.role);
-    const isProduction = process.env.NODE_ENV === 'production';
-    res.cookie("authToken", token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'None' : 'Lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    setAuthCookie(res, token);
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
     res.json({
@@ -83,14 +87,23 @@ exports.logout = async (req, res) => {
   res.json({ msg: "Logout successful" });
 };
 
-exports.requestPasswordReset = async (req, res, next) => {
+exports.requestPasswordReset = async (req, res) => {
   try {
-    const user = await UserModel.findOne({ email: req.body.email });
-    if (!user) throw new Error("Email does not exist");
+    const email = req.body.email?.trim();
+    if (!email) {
+      return res.status(400).json({ msg: "יש להזין כתובת מייל" });
+    }
+
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      return res.status(200).json({
+        msg: "אם המייל רשום במערכת, נשלח אליך קישור לאיפוס סיסמה",
+      });
+    }
 
     await Token.findOneAndDelete({ userId: user._id });
 
-    let resetToken = crypto.randomBytes(32).toString("hex");
+    const resetToken = crypto.randomBytes(32).toString("hex");
     const hash = await bcrypt.hash(resetToken, Number(config.BCRYPT_SALT));
 
     await new Token({
@@ -99,59 +112,71 @@ exports.requestPasswordReset = async (req, res, next) => {
       createdAt: Date.now(),
     }).save();
 
-    const link = `${clientURL}/Auth/passwordReset?token=${resetToken}&id=${user._id}`;
-    console.log(link)
-    await sendEmail(
+    const link = `${clientURL}/reset-password?token=${resetToken}&id=${user._id}`;
+
+    const emailResult = await sendEmail(
       user.email,
-      "Password Reset Request",
-      {
-        name: user.name,
-        link: link,
-      },
+      "איפוס סיסמה - FlashShop",
+      { name: user.name, link },
       "./template/requestResetPassword.handlebars"
     );
-    console.log("email sent")
-    res.status(200).json({ msg: "Password reset email sent" });
+
+    res.status(200).json({
+      msg: hasEmailCredentials()
+        ? "נשלח מייל עם קישור לאיפוס הסיסמה. בדקי את תיבת המייל."
+        : "המייל נשלח (מצב פיתוח). לחצי על הקישור לצפייה במייל.",
+      previewUrl: emailResult.previewUrl || undefined,
+    });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ msg: "Error sending password reset email", error: error.message });
+    if (error.message === "EMAIL_NOT_CONFIGURED") {
+      return res.status(503).json({
+        msg: "שירות המייל לא מוגדר בשרת. פני למנהל המערכת.",
+        code: "EMAIL_NOT_CONFIGURED",
+      });
+    }
+    res.status(500).json({
+      msg: "שגיאה בשליחת המייל. נסי שוב מאוחר יותר.",
+      code: "EMAIL_SEND_FAILED",
+    });
   }
 };
 
 exports.resetPassword = async (req, res) => {
   try {
-    console.log(req.params.id);
-    let passwordResetToken = await Token.findOne({ userId: req.params.id });
-
-    if (!passwordResetToken.token) {
-      throw new Error("Invalid or expired password reset token");
+    const { userId, token, password } = req.body;
+    if (!userId || !token || !password) {
+      return res.status(400).json({ msg: "חסרים פרטים לאיפוס הסיסמה" });
     }
-    console.log(passwordResetToken.token, req.body.token);
-    const isValid = await bcrypt.compare(req.body.token, passwordResetToken.token);
+
+    const passwordResetToken = await Token.findOne({ userId });
+    if (!passwordResetToken?.token) {
+      return res.status(400).json({ msg: "קישור האיפוס לא תקין או שפג תוקפו" });
+    }
+
+    const isValid = await bcrypt.compare(token, passwordResetToken.token);
     if (!isValid) {
-      throw new Error("Invalid or expired password reset token");
+      return res.status(400).json({ msg: "קישור האיפוס לא תקין או שפג תוקפו" });
     }
-    const hash = await bcrypt.hash(req.body.password, Number(config.BCRYPT_SALT));
 
-    await UserModel.updateOne(
-      { _id: user_Id },
-      { $set: { password: hash } },
-      { new: true }
-    );
-    const user = await UserModel.findById(user_Id);
-    sendEmail(
-      user.email,
-      "Password Reset Successfully",
-      {
-        name: user.name,
-      },
-      "./template/resetPassword.handlebars"
-    );
+    const hash = await bcrypt.hash(password, Number(config.BCRYPT_SALT));
+    await UserModel.updateOne({ _id: userId }, { $set: { password: hash } });
+
+    const user = await UserModel.findById(userId);
+    if (user && hasEmailCredentials()) {
+      await sendEmail(
+        user.email,
+        "הסיסמה עודכנה בהצלחה - FlashShop",
+        { name: user.name },
+        "./template/passwordReset.handlebars"
+      );
+    }
+
     await passwordResetToken.deleteOne();
-    res.status(200).json({ msg: "Password reset was successful" });
+    res.status(200).json({ msg: "הסיסמה עודכנה בהצלחה" });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ msg: "Error resetting password", error: error.message });
+    res.status(500).json({ msg: "שגיאה בעדכון הסיסמה", error: error.message });
   }
 };
 
@@ -177,20 +202,20 @@ exports.googleLogin = async (req, res) => {
 
     let user = await UserModel.findOne({ email: email });
 
-    if (user) {
-      const token = createToken(user._id, user.role);
-      return res.json({ token, user });
+    if (!user) {
+      user = new UserModel({
+        name: name,
+        email: email,
+        role: "user"
+      });
+      await user.save();
     }
-    user = new UserModel({
-      name: name,
-      email: email,
-      role: "user"
-    });
-
-    await user.save();
 
     const token = createToken(user._id, user.role);
-    res.json({ token, user });
+    setAuthCookie(res, token);
+    const userWithoutPassword = user.toObject();
+    delete userWithoutPassword.password;
+    res.json({ msg: "Login successful", user: userWithoutPassword });
 
   } catch (err) {
     console.error("Google Auth Error:", err);

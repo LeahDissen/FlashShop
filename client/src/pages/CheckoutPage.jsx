@@ -43,7 +43,7 @@ export default function CheckoutPage() {
         try {
             const order = await createOrder({
                 items: draft.items.map((item) => ({
-                    productId: item.productId || item._id,
+                    productId: item.productId || item.product_id,
                     name: item.name,
                     size: item.size,
                     quantity: item.quantity,
