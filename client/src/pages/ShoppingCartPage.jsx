@@ -64,7 +64,9 @@ export default function ShoppingCartPage() {
     if (!mongoId) return;
     addToCart([
       {
+        ...product,
         id: `${mongoId}-rec-${Date.now()}`,
+        _id: mongoId,
         productId: mongoId,
         name: product.name,
         price: product.price,

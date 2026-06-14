@@ -8,13 +8,18 @@ exports.receiveContact = async (req, res) => {
     if (!name || !email || !message) {
       return res.status(400).json({ ok: false, error: 'Missing fields' });
     }
-    const adminEmail = config.USER 
-    const subject = `Contact form: ${name}`;
-    const payload = { name, email, message };
-    await sendEmail(adminEmail, subject, payload, '../utils/template/contact.handlebars');
-
     const contact = new ContactModel({ name, email, message });
     await contact.save();
+
+    if (config.USER && config.PASS) {
+      const subject = `Contact form: ${name}`;
+      const payload = { name, email, message };
+      try {
+        await sendEmail(config.USER, subject, payload, '../utils/template/contact.handlebars');
+      } catch (emailErr) {
+        console.error('contact email notification failed', emailErr);
+      }
+    }
 
     res.status(200).json({ ok: true, message: 'Sent' });
   } catch (err) {

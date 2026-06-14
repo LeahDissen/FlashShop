@@ -11,7 +11,7 @@ const isValidObjectId = (id) =>
     mongoose.Types.ObjectId.isValid(id) &&
     String(new mongoose.Types.ObjectId(id)) === String(id);
 
-const resolveProductId = (item) => item.product_id || item.productId;
+const resolveProductId = (item) => item.product_id || item.productId || item._id;
 
 const sanitizeCartItem = (item) => {
     const sanitized = {
@@ -121,6 +121,7 @@ exports.getOrders = async (req, res) => {
             return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
         }
         const orders = await OrderModel.find({ status: { $ne: "pending" } })
+            .populate("user_id", "name email")
             .sort({ date_created: -1 });
         res.json(orders);
     } catch (err) {
@@ -297,7 +298,7 @@ exports.createOrder = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
-        const order = await OrderModel.findById(id);
+        const order = await OrderModel.findById(id).populate("user_id", "name email");
 
         if (!order) {
             return res.status(404).json({ msg: "הזמנה לא נמצאה" });
@@ -305,7 +306,7 @@ exports.getOrderById = async (req, res) => {
 
         // בדיקה שרק בעל ההזמנה או אדמין יכולים לצפות בה
         if (
-            !isSameUser(req.tokenData._id, order.user_id) &&
+            !isSameUser(req.tokenData._id, order.user_id?._id ?? order.user_id) &&
             req.tokenData.role !== "admin"
         ) {
             return res.status(403).json({ msg: "אין הרשאה לצפות בהזמנה זו" });

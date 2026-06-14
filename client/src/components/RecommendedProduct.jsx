@@ -10,7 +10,9 @@ export default function RecommendedProduct({ product, onAddToCart }) {
       </div>
       <p className="mt-3 text-sm sm:text-base font-bold text-gray-800">
         {product.name}
-        <span className="font-normal text-gray-600"> - {product.price.toFixed(2)} ₪</span>
+      </p>
+      <p className="mt-1 text-sm font-medium text-[#f2665e]">
+        {product.price.toFixed(2)} ₪
       </p>
       <button
         type="button"
