@@ -75,6 +75,7 @@ exports.sendEmail = async (email, subject, payload, template, attachments = []) 
     };
 
     if (Array.isArray(email)) {
+      mailOptions.to = from;
       mailOptions.bcc = email;
     } else {
       mailOptions.to = email;

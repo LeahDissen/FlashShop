@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { FaCheckCircle, FaImage, FaPaperPlane } from "react-icons/fa";
+import { useEffect, useState } from 'react';
+import { FaCheckCircle, FaImage, FaPaperPlane, FaUsers } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { getClubMembers, sendBroadcastEmail } from "../api/club";
 
 export default function SendMailToClub() {
     const [formData, setFormData] = useState({
@@ -12,6 +13,22 @@ export default function SendMailToClub() {
     });
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [members, setMembers] = useState([]);
+    const [membersLoading, setMembersLoading] = useState(true);
+
+    useEffect(() => {
+        const loadMembers = async () => {
+            try {
+                const data = await getClubMembers();
+                setMembers(data);
+            } catch (error) {
+                console.error("Failed to load club members:", error);
+            } finally {
+                setMembersLoading(false);
+            }
+        };
+        loadMembers();
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -44,7 +61,8 @@ export default function SendMailToClub() {
             setFormData({ subject: "", recipientType: "all", message: "", image: null });
         } catch (error) {
             console.error(error);
-            alert("אירעה שגיאה בשליחת המייל.");
+            const serverMsg = error.response?.data?.msg;
+            alert(serverMsg || "אירעה שגיאה בשליחת המייל.");
         } finally {
             setLoading(false);
         }
@@ -64,6 +82,47 @@ export default function SendMailToClub() {
                     <span>חזרה ללוח הבקרה</span>
                     <FiArrowLeft className="text-xl" />
                 </Link>
+            </div>
+            <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100 mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-3 bg-[#f2665e]/10 rounded-xl">
+                        <FaUsers className="text-2xl text-[#f2665e]" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800">חברי המועדון ({members.length})</h2>
+                        <p className="text-gray-500 text-sm">רשימת כל המיילים הרשומים למועדון הלקוחות</p>
+                    </div>
+                </div>
+                {membersLoading ? (
+                    <p className="text-gray-500 text-center py-6">טוען רשימת חברים...</p>
+                ) : members.length === 0 ? (
+                    <p className="text-gray-500 text-center py-6">אין עדיין חברי מועדון רשומים</p>
+                ) : (
+                    <div className="overflow-x-auto rounded-xl border border-gray-100">
+                        <table className="w-full text-right">
+                            <thead className="bg-gray-50 text-gray-600 text-sm">
+                                <tr>
+                                    <th className="p-3 font-bold">שם</th>
+                                    <th className="p-3 font-bold">מייל</th>
+                                    <th className="p-3 font-bold">תאריך הצטרפות</th>
+                                    <th className="p-3 font-bold">קוד מתנה</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {members.map((member) => (
+                                    <tr key={member._id} className="border-t border-gray-100 hover:bg-gray-50">
+                                        <td className="p-3">{member.name}</td>
+                                        <td className="p-3 text-[#f2665e]">{member.email}</td>
+                                        <td className="p-3 text-gray-500 text-sm">
+                                            {new Date(member.createdAt).toLocaleDateString("he-IL")}
+                                        </td>
+                                        <td className="p-3 font-mono text-sm">{member.giftCode}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
             <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
                 <form onSubmit={handleSubmit} className="space-y-6">

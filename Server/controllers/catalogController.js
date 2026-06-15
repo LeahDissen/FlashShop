@@ -1,5 +1,21 @@
 const { CatalogModel } = require('../models/catalogModel');
 
+const fixFilenameEncoding = (name) => {
+    if (!name) return 'catalog.pdf';
+    try {
+        return Buffer.from(name, 'latin1').toString('utf8');
+    } catch {
+        return name;
+    }
+};
+
+const buildContentDisposition = (filename) => {
+    const safeName = fixFilenameEncoding(filename);
+    const asciiFallback = safeName.replace(/["\r\n]/g, '').replace(/[^\x20-\x7E]/g, '_') || 'catalog.pdf';
+    const encoded = encodeURIComponent(safeName);
+    return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+};
+
 exports.uploadCatalog = async (req, res) => {
     try {
         if (!req.file) {
@@ -9,7 +25,7 @@ exports.uploadCatalog = async (req, res) => {
         await CatalogModel.deleteMany({});
 
         const newCatalog = new CatalogModel({
-            filename: req.file.originalname,
+            filename: fixFilenameEncoding(req.file.originalname),
             contentType: req.file.mimetype,
             data: req.file.buffer
         });
@@ -32,7 +48,7 @@ exports.downloadCatalog = async (req, res) => {
         }
 
         res.set('Content-Type', catalog.contentType);
-        res.set('Content-Disposition', `attachment; filename="${catalog.filename}"`);
+        res.set('Content-Disposition', buildContentDisposition(catalog.filename));
         res.send(catalog.data);
     } catch (error) {
         console.error(error);

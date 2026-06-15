@@ -113,6 +113,18 @@ exports.redeemGift = async (req, res) => {
     }
 };
 
+exports.getClubMembers = async (req, res) => {
+    try {
+        const members = await ClubModel.find({})
+            .select("name email birthDate giftCode isUsed createdAt")
+            .sort({ createdAt: -1 });
+        res.json(members);
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "שגיאה בטעינת חברי המועדון", err });
+    }
+};
+
 exports.sendBroadcastEmail = async (req, res) => {
     try {
         const { subject, message, recipientType } = req.body;
