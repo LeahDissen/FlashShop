@@ -16,15 +16,23 @@ const compactCartItem = (item) => {
 
   return {
     ...item,
+    productId: item.productId || item.product_id || undefined,
+    itemType: item.itemType,
     customDesign: compactCustomDesign,
   };
 };
+
+const withProductId = (item) => ({
+  ...item,
+  productId: item.productId || item.product_id || item._id,
+  id: item.id || `cart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+});
 
 const prepareCartItems = async (items) =>
   Promise.all(
     items.map(async (item) => {
       const image = await prepareCartDisplayImage(item.image);
-      return compactCartItem({ ...item, image });
+      return compactCartItem(withProductId({ ...item, image }));
     }),
   );
 
@@ -34,9 +42,11 @@ export const useCartStore = create(
       cartItems: [],
       loadCart: async (userId) => {
           const dbItems = await fetchCartFromDB(userId);
-          if (dbItems && dbItems.length > 0) {
-              set({ cartItems: dbItems.map(compactCartItem) });
-          }
+          set({ cartItems: (dbItems || []).map(compactCartItem) });
+      },
+
+      resetCartLocal: () => {
+          set({ cartItems: [] });
       },
 
       addToCart: async (newItems) => {
@@ -84,11 +94,11 @@ export const useCartStore = create(
           });
       },
 
-      clearCart: () => {
+      clearCart: async () => {
           set({ cartItems: [] });
           const userId = useAuthStore.getState().userId;
           if (userId) {
-              saveCartToDB(userId, []); 
+              await saveCartToDB(userId, []);
           }
       },
     }),

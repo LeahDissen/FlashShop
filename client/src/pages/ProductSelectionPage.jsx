@@ -100,6 +100,7 @@ const ProductSelectionPage = () => {
     const handleSimpleAddToCart = async () => {
         await addToCartAndNavigate([{
             ...product,
+            productId: product._id,
             id: `${product._id}-simple-${Date.now()}`,
             quantity: 1,
             price: product.price || 0,
@@ -130,6 +131,7 @@ const ProductSelectionPage = () => {
         if (!uploadedImage) return;
         await addToCartAndNavigate([{
             ...product,
+            productId: product._id,
             id: `${product._id}-upload-${Date.now()}`,
             image: uploadedImage,
             quantity: 1,
@@ -145,6 +147,7 @@ const ProductSelectionPage = () => {
         }
         await addToCartAndNavigate([{
             ...product,
+            productId: product._id,
             id: `${product._id}-magnet-${Date.now()}`,
             quantity: 1,
             price: selectedMagnetSize.price,
@@ -185,6 +188,7 @@ const ProductSelectionPage = () => {
 
         const cartItem = {
             ...product,
+            productId: product._id,
             id: `${product._id}-designer-${Date.now()}`,
             quantity: 1,
             price: (product.price || 0) + 15, // תוספת תשלום של 15 ש"ח לגרפיקאית

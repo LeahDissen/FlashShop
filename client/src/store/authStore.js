@@ -35,11 +35,13 @@ const useAuthStore = create((set) => ({
                     role: user.role,
                     isAuthenticated: true
                 });
-            } else {
-                set({ isAuthenticated: false });
+                return user;
             }
+            set({ isAuthenticated: false });
+            return null;
         } catch (error) {
             set({ userId: null, role: null, isAuthenticated: false });
+            return null;
         }
     },
 

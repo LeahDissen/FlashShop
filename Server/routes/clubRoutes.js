@@ -5,7 +5,8 @@ const multer = require("multer");
 const upload = multer();
 const {authAdmin} = require('../middlewares/auth');
 
-router.post("/broadcast", upload.single("image"), authAdmin,clubController.sendBroadcastEmail);
+router.get("/members", authAdmin, clubController.getClubMembers);
+router.post("/broadcast", upload.single("image"), authAdmin, clubController.sendBroadcastEmail);
 router.post("/join", clubController.joinClub);
 router.get("/check/:code", clubController.checkGiftCode);
 router.put("/redeem", clubController.redeemGift);

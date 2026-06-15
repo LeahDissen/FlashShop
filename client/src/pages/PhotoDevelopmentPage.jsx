@@ -214,6 +214,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             const qty = Math.max(1, img.quantity);
             return {
                 id: img.id,
+                itemType: 'photo-print',
                 size,
                 name: `פיתוח תמונה ${size} (${img.alt})`,
                 price: unitPrice,

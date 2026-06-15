@@ -19,6 +19,11 @@ export const checkCouponRequest = async (code, userId) => {
         return { valid: false, msg: "שגיאה בבדיקת הקופון" };
     }
 };
+export const getClubMembers = async () => {
+    const response = await axios.get(`${API_URL}/members`, { withCredentials: true });
+    return response.data;
+};
+
 export const sendBroadcastEmail = async (formData) => {
     const response = await axios.post(`${API_URL}/broadcast`, formData, {
         headers: { "Content-Type": "multipart/form-data" },

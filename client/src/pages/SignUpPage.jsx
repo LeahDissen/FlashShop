@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { googleLoginAPI, signUp } from '../api/auth';
 import { joinClubRequest } from '../api/club';
+import useAuthStore from '../store/authStore';
+import { useCartStore } from '../store/cartStore';
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({
@@ -22,6 +24,8 @@ export default function SignUpPage() {
         }));
     };
     const Navigate = useNavigate();
+    const login = useAuthStore((state) => state.login);
+    const loadCart = useCartStore((state) => state.loadCart);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -106,9 +110,18 @@ export default function SignUpPage() {
         onSuccess: async (tokenResponse) => {
             try {
                 const response = await googleLoginAPI(tokenResponse.access_token);
-                localStorage.setItem("token", response.data.token); 
-                alert('החיבור עם Google הצליח!');
-                navigate('/home'); 
+                const { user } = response.data;
+                login(user);
+
+                if (user?._id) {
+                    try {
+                        await loadCart(user._id);
+                    } catch (err) {
+                        console.error("Failed to load cart:", err);
+                    }
+                }
+
+                Navigate('/home');
             } catch (error) {
                 alert(error.response?.data?.msg || 'החיבור עם Google נכשל. אנא נסה שוב.');
             }

@@ -21,8 +21,8 @@ const compactCartItemForSync = (item) => {
 
     return {
         id: item.id,
-        _id: item._id,
-        productId: item.productId,
+        productId: item.productId || item.product_id,
+        itemType: item.itemType,
         name: item.name,
         price: item.price,
         quantity: item.quantity,
