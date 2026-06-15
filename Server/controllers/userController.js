@@ -163,11 +163,11 @@ exports.resetPassword = async (req, res) => {
     await UserModel.updateOne({ _id: userId }, { $set: { password: hash } });
 
     const user = await UserModel.findById(userId);
-    if (user && hasEmailCredentials()) {
+    if (user) {
       await sendEmail(
         user.email,
         "הסיסמה עודכנה בהצלחה - FlashShop",
-        { name: user.name },
+        { name: user.name, loginLink: `${clientURL}/login` },
         "./template/passwordReset.handlebars"
       );
     }

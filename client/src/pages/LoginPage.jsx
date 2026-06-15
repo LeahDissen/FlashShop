@@ -5,6 +5,28 @@ import { googleLoginAPI, signIn } from '../api/auth';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 
+function getLoginErrorMessage(error) {
+  const serverMsg = error.response?.data?.msg;
+
+  if (!error.response) {
+    return 'לא ניתן להתחבר לשרת. ודאו שהשרת רץ ונסו שוב.';
+  }
+
+  if (serverMsg === 'User not found with password. Did you sign up with Google?') {
+    return 'החשבון נוצר עם Google. לחצו על "התחבר עם Google" או השתמשו באפשרות "שכחת סיסמה?" אם נרשמתם עם מייל.';
+  }
+
+  if (serverMsg === 'User or password not match') {
+    return 'האימייל או הסיסמה שגויים. בדקו את הפרטים ונסו שוב, או לחצו על "שכחת סיסמה?" לאיפוס.';
+  }
+
+  if (error.response.status >= 500) {
+    return 'אירעה שגיאה בשרת. נסו שוב בעוד כמה רגעים.';
+  }
+
+  return serverMsg || 'ההתחברות נכשלה. בדקו את הפרטים ונסו שוב.';
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +77,7 @@ export default function LoginPage() {
       })
       .catch((error) => {
         console.log(error);
-        alert('Login failed. Please check your credentials and try again.');
+        alert(getLoginErrorMessage(error));
       });
   };
 
@@ -63,8 +85,18 @@ export default function LoginPage() {
     onSuccess: async (tokenResponse) => {
       try {
         const response = await googleLoginAPI(tokenResponse.access_token);
-        localStorage.setItem("token", response.data.token);
-        Navigate('/about');
+        const { user } = response.data;
+        login(user);
+
+        if (user?._id) {
+          try {
+            await loadCart(user._id);
+          } catch (err) {
+            console.error("Failed to load cart:", err);
+          }
+        }
+
+        Navigate(from);
       } catch (error) {
         console.error("Google Login Error:", error);
         alert(error.response?.data?.msg || 'הכניסה נכשלה. אנא בדוק את הפרטים ונסה שוב.');

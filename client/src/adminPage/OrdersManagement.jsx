@@ -279,10 +279,10 @@ export default function OrdersManagement() {
                     onClick={() => setSelectedOrder(null)}
                 >
                     <div
-                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fade-in"
+                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden animate-fade-in"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="bg-gradient-to-l from-[#f2665e] to-[#e8554d] px-6 py-5 text-white relative">
+                        <div className="bg-gradient-to-l from-[#f2665e] to-[#e8554d] px-6 py-5 text-white relative shrink-0">
                             <button
                                 type="button"
                                 onClick={() => setSelectedOrder(null)}
@@ -295,8 +295,8 @@ export default function OrdersManagement() {
                             <p className="text-white/70 text-xs mt-1">{formatDate(selectedOrder.date_created)}</p>
                         </div>
 
-                        <div className="p-6 space-y-5">
-                            <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="p-6 space-y-5 flex-1 min-h-0 flex flex-col overflow-hidden">
+                            <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100 shrink-0">
                                 <div className="w-12 h-12 rounded-full bg-[#f2665e]/10 flex items-center justify-center shrink-0">
                                     <FaUser className="text-[#f2665e]" size={18} />
                                 </div>
@@ -314,9 +314,9 @@ export default function OrdersManagement() {
                                 </div>
                             </div>
 
-                            <div>
-                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">פריטים בהזמנה</h3>
-                                <div className="space-y-2">
+                            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 shrink-0">פריטים בהזמנה</h3>
+                                <div className="space-y-2 overflow-y-auto flex-1 min-h-0 pr-1">
                                     {selectedOrder.items.map((item, i) => (
                                         <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
                                             {item.image && (
@@ -338,7 +338,7 @@ export default function OrdersManagement() {
                                 </div>
                             </div>
 
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100">
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100 shrink-0">
                                 {selectedOrder.subtotal > 0 && selectedOrder.subtotal !== selectedOrder.total_price && (
                                     <div className="flex justify-between text-sm text-gray-500">
                                         <span>סכום ביניים</span>
@@ -360,7 +360,7 @@ export default function OrdersManagement() {
                             <button
                                 type="button"
                                 onClick={() => { setStatusEditOrder(selectedOrder); setSelectedOrder(null); }}
-                                className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-600 text-sm font-medium hover:border-[#f2665e] hover:text-[#f2665e] transition-colors flex items-center justify-center gap-2"
+                                className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-600 text-sm font-medium hover:border-[#f2665e] hover:text-[#f2665e] transition-colors flex items-center justify-center gap-2 shrink-0"
                             >
                                 <FaEdit size={13} />
                                 עדכון סטטוס הזמנה

@@ -3,6 +3,7 @@ const { OrderModel } = require("../models/ordersModel");
 const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
+const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 
 // פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
 const isSameUser = (a, b) => String(a) === String(b);
@@ -20,6 +21,7 @@ const sanitizeCartItem = (item) => {
         quantity: item.quantity,
         price: item.price,
         image: item.image,
+        itemType: item.itemType,
     };
     const rawId = resolveProductId(item);
     if (isValidObjectId(rawId)) {
@@ -220,7 +222,16 @@ exports.createOrder = async (req, res) => {
         let subtotal = 0;
         const verifiedItems = [];
 
-        for (const item of items) {
+        const photoItems = items.filter(isPhotoPrintItem);
+        const catalogItems = items.filter((item) => !isPhotoPrintItem(item));
+
+        const totalPhotoPrints = photoItems.reduce(
+            (sum, item) => sum + (Number(item.quantity) || 1),
+            0,
+        );
+        const photoUnitPrice = getUnitPriceByQuantity(totalPhotoPrints);
+
+        for (const item of catalogItems) {
             const productId = resolveProductId(item);
             if (!isValidObjectId(productId)) {
                 return res.status(400).json({
@@ -235,13 +246,34 @@ exports.createOrder = async (req, res) => {
             const qty = Number(item.quantity) || 1;
             subtotal += product.price * qty;
 
-            // בניית אובייקט פריט מאובטח עבור מסמך ההזמנה
             verifiedItems.push({
                 productId: product._id,
                 name: product.name,
-                price: product.price, // המחיר האמיתי מה-DB
+                price: product.price,
                 quantity: qty,
-                image: product.image
+                image: product.image,
+            });
+        }
+
+        for (const item of photoItems) {
+            const qty = Number(item.quantity) || 1;
+            const clientPrice = Number(item.price);
+
+            if (Math.abs(clientPrice - photoUnitPrice) > 0.01) {
+                return res.status(400).json({
+                    msg: `מחיר לא תקין עבור "${item.name || "הדפסת תמונה"}". נא לרוקן את העגלה ולהוסיף מחדש.`,
+                });
+            }
+
+            subtotal += photoUnitPrice * qty;
+            verifiedItems.push({
+                name: item.name,
+                size: item.size,
+                price: photoUnitPrice,
+                quantity: qty,
+                image: typeof item.image === "string" && item.image.length > 500_000
+                    ? null
+                    : item.image,
             });
         }
         // ----------------==================================----------------

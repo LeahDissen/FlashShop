@@ -17,6 +17,7 @@ const compactCartItem = (item) => {
   return {
     ...item,
     productId: item.productId || item.product_id || undefined,
+    itemType: item.itemType,
     customDesign: compactCustomDesign,
   };
 };
