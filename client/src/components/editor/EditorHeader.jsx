@@ -16,9 +16,9 @@ const EditorHeader = ({
     printSizeLabel,
 }) => {
   return (
-    <header className="bg-white shadow-md relative z-[60] p-2 flex items-center justify-between border-b">
+    <header className="editor-header bg-white shadow-md relative z-50 shrink-0 p-2 flex items-center justify-between border-b overflow-visible">
       {/* Right side in RTL */}
-      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative z-50">
         <button 
           onClick={onPreview}
           disabled={isPreviewLoading}
@@ -44,16 +44,16 @@ const EditorHeader = ({
         <div className="h-8 w-px bg-gray-300 mx-1"></div>
         <button 
             onClick={onSave}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md" 
+            className="p-2 text-gray-600 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors" 
             aria-label="שמור בספריה"
-            data-tooltip="שמור בספריה (Database)"
+            data-tooltip="שמור בספריה"
             data-tooltip-pos="bottom"
         >
           <SaveIcon className="w-6 h-6" />
         </button>
         <button 
             onClick={onLoad}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md" 
+            className="p-2 text-gray-600 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors" 
             aria-label="פתח מהספריה"
             data-tooltip="הפרויקטים שלי"
             data-tooltip-pos="bottom"
@@ -84,7 +84,7 @@ const EditorHeader = ({
         <button 
             onClick={onUndo}
             disabled={!canUndo}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-30 disabled:cursor-not-allowed" 
+            className="p-2 text-gray-600 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-600" 
             aria-label="בטל"
             data-tooltip="בטל"
             data-tooltip-pos="bottom"
@@ -94,7 +94,7 @@ const EditorHeader = ({
         <button 
             onClick={onRedo}
             disabled={!canRedo}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-30 disabled:cursor-not-allowed" 
+            className="p-2 text-gray-600 hover:bg-gray-200 hover:text-gray-900 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-600" 
             aria-label="בצע שוב"
             data-tooltip="בצע שוב"
             data-tooltip-pos="bottom"
@@ -105,7 +105,7 @@ const EditorHeader = ({
 
       {/* Left side in RTL */}
       <div 
-        className="flex items-center cursor-pointer hover:text-red-500 transition-colors" 
+        className="flex items-center cursor-pointer hover:text-red-500 transition-colors rounded-md px-1" 
         onClick={onExit}
         data-tooltip="חזרה לדף המוצרים"
         data-tooltip-pos="bottom"

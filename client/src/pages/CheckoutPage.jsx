@@ -1,19 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createOrder } from '../api/orders';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { clearCheckoutDraft, loadCheckoutDraft } from '../utils/checkoutDraft';
+import { toCheckoutItem } from '../utils/cartItem';
+import { saveLastOrder } from '../utils/orderConfirmation';
 
 export default function CheckoutPage() {
     const navigate = useNavigate();
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const clearCart = useCartStore((state) => state.clearCart);
+    const cartItems = useCartStore((state) => state.cartItems);
 
     const [draft, setDraft] = useState(null);
     const [isPaying, setIsPaying] = useState(false);
     const [cardName, setCardName] = useState('');
     const [cardNumber, setCardNumber] = useState('');
+    const paymentSubmittedRef = useRef(false);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -21,14 +25,24 @@ export default function CheckoutPage() {
             return;
         }
 
+        if (paymentSubmittedRef.current) return;
+
         const checkoutDraft = loadCheckoutDraft();
-        if (!checkoutDraft?.items?.length) {
+        const items = cartItems.length > 0 ? cartItems : checkoutDraft?.items;
+        if (!items?.length) {
             navigate('/cart');
             return;
         }
 
-        setDraft(checkoutDraft);
-    }, [isAuthenticated, navigate]);
+        const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        setDraft({
+            items,
+            subtotal: checkoutDraft?.subtotal ?? subtotal,
+            discount: checkoutDraft?.discount ?? 0,
+            totalPrice: checkoutDraft?.totalPrice ?? subtotal,
+            appliedCoupon: checkoutDraft?.appliedCoupon ?? '',
+        });
+    }, [isAuthenticated, cartItems, navigate]);
 
     const handlePayment = async (e) => {
         e.preventDefault();
@@ -42,20 +56,21 @@ export default function CheckoutPage() {
         setIsPaying(true);
         try {
             const order = await createOrder({
-                items: draft.items.map((item) => ({
-                    productId: item.productId || item._id,
-                    name: item.name,
-                    size: item.size,
-                    quantity: item.quantity,
-                    price: item.price,
-                    image: item.image,
-                })),
+                items: draft.items.map(toCheckoutItem),
                 couponCode: draft.appliedCoupon || undefined,
+            });
+
+            paymentSubmittedRef.current = true;
+            saveLastOrder(order);
+
+            const orderId = String(order._id);
+            navigate(`/order-confirmation/${orderId}`, {
+                replace: true,
+                state: { order },
             });
 
             clearCheckoutDraft();
             clearCart();
-            navigate(`/order-confirmation/${order._id}`);
         } catch (error) {
             const msg = error.response?.data?.msg;
             if (error.response?.data?.code === 'TOKEN_EXPIRED') {
@@ -152,9 +167,19 @@ export default function CheckoutPage() {
                     <button
                         type="submit"
                         disabled={isPaying}
-                        className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248] transition disabled:opacity-60"
+                        className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248] transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                        {isPaying ? 'מעבד תשלום...' : `שלם ₪${Number(draft.totalPrice).toFixed(2)}`}
+                        {isPaying ? (
+                            <>
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                מעבד תשלום...
+                            </>
+                        ) : (
+                            `שלם ₪${Number(draft.totalPrice).toFixed(2)}`
+                        )}
                     </button>
                 </form>
             </div>

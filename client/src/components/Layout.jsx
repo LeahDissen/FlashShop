@@ -4,30 +4,30 @@ import Header from "./Header";
 import NavBar from "./NavBar";
 import Terms from "./Terms";
 
-export default function Layout({ children }) {
+export default function Layout({ children, compact = false }) {
     return (
         <div className="flex flex-col min-h-screen font-sans">
             <Terms />
             <Club />
             
-            <header className="w-full bg-white/60 backdrop-blur-md shadow-sm sticky top-0 z-40 h-20 transition-all duration-300">
-                <div className="max-w-screen-2xl mx-auto px-4 h-full flex items-center">
+            <header className="w-full bg-white/60 backdrop-blur-md shadow-sm sticky top-0 z-50 h-20 transition-all duration-300 overflow-visible">
+                <div className="max-w-screen-2xl mx-auto px-4 h-full flex items-center overflow-visible">
                     
                     <div className="flex-shrink-0 ml-8">
                         <Header />
                     </div>
 
-                    <div className="flex-1 h-full">
+                    <div className="flex-1 h-full overflow-visible">
                         <NavBar />
                     </div>
                     
                 </div>
             </header>
 
-            <main className="flex-1 bg-gray-50">
+            <main className="flex-1 bg-gray-50 flex flex-col min-h-0">
                 {children}
             </main>
-            <Footer />
+            {!compact && <Footer />}
         </div>
     );
 }

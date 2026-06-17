@@ -66,7 +66,7 @@ export default function AppRoutes() {
                 <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                 <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />
                 <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
-                <Route path="/editor/:productId" element={<Layout> <EditorPageWrapper /> </Layout>} />
+                <Route path="/editor/:productId" element={<Layout compact><EditorPageWrapper /></Layout>} />
                 <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />
                 {/* Redirect to home */}
                 <Route path="*" element={<Navigate to="/" />} />

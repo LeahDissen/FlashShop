@@ -60,9 +60,13 @@ const Canvas = ({
   const [crop, setCrop] = useState();
   const [completedCrop, setCompletedCrop] = useState();
   const cropImageRef = useRef(null);
+  const textEditRefs = useRef({});
+  const elementsRef = useRef(elements);
+  elementsRef.current = elements;
 
   const dragInfo = useRef({
     isDragging: false,
+    pendingDrag: false,
     elementId: null,
     initialMouseX: 0,
     initialMouseY: 0,
@@ -95,6 +99,29 @@ const Canvas = ({
 
   const scale = zoom / 100;
   const selectedElement = elements.find(el => el.id === selectedElementId);
+
+  useEffect(() => {
+    if (!editingElementId) return;
+
+    const timer = window.setTimeout(() => {
+      const node = textEditRefs.current[editingElementId];
+      const element = elementsRef.current.find((el) => el.id === editingElementId);
+      if (!node || element?.type !== 'text') return;
+
+      if (node.textContent !== element.content) {
+        node.textContent = element.content;
+      }
+      node.focus();
+
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [editingElementId]);
 
   useEffect(() => {
     if (!croppingElementId) {
@@ -170,6 +197,13 @@ const Canvas = ({
         const newLeft = dragInfo.current.initialLeft + dx;
 
         updateElement(dragInfo.current.elementId, { top: newTop, left: newLeft });
+      } else if (dragInfo.current.elementId && dragInfo.current.pendingDrag) {
+        const dx = e.clientX - dragInfo.current.initialMouseX;
+        const dy = e.clientY - dragInfo.current.initialMouseY;
+        if (Math.hypot(dx, dy) > 4) {
+          dragInfo.current.isDragging = true;
+          dragInfo.current.pendingDrag = false;
+        }
       }
       else if (rotationInfo.current.isRotating && rotationInfo.current.elementId) {
         const { centerX, centerY, startAngle, initialRotation } = rotationInfo.current;
@@ -255,7 +289,9 @@ const Canvas = ({
     const handleGlobalMouseUp = () => {
       setIsInteracting(false);
       if (dragInfo.current.isDragging) {
-        dragInfo.current = { ...dragInfo.current, isDragging: false, elementId: null };
+        dragInfo.current = { ...dragInfo.current, isDragging: false, pendingDrag: false, elementId: null };
+      } else if (dragInfo.current.pendingDrag) {
+        dragInfo.current = { ...dragInfo.current, pendingDrag: false, elementId: null };
       }
       if (rotationInfo.current.isRotating) {
         rotationInfo.current = { ...rotationInfo.current, isRotating: false, elementId: null };
@@ -278,6 +314,10 @@ const Canvas = ({
     updateElement(id, { content });
   };
 
+  const handleTextInput = (id, content) => {
+    updateElement(id, { content });
+  };
+
   const handleBlur = (e, elementId) => {
     handleTextChange(elementId, e.currentTarget.innerText);
     setEditingElementId(null);
@@ -285,30 +325,29 @@ const Canvas = ({
 
   const handleDoubleClick = (e, elementId) => {
     e.stopPropagation();
+    setSelectedElementId(elementId);
     setEditingElementId(elementId);
+  };
 
-    const target = e.currentTarget;
-    setTimeout(() => {
-      target.focus();
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(target);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    }, 0);
+  const beginTextEditing = (elementId) => {
+    setSelectedElementId(elementId);
+    setEditingElementId(elementId);
   };
 
   const handleMouseDown = (e, el) => {
     if (el.id === croppingElementId || el.locked) return;
     if (el.type === 'text' && el.id === editingElementId) return;
 
-    e.preventDefault();
+    if (el.type !== 'text') {
+      e.preventDefault();
+    }
     e.stopPropagation();
 
     setSelectedElementId(el.id);
 
     dragInfo.current = {
-      isDragging: true,
+      isDragging: el.type !== 'text',
+      pendingDrag: el.type === 'text',
       elementId: el.id,
       initialMouseX: e.clientX,
       initialMouseY: e.clientY,
@@ -490,8 +529,19 @@ const Canvas = ({
     }
 
     const textEl = el;
-    const isEditing = textEl.id === editingElementId;
+    const isEditing = !isGhost && textEl.id === editingElementId;
+    const textAlignToFlex = {
+      left: 'flex-start',
+      center: 'center',
+      right: 'flex-end',
+    };
+
     const textStyle = {
+      width: '100%',
+      height: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: textAlignToFlex[textEl.textAlign] || 'center',
       fontFamily: textEl.fontFamily,
       fontSize: `${textEl.fontSize}px`,
       color: textEl.color,
@@ -504,25 +554,49 @@ const Canvas = ({
       cursor: isGhost ? 'default' : (el.locked ? 'not-allowed' : (isEditing ? 'text' : 'move')),
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-word',
-      userSelect: isEditing ? 'text' : 'auto',
+      userSelect: isEditing ? 'text' : 'none',
       backgroundColor: textEl.backgroundColor,
       opacity: isGhost ? 0 : textEl.opacity,
+      outline: isEditing ? '2px solid #3B82F6' : 'none',
+      outlineOffset: '0px',
+      boxSizing: 'border-box',
       ...((textEl.borderWidth > 0 && textEl.borderColor && textEl.borderColor !== 'transparent') && {
         WebkitTextStroke: `${textEl.borderWidth}px ${textEl.borderColor}`,
       }),
       ...(textEl.textShadowEnabled && {
         textShadow: `${textEl.textShadowOffsetX}px ${textEl.textShadowOffsetY}px ${textEl.textShadowBlur}px ${textEl.textShadowColor}`
       }),
-      minWidth: '20px',
     };
+
+    if (isEditing && !el.locked) {
+      return (
+        <div
+          ref={(node) => {
+            if (node) textEditRefs.current[textEl.id] = node;
+          }}
+          contentEditable
+          suppressContentEditableWarning
+          style={textStyle}
+          onBlur={(e) => handleBlur(e, textEl.id)}
+          onInput={(e) => handleTextInput(textEl.id, e.currentTarget.innerText)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        />
+      );
+    }
 
     return (
       <div
-        contentEditable={!isGhost && isEditing && !el.locked}
-        suppressContentEditableWarning
         style={textStyle}
-        onBlur={!isGhost ? (e) => handleBlur(e, textEl.id) : undefined}
         onDoubleClick={!isGhost ? (e) => !el.locked && handleDoubleClick(e, textEl.id) : undefined}
+        onClick={!isGhost ? (e) => {
+          if (el.locked || croppingElementId) return;
+          e.stopPropagation();
+          if (selectedElementId === textEl.id) {
+            beginTextEditing(textEl.id);
+          }
+        } : undefined}
       >
         {textEl.content}
       </div>
@@ -616,8 +690,13 @@ const Canvas = ({
     );
   };
 
+  const isEditingSelectedText = selectedElement?.type === 'text' && editingElementId === selectedElement.id;
+
   return (
-    <main className="flex-1 bg-gray-200 flex items-center justify-center p-8 overflow-auto" onClick={() => !croppingElementId && setSelectedElementId(null)}>
+    <main className="flex-1 bg-gray-200 flex items-center justify-center p-8 overflow-auto" onClick={() => {
+      if (croppingElementId || editingElementId) return;
+      setSelectedElementId(null);
+    }}>
       <div
         id="canvas-container"
         className="shadow-lg relative transition-transform duration-200 ease-in-out origin-center"
@@ -646,6 +725,7 @@ const Canvas = ({
           const isCroppingThis = el.id === croppingElementId;
           const elIsImage = el.type === 'image';
           const elIsShape = el.type === 'shape';
+          const elIsText = el.type === 'text';
           let ariaLabel = el.type;
 
           if (el.type === 'text') {
@@ -659,23 +739,25 @@ const Canvas = ({
           if (el.locked) ariaLabel += ' (Locked)';
           if (selectedElementId === el.id) ariaLabel += ' (Selected)';
 
+          const hasFixedSize = elIsImage || elIsShape || elIsText;
+
           const outerWrapperStyle = {
             position: 'absolute',
             top: `${el.top}px`,
             left: `${el.left}px`,
-            width: (elIsImage || elIsShape) ? `${el.width}px` : 'auto',
-            height: (elIsImage || elIsShape) ? `${el.height}px` : 'auto',
+            width: hasFixedSize ? `${el.width}px` : 'auto',
+            height: hasFixedSize ? `${el.height}px` : 'auto',
             transform: `rotate(${el.rotation || 0}deg)`,
             transformOrigin: 'center center',
-            zIndex: isCroppingThis ? 50 : index,
+            zIndex: isCroppingThis ? 50 : (el.id === editingElementId ? 110 : index),
           };
 
           const innerWrapperStyle = {
             position: 'relative',
-            width: (elIsImage || elIsShape) ? '100%' : 'auto',
-            height: (elIsImage || elIsShape) ? '100%' : 'auto',
-            cursor: isCroppingThis ? 'default' : (el.locked ? 'not-allowed' : 'move'),
-            userSelect: 'none',
+            width: hasFixedSize ? '100%' : 'auto',
+            height: hasFixedSize ? '100%' : 'auto',
+            cursor: isCroppingThis ? 'default' : (el.locked ? 'not-allowed' : (el.id === editingElementId ? 'text' : 'move')),
+            userSelect: el.id === editingElementId ? 'text' : 'none',
             ...(elIsImage && { overflow: isCroppingThis ? 'visible' : 'hidden' }),
           };
 
@@ -739,7 +821,7 @@ const Canvas = ({
                     </div>
                   </>
                 ) : (
-                  renderElementContent(el, false)
+                  renderElementContent(el)
                 )}
               </div>
             </div>
@@ -747,14 +829,18 @@ const Canvas = ({
         })}
 
         {/* SELECTION GHOST OVERLAY (Rendered ON TOP of everything) */}
-        {selectedElement && !croppingElementId && (
+        {selectedElement && !croppingElementId && !isEditingSelectedText && (
           <div
             style={{
               position: 'absolute',
               top: `${selectedElement.top}px`,
               left: `${selectedElement.left}px`,
-              width: (selectedElement.type === 'image' || selectedElement.type === 'shape') ? `${selectedElement.width}px` : 'auto',
-              height: (selectedElement.type === 'image' || selectedElement.type === 'shape') ? `${selectedElement.height}px` : 'auto',
+              width: (selectedElement.type === 'image' || selectedElement.type === 'shape' || selectedElement.type === 'text')
+                ? `${selectedElement.width}px`
+                : 'auto',
+              height: (selectedElement.type === 'image' || selectedElement.type === 'shape' || selectedElement.type === 'text')
+                ? `${selectedElement.height}px`
+                : 'auto',
               transform: `rotate(${selectedElement.rotation || 0}deg)`,
               transformOrigin: 'center center',
               zIndex: 100,
@@ -762,10 +848,8 @@ const Canvas = ({
             }}
           >
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-              {/* Render Invisible Content to set dimensions for Text, or fixed size for Image */}
-              {renderElementContent(selectedElement, true)}
+              {selectedElement.type !== 'text' && renderElementContent(selectedElement, true)}
 
-              {/* Render Visible Controls (Border, Handles, Toolbar) */}
               {renderSelectionUI(selectedElement)}
             </div>
           </div>

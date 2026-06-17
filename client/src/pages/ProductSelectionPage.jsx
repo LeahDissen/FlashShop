@@ -97,13 +97,20 @@ const ProductSelectionPage = () => {
         }
     };
 
+    const buildCartItem = (overrides) => ({
+        productId: product._id,
+        name: product.name,
+        price: product.price || 0,
+        image: product.image,
+        ...overrides,
+    });
+
     const handleSimpleAddToCart = async () => {
-        await addToCartAndNavigate([{
-            ...product,
+        await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-simple-${Date.now()}`,
             quantity: 1,
             price: product.price || 0,
-        }]);
+        })]);
     };
 
     const handleMagnetFileChange = async (e) => {
@@ -128,14 +135,13 @@ const ProductSelectionPage = () => {
 
     const handleUploadAddToCart = async () => {
         if (!uploadedImage) return;
-        await addToCartAndNavigate([{
-            ...product,
+        await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-upload-${Date.now()}`,
             image: uploadedImage,
             quantity: 1,
             price: product.price || 0,
             customization: { type: 'upload-only', originalImage: product.image },
-        }]);
+        })]);
     };
 
     const handleMagnetAddToCart = async () => {
@@ -143,8 +149,7 @@ const ProductSelectionPage = () => {
             alert("יש להעלות תמונה למגנט");
             return;
         }
-        await addToCartAndNavigate([{
-            ...product,
+        await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-magnet-${Date.now()}`,
             quantity: 1,
             price: selectedMagnetSize.price,
@@ -156,7 +161,7 @@ const ProductSelectionPage = () => {
                 width: selectedMagnetSize.width,
                 height: selectedMagnetSize.height,
             },
-        }]);
+        })]);
     };
 
     // מעבר לעמוד עריכה עצמית ومסירת המוצר המלא בסטייט
@@ -183,16 +188,15 @@ const ProductSelectionPage = () => {
             return;
         }
 
-        const cartItem = {
-            ...product,
+        const cartItem = buildCartItem({
             id: `${product._id}-designer-${Date.now()}`,
             quantity: 1,
-            price: (product.price || 0) + 15, // תוספת תשלום של 15 ש"ח לגרפיקאית
-            customization: { 
-                type: 'designer-service', 
-                ...designerDetails 
+            price: (product.price || 0) + 15,
+            customization: {
+                type: 'designer-service',
+                ...designerDetails
             }
-        };
+        });
 
         await addToCartAndNavigate([cartItem], {
             successMessage: 'הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!',

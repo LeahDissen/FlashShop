@@ -68,7 +68,6 @@ export default function ShoppingCartPage() {
     addToCart([
       {
         id: `cart_${Date.now()}`,
-        productId: product.id,
         name: product.name,
         price: product.price,
         image: product.image,

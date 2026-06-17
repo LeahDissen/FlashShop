@@ -64,7 +64,7 @@ export default function NavBar() {
     );
 
     return (
-        <nav className="w-full h-full flex items-center justify-between pl-4 relative" aria-label="תפריט ראשי">
+        <nav className="w-full h-full flex items-center justify-between pl-4 relative overflow-visible" aria-label="תפריט ראשי">
 
             {/* Hamburger Button (Mobile Only) */}
             <div className="md:hidden pr-4">
@@ -84,7 +84,7 @@ export default function NavBar() {
             {/* Icons Section */}
             <div className="flex items-center gap-3 sm:gap-5">
                 {/* Cart Icon Section */}
-                <div className="relative" ref={cartRef}>
+                <div className="relative overflow-visible" ref={cartRef}>
                     <button
                         onClick={() => setIsCartOpen(!isCartOpen)}
                         className="text-[#f2665e] hover:text-[#d95248] transition-colors p-2 rounded-full hover:bg-[#f2665e]/10 relative"
@@ -103,7 +103,7 @@ export default function NavBar() {
                 </div>
 
                 {/* User Menu Section */}
-                <div className="relative">
+                <div className="relative overflow-visible">
                     {isAuthenticated ? (
                         <>
                             <button
@@ -113,7 +113,7 @@ export default function NavBar() {
                                 <FaUser size={12} />
                             </button>
                             {isMenuOpen && (
-                                <div className="absolute top-full left-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50 text-right" dir="rtl">
+                                <div className="absolute top-full left-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-[100] text-right" dir="rtl">
                                     <Link
                                         to="/profile"
                                         className="w-full px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors border-b border-gray-50"
@@ -137,7 +137,7 @@ export default function NavBar() {
 
             {/* Mobile Menu Dropdown */}
             {isMobileMenuOpen && (
-                <div className="absolute top-full right-0 w-full bg-white shadow-xl z-40 border-t border-gray-100 md:hidden flex flex-col py-2">
+                <div className="absolute top-full right-0 w-full bg-white shadow-xl z-[100] border-t border-gray-100 md:hidden flex flex-col py-2">
                     <ul className="flex flex-col w-full" dir="rtl">
                         <NavLinks
                             style={mobileLinkStyle}
