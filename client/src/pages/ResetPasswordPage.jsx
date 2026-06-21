@@ -1,113 +1,52 @@
 import { useState } from 'react';
-import { resetPassword } from '../api/auth';
-import { useNavigate } from 'react-router-dom';
-export default function ResetPasswordPage() {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetSuccess, setResetSuccess] = useState(false);
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const Navigate = useNavigate()
-
-  const getParamsFromUrl = () => {
-    const params = new URLSearchParams(window.location.search);
-    return {
-      token: params.get('token'),
-      userId: params.get('id')
-    };
-  };
-  const handleResetPassword = () => {
-    setError('');
-
-    if (!newPassword || !confirmPassword) {
-      setError('Both fields are required');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-    const { token, userId } = getParamsFromUrl();
-
-    if (!token || !userId) {
-      setError('Invalid or missing reset token/ID');
-      return;
-    }
-
-    resetPassword(userId, token, newPassword)
-      .then(() => {
-        setResetSuccess(true);
-        setTimeout(() => {
-          Navigate('/login');
-        }, 3000);
-      })
-      .catch((err) => {
-        setError(err.response?.data?.msg || 'Failed to reset password.');
-      });
-
-  };
-
-  const getPasswordStrength = (password) => {
-    if (!password) return { strength: 0, label: '', color: '' };
-
-    let strength = 0;
-    if (password.length >= 8) strength++;
-    if (password.length >= 12) strength++;
-    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
-    if (/\d/.test(password)) strength++;
-    if (/[^a-zA-Z0-9]/.test(password)) strength++;
-
-    if (strength <= 2) return { strength: 33, label: 'Weak', color: '#ef4444' };
-    if (strength <= 3) return { strength: 66, label: 'Medium', color: '#f59e0b' };
-    return { strength: 100, label: 'Strong', color: '#10b981' };
-  };
-
-  const passwordStrength = getPasswordStrength(newPassword);
-}
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../api/auth';
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const token = searchParams.get('token');
+  const userId = searchParams.get('id');
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
+    if (!token || !userId) {
+      setError('קישור האיפוס לא תקין. בקשו קישור חדש.');
+      return;
+    }
+
     if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('הסיסמה חייבת להכיל לפחות 6 תווים');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError('הסיסמאות אינן תואמות');
       return;
     }
 
+    setLoading(true);
     try {
-      await resetPassword(token, newPassword);
+      await resetPassword(userId, token, newPassword);
       setSuccess(true);
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
-      setError(err.response?.data?.msg || 'Failed to reset password. Link may be expired.');
+      setError(err.response?.data?.msg || 'איפוס הסיסמה נכשל. ייתכן שפג תוקף הקישור.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{
+    <div dir="rtl" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -116,20 +55,11 @@ export default function ResetPasswordPage() {
       background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)'
     }}>
       <style>{`
-        @keyframes slide-up {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-slide-up { animation: slide-up 0.5s ease-out; }
-        .gradient-text {
-          background: linear-gradient(135deg, #f2665e 0%, #d95248 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+        @keyframes reset-password-spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
-
-      <div className="animate-slide-up" style={{
+      <div style={{
         backgroundColor: 'white',
         borderRadius: '24px',
         boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
@@ -137,17 +67,17 @@ export default function ResetPasswordPage() {
         width: '100%',
         maxWidth: '440px'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h1 className="gradient-text" style={{
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <h1 style={{
             fontSize: '32px',
             fontWeight: 700,
             marginBottom: '8px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+            color: '#f2665e'
           }}>
-            Reset Password
+            איפוס סיסמה
           </h1>
           <p style={{ color: '#666', fontSize: '14px' }}>
-            Enter your new password below
+            הזינו סיסמה חדשה לחשבון 
           </p>
         </div>
 
@@ -159,20 +89,21 @@ export default function ResetPasswordPage() {
             borderRadius: '12px',
             color: '#065f46'
           }}>
-            <h3 style={{ margin: '0 0 10px 0' }}>Success! 🎉</h3>
-            <p>Your password has been reset. Redirecting to login...</p>
+            <h3 style={{ margin: '0 0 10px 0' }}>הסיסמה עודכנה בהצלחה!</h3>
+            <p style={{ margin: 0 }}>מעבירים אותכם להתחברות...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: 500, fontSize: '14px' }}>
-                New Password
+                סיסמה חדשה
               </label>
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
+                disabled={loading}
+                placeholder="הזינו סיסמה חדשה"
                 style={{
                   width: '100%',
                   padding: '14px 16px',
@@ -181,27 +112,20 @@ export default function ResetPasswordPage() {
                   fontSize: '15px',
                   outline: 'none',
                   boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#f2665e';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#e5e7eb';
-                  e.target.style.boxShadow = 'none';
                 }}
               />
             </div>
 
             <div style={{ marginBottom: '24px' }}>
               <label style={{ display: 'block', marginBottom: '8px', color: '#333', fontWeight: 500, fontSize: '14px' }}>
-                Confirm Password
+                אימות סיסמה
               </label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
+                disabled={loading}
+                placeholder="הזינו שוב את הסיסמה"
                 style={{
                   width: '100%',
                   padding: '14px 16px',
@@ -210,14 +134,6 @@ export default function ResetPasswordPage() {
                   fontSize: '15px',
                   outline: 'none',
                   boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#f2665e';
-                  e.target.style.boxShadow = '0 0 0 4px rgba(242, 102, 94, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#e5e7eb';
-                  e.target.style.boxShadow = 'none';
                 }}
               />
             </div>
@@ -230,30 +146,48 @@ export default function ResetPasswordPage() {
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: '100%',
                 padding: '16px',
-                background: 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
+                background: loading
+                  ? '#d1d5db'
+                  : 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '16px',
                 fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(242, 102, 94, 0.4)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
+                cursor: loading ? 'not-allowed' : 'pointer',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                opacity: loading ? 0.85 : 1
               }}
             >
-              Reset Password
+              {loading && (
+                <span
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    border: '2px solid rgba(255,255,255,0.35)',
+                    borderTopColor: 'white',
+                    borderRadius: '50%',
+                    animation: 'reset-password-spin 0.7s linear infinite',
+                    flexShrink: 0
+                  }}
+                />
+              )}
+              {loading ? 'מעדכנים סיסמה...' : 'עדכון סיסמה'}
             </button>
+
+            <p style={{ textAlign: 'center', margin: 0 }}>
+              <Link to="/login" style={{ color: '#f2665e', textDecoration: 'none', fontWeight: 600 }}>
+                חזרה להתחברות
+              </Link>
+            </p>
           </form>
         )}
       </div>

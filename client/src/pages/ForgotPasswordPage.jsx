@@ -1,39 +1,54 @@
 import { useState } from 'react';
 import {forgotPasswordRequest} from '../api/auth';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function ForgotPasswordPage() {
+  const navigate = useNavigate();
   const [resetEmail, setResetEmail] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [emailPreviewUrl, setEmailPreviewUrl] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleForgotPassword = () => {
     setError('');
+    setEmailPreviewUrl('');
     
     if (!resetEmail) {
-      setError('Email is required');
+      setError('יש להזין כתובת מייל');
       return;
     }
     if (!/\S+@\S+\.\S+/.test(resetEmail)) {
-      setError('Please enter a valid email address');
+      setError('נא להזין כתובת מייל תקינה');
       return;
     }
-    
+
+    setLoading(true);
     forgotPasswordRequest(resetEmail)
-      .then(() => {
+      .then((response) => {
         setResetSuccess(true);
+        const preview = response.data?.previewUrl || '';
+        if (preview) setEmailPreviewUrl(preview);
+        setTimeout(() => {
+          setResetSuccess(false);
+          setEmailPreviewUrl('');
+          setResetEmail('');
+        }, preview ? 60000 : 8000);
       })
       .catch((err) => {
-        setError('Failed to send reset email. Please try again.');
-      });
-    setTimeout(() => {
-      setResetSuccess(false);
-      setResetEmail('');
-    }, 5000);
+        const code = err.response?.data?.code;
+        const serverMsg = err.response?.data?.msg;
+        if (code === 'EMAIL_NOT_CONFIGURED') {
+          setError('שירות המייל לא מוגדר בשרת. פנו למנהל המערכת.');
+          return;
+        }
+        setError(serverMsg || 'שליחת המייל נכשלה. נסו שוב.');
+      })
+      .finally(() => setLoading(false));
   };
 
   return (
-    <div style={{
+    <div dir="rtl" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -51,6 +66,9 @@ export default function ForgotPasswordPage() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+        @keyframes forgot-password-spin {
+          to { transform: rotate(360deg); }
         }
         .animate-slide-up {
           animation: slide-up 0.5s ease-out;
@@ -97,7 +115,7 @@ export default function ForgotPasswordPage() {
             marginBottom: '8px',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
           }}>
-            Forgot Password?
+            שכחת סיסמה?
           </h1>
           <p style={{
             color: '#666',
@@ -105,7 +123,7 @@ export default function ForgotPasswordPage() {
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             lineHeight: '1.6'
           }}>
-            No worries, we'll send you reset instructions to your email
+            אל דאגה, נשלח אליך הוראות לאיפוס הסיסמה למייל
           </p>
         </div>
 
@@ -124,14 +142,16 @@ export default function ForgotPasswordPage() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#065f46" strokeWidth="2">
               <path d="M20 6L9 17l-5-5"/>
             </svg>
-            <p style={{
-              color: '#065f46',
-              fontSize: '14px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              margin: 0
-            }}>
-              Password reset link sent! Check your email.
-            </p>
+            <div style={{ color: '#065f46', fontSize: '14px', margin: 0 }}>
+              <p style={{ margin: '0 0 8px 0' }}>קישור לאיפוס סיסמה נשלח! בדקו את תיבת המייל שלכם.</p>
+              {emailPreviewUrl && (
+                <p style={{ margin: 0 }}>
+                  <a href={emailPreviewUrl} target="_blank" rel="noreferrer" style={{ color: '#047857', fontWeight: 600 }}>
+                    לחצו כאן לצפייה במייל (פיתוח)
+                  </a>
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -145,17 +165,19 @@ export default function ForgotPasswordPage() {
             fontSize: '14px',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
           }}>
-            Email Address
+            כתובת מייל
           </label>
           <input
             type="email"
             id="resetEmail"
             value={resetEmail}
+            disabled={loading || resetSuccess}
             onChange={(e) => {
               setResetEmail(e.target.value);
               setError('');
             }}
-            placeholder="you@example.com"
+            placeholder="name@example.com"
+            dir="ltr"
             style={{
               width: '100%',
               padding: '14px 16px',
@@ -193,41 +215,61 @@ export default function ForgotPasswordPage() {
         {/* Send Reset Link Button */}
         <button
           onClick={handleForgotPassword}
-          disabled={resetSuccess}
+          disabled={resetSuccess || loading}
           style={{
             width: '100%',
             padding: '16px',
-            background: resetSuccess ? '#d1d5db' : 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
+            background: resetSuccess || loading
+              ? '#d1d5db'
+              : 'linear-gradient(135deg, #f2665e 0%, #d95248 100%)',
             color: 'white',
             border: 'none',
             borderRadius: '12px',
             fontSize: '16px',
             fontWeight: 600,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            cursor: resetSuccess ? 'not-allowed' : 'pointer',
-            boxShadow: resetSuccess ? 'none' : '0 4px 15px rgba(242, 102, 94, 0.4)',
+            cursor: resetSuccess || loading ? 'not-allowed' : 'pointer',
+            boxShadow: resetSuccess || loading ? 'none' : '0 4px 15px rgba(242, 102, 94, 0.4)',
             transition: 'all 0.3s ease',
-            marginBottom: '16px'
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            opacity: loading ? 0.85 : 1
           }}
           onMouseEnter={(e) => {
-            if (!resetSuccess) {
+            if (!resetSuccess && !loading) {
               e.target.style.transform = 'translateY(-2px)';
               e.target.style.boxShadow = '0 6px 20px rgba(242, 102, 94, 0.5)';
             }
           }}
           onMouseLeave={(e) => {
-            if (!resetSuccess) {
+            if (!resetSuccess && !loading) {
               e.target.style.transform = 'translateY(0)';
               e.target.style.boxShadow = '0 4px 15px rgba(242, 102, 94, 0.4)';
             }
           }}
         >
-          {resetSuccess ? 'Email Sent!' : 'Send Reset Link'}
+          {loading && (
+            <span
+              style={{
+                width: '18px',
+                height: '18px',
+                border: '2px solid rgba(255,255,255,0.35)',
+                borderTopColor: 'white',
+                borderRadius: '50%',
+                animation: 'forgot-password-spin 0.7s linear infinite',
+                flexShrink: 0
+              }}
+            />
+          )}
+          {loading ? 'שולח קישור...' : resetSuccess ? 'המייל נשלח!' : 'שלח קישור לאיפוס'}
         </button>
 
         {/* Back to Login Button */}
         <button
-          onClick={() => window.history.back()}
+          onClick={() => navigate('/login')}
           style={{
             width: '100%',
             padding: '16px',
@@ -252,10 +294,10 @@ export default function ForgotPasswordPage() {
             e.target.style.backgroundColor = 'transparent';
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: 'scaleX(-1)' }}>
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
-          Back to Login
+          חזרה להתחברות
         </button>
 
         {/* Help Text */}
@@ -273,7 +315,7 @@ export default function ForgotPasswordPage() {
             margin: 0,
             lineHeight: '1.6'
           }}>
-            Remember your password?{' '}
+            זוכרים את הסיסמה?{' '}
             <Link
               to="/login"
               style={{
@@ -285,7 +327,7 @@ export default function ForgotPasswordPage() {
               onMouseEnter={(e) => e.target.style.color = '#d95248'}
               onMouseLeave={(e) => e.target.style.color = '#f2665e'}
             >
-              Sign in
+              התחברו
             </Link>
           </p>
         </div>
