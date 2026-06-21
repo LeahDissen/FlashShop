@@ -3,6 +3,8 @@ import { FaBoxOpen, FaEdit, FaPlus, FaSave, FaTimes, FaTrash, FaLink } from "rea
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { addProduct, deleteProduct, getProducts, updateProduct } from "../api/products";
+import BulkProductUpload from "./BulkProductUpload";
+import SmartImageInput from "../components/SmartImageInput";
 import { fetchCustomCategoriesPage, saveCategorySettings } from "../api/productCategoriesApi";
 import {
     DISPLAY_TYPES,
@@ -278,6 +280,10 @@ export default function ProductsManagement() {
                 </Link>
             </div>
 
+            <div className="max-w-7xl mx-auto mb-8">
+                <BulkProductUpload onComplete={loadProducts} />
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-6">
                     <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${isEditing ? 'text-blue-600' : 'text-green-600'}`}>
@@ -393,8 +399,15 @@ export default function ProductsManagement() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">URL תמונה</label>
-                            <input type="text" name="image" value={formData.image} onChange={handleChange} placeholder="https://..." className="w-full p-2 border rounded-lg" required />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">URL תמונה</label>
+                            <SmartImageInput
+                                name="image"
+                                value={formData.image}
+                                onChange={(url) => setFormData((prev) => ({ ...prev, image: url }))}
+                                placeholder="https://..."
+                                className="w-full p-2 border rounded-lg"
+                                required
+                            />
                         </div>
 
                         {isDesignCategory && (

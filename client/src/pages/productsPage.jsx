@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getPage } from '../api/pages';
 import AdminControls from '../components/AdminControls';
 import PersonalizationSection from '../components/PersonalizationSection';
+import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
 
@@ -36,8 +37,12 @@ const ProductsPage = ({ onNavigate }) => {
                 <input type="text" value={draft.title} onChange={(e) => updateDraft({ title: e.target.value })} className="w-full border p-2 rounded" />
             </div>
             <div>
-                <label className="block text-sm font-bold text-gray-700">קישור לתמונת רקע עליונה (אופציונלי):</label>
-                <input type="text" value={draft.img} onChange={(e) => updateDraft({ img: e.target.value })} className="w-full border p-2 rounded ltr" />
+                <label className="block text-sm font-bold text-gray-700 mb-1">קישור לתמונת רקע עליונה (אופציונלי):</label>
+                <SmartImageInput
+                    value={draft.img}
+                    onChange={(url) => updateDraft({ img: url })}
+                    className="w-full border p-2 rounded ltr"
+                />
             </div>
 
             <h3 className="font-bold text-lg border-b pb-2 mt-6">עריכת אזור בחירת מוצרים</h3>
