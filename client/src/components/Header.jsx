@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
+import SmartImageInput from "./SmartImageInput";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 export default function Header() {
@@ -18,10 +19,9 @@ export default function Header() {
     const EditContent = (
         <>
             <label className="block mb-2 font-semibold">🔗 Logo URL:</label>
-            <input
-                type="text"
+            <SmartImageInput
                 value={draft.logo}
-                onChange={(e) => updateDraft({ logo: e.target.value })}
+                onChange={(url) => updateDraft({ logo: url })}
                 className="w-full p-2 border border-gray-300 rounded"
             />
         </>

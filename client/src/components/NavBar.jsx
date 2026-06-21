@@ -15,6 +15,7 @@ export default function NavBar() {
     const setClubOpen = useAppStore(state => state.setClubOpen);
     const isAuthenticated = useAuthStore(state => state.isAuthenticated);
     const logout = useAuthStore(state => state.logout);
+    const resetCartLocal = useCartStore(state => state.resetCartLocal);
     const isAdmin = useAuthStore(state => state.isAdmin());
     const cartItems = useCartStore(state => state.cartItems);
     const isCartItemsArray = Array.isArray(cartItems);
@@ -121,7 +122,13 @@ export default function NavBar() {
                                     >
                                         <FaUser size={14} /> הפרופיל שלי
                                     </Link>
-                                    <button onClick={logout} className="w-full px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors">
+                                    <button
+                                        onClick={async () => {
+                                            await logout();
+                                            resetCartLocal();
+                                        }}
+                                        className="w-full px-4 py-3 text-gray-600 hover:bg-red-50 hover:text-[#f2665e] flex items-center gap-2 transition-colors"
+                                    >
                                         <FaSignOutAlt /> התנתק
                                     </button>
                                 </div>
