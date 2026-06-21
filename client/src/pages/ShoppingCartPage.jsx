@@ -6,6 +6,7 @@ import { getProducts } from "../api/products";
 import { saveCheckoutDraft } from "../utils/checkoutDraft";
 import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
+import SmartImageInput from "../components/SmartImageInput";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
@@ -128,8 +129,12 @@ export default function ShoppingCartPage() {
       <h3 className="font-bold text-lg border-b pb-2 text-[#f2665e]">עריכת תוכן עמוד עגלה</h3>
       <div className="space-y-3">
         <div>
-          <label className="block text-sm font-bold text-gray-700">תמונת כותרת (URL):</label>
-          <input type="text" value={draft.img} onChange={(e) => updateDraft({ img: e.target.value })} className="w-full border p-2 rounded ltr" />
+          <label className="block text-sm font-bold text-gray-700 mb-1">תמונת כותרת (URL):</label>
+          <SmartImageInput
+            value={draft.img}
+            onChange={(url) => updateDraft({ img: url })}
+            className="w-full border p-2 rounded ltr"
+          />
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700">כותרת ראשית:</label>

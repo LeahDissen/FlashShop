@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getPage } from '../api/pages';
 import { getAllTips, createTip } from '../api/tips';
 import AdminControls from "../components/AdminControls.jsx";
+import SmartImageInput from "../components/SmartImageInput";
 import { useAdminControl } from "../hooks/useAdminControl.jsx";
 import useAuthStore from "../store/authStore.js";
 import { useTipsStore } from "../store/tipsStore.js";
@@ -89,11 +90,10 @@ export default function TipsPage() {
                 placeholder="כותרת ראשית לעמוד הטיפים"
             />
             <label className="block mb-2 font-semibold">🔗 Main Image URL:</label>
-            <input
+            <SmartImageInput
                 className="w-full p-2 border border-gray-300 rounded"
-                type="text"
                 value={draft.img}
-                onChange={(e) => updateDraft({ img: e.target.value })}
+                onChange={(url) => updateDraft({ img: url })}
                 placeholder="הזן כתובת URL לתמונת הרקע העליונה"
             />
             <label className="block mb-2 font-semibold">מספר טיפים בעמוד:</label>
@@ -232,9 +232,9 @@ export default function TipsPage() {
                         className="text-3xl font-bold text-gray-900 w-full bg-transparent border-b-2 border-[#f2665e] focus:outline-none placeholder-gray-400 mb-4 text-right p-2"
                         placeholder="כותרת הטיפ"
                     />
-                    <input
-                        type="text"
-                        onChange={(e) => setTipDraft({ ...tipDraft, img: e.target.value })}
+                    <SmartImageInput
+                        onChange={(url) => setTipDraft({ ...tipDraft, img: url })}
+                        value={tipDraft.img}
                         className="w-full p-2 border border-gray-300 rounded mb-4 text-right"
                         placeholder="הזן כתובת URL לתמונת הטיפ"
                     />

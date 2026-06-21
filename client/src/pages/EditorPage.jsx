@@ -9,6 +9,7 @@ import {
     createDefaultTextElement,
     centerPosition,
     scaleElementsToCanvas,
+    normalizeEditorElements,
 } from '../utils/canvasDimensions';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
@@ -19,12 +20,12 @@ import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
 import { useProductStore } from '../store/productStore';
 import { useCartStore } from '../store/cartStore'; 
+import useAuthStore from '../store/authStore';
 
-const CANVAS_KEY_STORAGE = 'active_editor_canvas_key';
-const CANVAS_SIZE_STORAGE = 'active_editor_canvas_size';
-const ACTIVE_ELEMENTS_STORAGE = 'active_editor_elements';
-const ACTIVE_BG_STORAGE = 'active_editor_bg';
-const ACTIVE_NAME_STORAGE = 'active_editor_name';
+const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
+const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
+const ACTIVE_BG_STORAGE_PREFIX = 'active_editor_bg';
+const ACTIVE_NAME_STORAGE_PREFIX = 'active_editor_name';
 
 const safeJsonParse = (raw, fallback) => {
     if (!raw) return fallback;
@@ -52,6 +53,9 @@ const safeStorageSetItem = (key, value) => {
     }
 };
 
+const resolveDraftProductKey = (product, fallbackProductId) =>
+    product?._id || product?.id || fallbackProductId || 'no-product';
+
 const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const { productId } = useParams();
     const location = useLocation();
@@ -62,6 +66,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     
     // שליפת פונקציית ההוספה לסל מה-Store של העגלה
     const addToCart = useCartStore((state) => state.addToCart);
+    const userId = useAuthStore((state) => state.userId);
 
     const canvasDimensions = useMemo(
         () => getCanvasDimensions(selectedProduct),
@@ -77,19 +82,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const storageWarningShownRef = useRef(false);
 
     // --- ניהול סטייט מקומי וטיוטות ---
-    const [elements, setElements] = useState(() => {
-        const saved = localStorage.getItem(ACTIVE_ELEMENTS_STORAGE);
-        return safeJsonParse(saved, [createDefaultTextElement(getCanvasDimensions(null))]);
-    });
+    const [elements, setElements] = useState(() =>
+        normalizeEditorElements(null, getCanvasDimensions(null))
+    );
 
-    const [canvasBackground, setCanvasBackground] = useState(() => {
-        const saved = localStorage.getItem(ACTIVE_BG_STORAGE);
-        return safeJsonParse(saved, { type: 'color', value: '#FFFFFF' });
-    });
+    const [canvasBackground, setCanvasBackground] = useState({ type: 'color', value: '#FFFFFF' });
 
-    const [projectName, setProjectName] = useState(() => {
-        return localStorage.getItem(ACTIVE_NAME_STORAGE) || 'הפרויקט שלי';
-    });
+    const [projectName, setProjectName] = useState('הפרויקט שלי');
 
     const [history, setHistory] = useState([elements]);
     const [historyIndex, setHistoryIndex] = useState(0);
@@ -108,24 +107,40 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const [showLoadModal, setShowLoadModal] = useState(false);
     const [savedProjects, setSavedProjects] = useState([]);
     const [isSaving, setIsSaving] = useState(false);
+    const draftProductKey = resolveDraftProductKey(selectedProduct, productId);
+    const draftStorage = useMemo(() => ({
+        canvasKey: `${CANVAS_KEY_STORAGE_PREFIX}_${draftProductKey}`,
+        elements: `${ACTIVE_ELEMENTS_STORAGE_PREFIX}_${draftProductKey}`,
+        background: `${ACTIVE_BG_STORAGE_PREFIX}_${draftProductKey}`,
+        projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${draftProductKey}`,
+    }), [draftProductKey]);
 
     useEffect(() => {
-        const savedElements = safeStorageSetItem(ACTIVE_ELEMENTS_STORAGE, JSON.stringify(elements));
-        safeStorageSetItem(ACTIVE_BG_STORAGE, JSON.stringify(canvasBackground));
-        safeStorageSetItem(ACTIVE_NAME_STORAGE, projectName);
+        const normalized = normalizeEditorElements(elements, canvasDimensions);
+        if (JSON.stringify(normalized) !== JSON.stringify(elements)) {
+            setElements(normalized);
+            setHistory([normalized]);
+            setHistoryIndex(0);
+            setSelectedElementId(normalized[0]?.id || null);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        const savedElements = safeStorageSetItem(draftStorage.elements, JSON.stringify(elements));
+        safeStorageSetItem(draftStorage.background, JSON.stringify(canvasBackground));
+        safeStorageSetItem(draftStorage.projectName, projectName);
 
         if (!savedElements && !storageWarningShownRef.current) {
             storageWarningShownRef.current = true;
             alert('נפח האחסון המקומי מלא. השינויים ימשיכו לעבוד, אבל לא יישמרו מקומית עד לניקוי אחסון בדפדפן.');
         }
-    }, [elements, canvasBackground, projectName]);
+    }, [elements, canvasBackground, projectName, draftStorage]);
 
     // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
     useEffect(() => {
         const storageKey = getCanvasStorageKey(selectedProduct, canvasDimensions);
-        const savedKey = localStorage.getItem(CANVAS_KEY_STORAGE);
-        const savedSizeRaw = localStorage.getItem(CANVAS_SIZE_STORAGE);
-        const savedSize = safeJsonParse(savedSizeRaw, null);
+        const savedKey = localStorage.getItem(draftStorage.canvasKey);
 
         if (canvasAppliedKeyRef.current === storageKey) {
             lastCanvasPxRef.current = {
@@ -135,39 +150,36 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             return;
         }
 
-        const savedElementsRaw = localStorage.getItem(ACTIVE_ELEMENTS_STORAGE);
+        const savedElementsRaw = localStorage.getItem(draftStorage.elements);
+        const savedBackgroundRaw = localStorage.getItem(draftStorage.background);
+        const savedProjectName = localStorage.getItem(draftStorage.projectName);
         let nextElements;
 
         if (savedKey === storageKey && savedElementsRaw) {
-            nextElements = safeJsonParse(savedElementsRaw, [createDefaultTextElement(canvasDimensions)]);
-        } else if (savedElementsRaw && savedSize?.width && savedSize?.height) {
-            const parsedSavedElements = safeJsonParse(savedElementsRaw, null);
-            if (!parsedSavedElements) {
-                nextElements = [createDefaultTextElement(canvasDimensions)];
-            } else {
-            nextElements = scaleElementsToCanvas(
-                parsedSavedElements,
-                savedSize.width,
-                savedSize.height,
-                canvasDimensions.width,
-                canvasDimensions.height,
+            nextElements = normalizeEditorElements(
+                safeJsonParse(savedElementsRaw, [createDefaultTextElement(canvasDimensions)]),
+                canvasDimensions,
             );
-            }
         } else {
             nextElements = [createDefaultTextElement(canvasDimensions)];
         }
 
         setElements(nextElements);
+        setCanvasBackground(
+            safeJsonParse(savedBackgroundRaw, { type: 'color', value: '#FFFFFF' })
+        );
+        setProjectName(savedProjectName || 'הפרויקט שלי');
         setHistory([nextElements]);
         setHistoryIndex(0);
         setSelectedElementId(nextElements[0]?.id || null);
 
-        safeStorageSetItem(CANVAS_KEY_STORAGE, storageKey);
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(nextElements));
         safeStorageSetItem(
-            CANVAS_SIZE_STORAGE,
-            JSON.stringify({ width: canvasDimensions.width, height: canvasDimensions.height }),
+            draftStorage.background,
+            JSON.stringify(safeJsonParse(savedBackgroundRaw, { type: 'color', value: '#FFFFFF' })),
         );
-        safeStorageSetItem(ACTIVE_ELEMENTS_STORAGE, JSON.stringify(nextElements));
+        safeStorageSetItem(draftStorage.projectName, savedProjectName || 'הפרויקט שלי');
 
         canvasAppliedKeyRef.current = storageKey;
         lastCanvasPxRef.current = {
@@ -177,10 +189,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [
         selectedProduct?._id,
         selectedProduct?.id,
+        productId,
         canvasDimensions.width,
         canvasDimensions.height,
         canvasDimensions.widthCm,
         canvasDimensions.heightCm,
+        draftStorage,
     ]);
 
     // טעינת המוצר שנבחר מעמוד המוצרים (state של הניווט או שליפה לפי מזהה ב-URL)
@@ -206,9 +220,10 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [productId, location.state, setSelectedProduct]);
 
     const clearDraft = () => {
-        localStorage.removeItem(ACTIVE_ELEMENTS_STORAGE);
-        localStorage.removeItem(ACTIVE_BG_STORAGE);
-        localStorage.removeItem(ACTIVE_NAME_STORAGE);
+        localStorage.removeItem(draftStorage.elements);
+        localStorage.removeItem(draftStorage.background);
+        localStorage.removeItem(draftStorage.projectName);
+        localStorage.removeItem(draftStorage.canvasKey);
     };
 
     const addToHistory = useCallback((newElements) => {
@@ -259,6 +274,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
         const projectData = {
             _id: currentProjectId,
+            userId: userId ?? null,
             name: projectName,
             elements,
             canvasBackground,
@@ -454,9 +470,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const handleOpenLoadModal = useCallback(async () => {
         setShowLoadModal(true);
-        const projects = await db.findAll();
+        const projects = await db.findAll(userId);
         setSavedProjects(projects);
-    }, []);
+    }, [userId]);
 
     const handleLoadProjectFromDB = useCallback((project) => {
         try {
@@ -490,12 +506,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setHistory([loadedElements]);
             setHistoryIndex(0);
             setSelectedElementId(null);
-            safeStorageSetItem(CANVAS_KEY_STORAGE, getCanvasStorageKey(productForDims, dims));
-            safeStorageSetItem(
-                CANVAS_SIZE_STORAGE,
-                JSON.stringify({ width: dims.width, height: dims.height }),
-            );
-            canvasAppliedKeyRef.current = getCanvasStorageKey(productForDims, dims);
+            const loadedProduct = project.selectedProduct || selectedProduct;
+            const loadedDims = getCanvasDimensions(loadedProduct);
+            const loadedDraftKey = resolveDraftProductKey(loadedProduct, loadedProduct?._id || loadedProduct?.id || productId);
+            const loadedDraftStorage = {
+                canvasKey: `${CANVAS_KEY_STORAGE_PREFIX}_${loadedDraftKey}`,
+                elements: `${ACTIVE_ELEMENTS_STORAGE_PREFIX}_${loadedDraftKey}`,
+                background: `${ACTIVE_BG_STORAGE_PREFIX}_${loadedDraftKey}`,
+                projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${loadedDraftKey}`,
+            };
+
+            safeStorageSetItem(loadedDraftStorage.canvasKey, getCanvasStorageKey(loadedProduct, loadedDims));
+            safeStorageSetItem(loadedDraftStorage.elements, JSON.stringify(loadedElements));
+            safeStorageSetItem(loadedDraftStorage.background, JSON.stringify(project.canvasBackground || { type: 'color', value: '#FFFFFF' }));
+            safeStorageSetItem(loadedDraftStorage.projectName, project.name || 'הפרויקט שלי');
+            canvasAppliedKeyRef.current = getCanvasStorageKey(loadedProduct, loadedDims);
             lastCanvasPxRef.current = { width: dims.width, height: dims.height };
 
             setShowLoadModal(false);
@@ -503,17 +528,17 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             console.error("Error loading project:", error);
             alert("אירעה שגיאה בטעינת הפרויקט");
         }
-    }, [onSelectProduct, selectedProduct]);
+    }, [onSelectProduct, selectedProduct, productId]);
 
     const handleDeleteProject = useCallback(async (e, id) => {
         e.stopPropagation();
         if (confirm("האם אתה בטוח שברצונך למחוק פרויקט זה?")) {
-            await db.delete(id);
-            const updated = await db.findAll();
+            await db.delete(id, userId);
+            const updated = await db.findAll(userId);
             setSavedProjects(updated);
             if (currentProjectId === id) setCurrentProjectId(undefined);
         }
-    }, [currentProjectId]);
+    }, [currentProjectId, userId]);
 
     const addTextElement = useCallback(() => {
         const config = { content: 'טקסט ניתן לעריכה', fontSize: 32, bold: false };
@@ -530,7 +555,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             underline: false,
             textAlign: 'center',
             direction: 'rtl',
-            ...centerPosition(200, 40, canvasDimensions.width, canvasDimensions.height),
+            ...centerPosition(280, 64, canvasDimensions.width, canvasDimensions.height),
+            width: 280,
+            height: 64,
             backgroundColor: 'transparent',
             borderColor: '#000000',
             borderWidth: 0,
@@ -758,7 +785,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [captureCanvasImage]);
 
     return (
-        <div className="h-screen flex flex-col" style={{ direction: 'rtl' }}>
+        <div className="flex flex-col flex-1 min-h-0 overflow-visible" style={{ direction: 'rtl' }}>
             <EditorHeader
                 onExit={onNavigateToHome}
                 projectName={projectName}
@@ -916,9 +943,19 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             {showPreviewModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
                     <div
-                        className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]"
+                        className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
+                        {isSaving && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
+                                <svg className="animate-spin h-12 w-12 text-red-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p className="text-lg font-bold text-gray-800">מעבד הזמנה...</p>
+                                <p className="text-sm text-gray-500 mt-1">נא להמתין</p>
+                            </div>
+                        )}
                         <div className="shrink-0 p-3 border-b flex justify-between items-center bg-gray-50 gap-2">
                             <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2 min-w-0">
                                 <SparklesIcon className="w-5 h-5 text-red-400 shrink-0" />
@@ -926,7 +963,11 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                                     תצוגה מקדימה: {selectedProduct?.name || (typeof selectedProduct === 'string' ? selectedProduct : 'העיצוב שלך')}
                                 </span>
                             </h3>
-                            <button onClick={() => setShowPreviewModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0">
+                            <button
+                                onClick={() => setShowPreviewModal(false)}
+                                disabled={isSaving}
+                                className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
+                            >
                                 <XIcon className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
@@ -954,15 +995,27 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         <div className="shrink-0 p-3 border-t bg-white flex justify-end gap-3">
                             <button
                                 onClick={() => setShowPreviewModal(false)}
-                                className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium"
+                                disabled={isSaving}
+                                className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 חזור לעריכה
                             </button>
                             <button 
                                 onClick={handleConfirmAndOrder}
-                                className="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold shadow-lg"
+                                disabled={isSaving}
+                                className="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 min-w-[9.5rem] justify-center"
                             >
-                                אישור והזמנה
+                                {isSaving ? (
+                                    <>
+                                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        מעבד...
+                                    </>
+                                ) : (
+                                    'אישור והזמנה'
+                                )}
                             </button>
                         </div>
                     </div>

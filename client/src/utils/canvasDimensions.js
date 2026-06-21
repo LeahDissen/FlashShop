@@ -54,9 +54,9 @@ export function centerPosition(elementWidth, elementHeight, canvasWidth, canvasH
 
 /** אלמנט טקסט ברירת מחדל במרכז המשטח */
 export function createDefaultTextElement(dims) {
-    const approxWidth = 200;
-    const approxHeight = 40;
-    const { left, top } = centerPosition(approxWidth, approxHeight, dims.width, dims.height);
+    const width = 280;
+    const height = 64;
+    const { left, top } = centerPosition(width, height, dims.width, dims.height);
 
     return {
         id: `text_${Date.now()}`,
@@ -70,6 +70,8 @@ export function createDefaultTextElement(dims) {
         textAlign: 'center',
         direction: 'rtl',
         content: 'טקסט ניתן לעריכה',
+        width,
+        height,
         top,
         left,
         backgroundColor: 'transparent',
@@ -84,6 +86,50 @@ export function createDefaultTextElement(dims) {
         rotation: 0,
         locked: false,
     };
+}
+
+const DEFAULT_TEXT_CONTENT = 'טקסט ניתן לעריכה';
+
+/** מנקה טיוטות שבורות ומחזיר תיבת טקסט אחת במרכז */
+export function normalizeEditorElements(elements, dims) {
+    if (!Array.isArray(elements) || elements.length === 0) {
+        return [createDefaultTextElement(dims)];
+    }
+
+    const nonText = elements.filter((el) => el.type !== 'text');
+    let textElements = elements.filter((el) => el.type === 'text');
+
+    if (textElements.length === 0) {
+        return [createDefaultTextElement(dims), ...nonText];
+    }
+
+    if (textElements.length > 1) {
+        const customized = textElements.filter((el) => el.content && el.content !== DEFAULT_TEXT_CONTENT);
+        textElements = customized.length > 0 ? [customized[0]] : [textElements[0]];
+    }
+
+    const primary = textElements[0];
+    const width = Number(primary.width) > 40 ? Number(primary.width) : 280;
+    const height = Number(primary.height) > 24 ? Number(primary.height) : 64;
+    const hasUsableContent = typeof primary.content === 'string' && primary.content.trim().length >= 2;
+    const content = hasUsableContent ? primary.content : DEFAULT_TEXT_CONTENT;
+    const shouldCenter = content === DEFAULT_TEXT_CONTENT;
+    const position = shouldCenter
+        ? centerPosition(width, height, dims.width, dims.height)
+        : { left: primary.left ?? 0, top: primary.top ?? 0 };
+
+    const normalizedText = {
+        ...primary,
+        type: 'text',
+        content,
+        width,
+        height,
+        left: position.left,
+        top: position.top,
+        locked: false,
+    };
+
+    return [normalizedText, ...nonText];
 }
 
 /** משנה מיקום וגודל אלמנטים כשמשטח ההדפסה משתנה */

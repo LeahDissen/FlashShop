@@ -99,6 +99,34 @@
       transform: translateX(-50%) translateY(0px) rotate(180deg);
     }
 
+    /* Editor header tooltips appear below buttons, above the toolbar */
+    .editor-header [data-tooltip-pos="bottom"]::after,
+    .editor-header [data-tooltip-pos="bottom"]::before {
+      z-index: 100001;
+    }
+
+    .editor-header [data-tooltip-pos="bottom"]:hover::after {
+      transform: translateX(-50%) translateY(8px);
+    }
+
+    .editor-header [data-tooltip-pos="bottom"]:hover::before {
+      transform: translateX(-50%) translateY(-2px) rotate(180deg);
+    }
+
+    /* Contextual toolbar tooltips appear below buttons, above sidebar/canvas */
+    .contextual-toolbar [data-tooltip-pos="bottom"]::after,
+    .contextual-toolbar [data-tooltip-pos="bottom"]::before {
+      z-index: 100001;
+    }
+
+    .contextual-toolbar [data-tooltip-pos="bottom"]:hover::after {
+      transform: translateX(-50%) translateY(8px);
+    }
+
+    .contextual-toolbar [data-tooltip-pos="bottom"]:hover::before {
+      transform: translateX(-50%) translateY(-2px) rotate(180deg);
+    }
+
     /* ReactCrop CSS Inlined */
     .ReactCrop {
       position: relative;

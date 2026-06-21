@@ -5,14 +5,33 @@ const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 
-// פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
-const isSameUser = (a, b) => String(a) === String(b);
-
 const isValidObjectId = (id) =>
     mongoose.Types.ObjectId.isValid(id) &&
     String(new mongoose.Types.ObjectId(id)) === String(id);
 
-const resolveProductId = (item) => item.product_id || item.productId || item._id;
+const extractProductIdFromLineId = (lineId) => {
+    if (!lineId || typeof lineId !== "string") return null;
+    const match = lineId.match(/^([a-f0-9]{24})-/i);
+    return match ? match[1] : null;
+};
+
+const resolveProductId = (item) => {
+    const candidates = [
+        item.productId,
+        item.product_id,
+        item._id,
+        extractProductIdFromLineId(item.id),
+    ];
+    for (const id of candidates) {
+        if (isValidObjectId(String(id))) {
+            return String(id);
+        }
+    }
+    return null;
+};
+
+// פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
+const isSameUser = (a, b) => String(a) === String(b);
 
 const sanitizeCartItem = (item) => {
     const sanitized = {
@@ -218,62 +237,126 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ msg: "העגלה ריקה" });
         }
 
-        // --- אבטחה: חישוב מחיר אמין ע"י שליפת הנתונים ישירות מה-DB ---
+        // --- אבטחה: חישוב מחיר אמין לפי סוג הפריט ---
         let subtotal = 0;
         const verifiedItems = [];
 
         const photoItems = items.filter(isPhotoPrintItem);
-        const catalogItems = items.filter((item) => !isPhotoPrintItem(item));
-
         const totalPhotoPrints = photoItems.reduce(
             (sum, item) => sum + (Number(item.quantity) || 1),
             0,
         );
         const photoUnitPrice = getUnitPriceByQuantity(totalPhotoPrints);
 
-        for (const item of catalogItems) {
+        for (const item of items) {
+            const qty = Number(item.quantity) || 1;
             const productId = resolveProductId(item);
-            if (!isValidObjectId(productId)) {
-                return res.status(400).json({
-                    msg: `מוצר "${item.name || "לא ידוע"}" לא תקין — נא להסיר אותו מהעגלה ולהוסיף מחדש מהקטלוג`,
+
+            if (productId) {
+                const product = await ProductModel.findById(productId);
+                if (!product) {
+                    const cartPrice = Number(item.price);
+                    if (cartPrice > 0 && item.name) {
+                        subtotal += cartPrice * qty;
+                        verifiedItems.push({
+                            name: item.name,
+                            size: item.size,
+                            price: cartPrice,
+                            quantity: qty,
+                            image: item.image,
+                        });
+                        continue;
+                    }
+                    return res.status(404).json({ msg: "המוצר המבוקש לא נמצא במערכת" });
+                }
+
+                let unitPrice = Number(product.price) || 0;
+                let name = product.name;
+                let image = product.image;
+
+                if (item.customDesign || item.customization) {
+                    const cartPrice = Number(item.price);
+                    if (cartPrice > 0) unitPrice = cartPrice;
+                    if (item.name) name = item.name;
+                    if (item.image) image = item.image;
+                }
+
+                subtotal += unitPrice * qty;
+                verifiedItems.push({
+                    productId: product._id,
+                    name,
+                    size: item.size,
+                    price: unitPrice,
+                    quantity: qty,
+                    image,
                 });
+                continue;
             }
-            const product = await ProductModel.findById(productId);
-            if (!product) {
-                return res.status(404).json({ msg: `המוצר "${item.name || "לא ידוע"}" לא נמצא במערכת` });
-            }
-            
-            const qty = Number(item.quantity) || 1;
-            subtotal += product.price * qty;
 
-            verifiedItems.push({
-                productId: product._id,
-                name: product.name,
-                price: product.price,
-                quantity: qty,
-                image: product.image,
-            });
-        }
+            if (isPhotoPrintItem(item)) {
+                const cartPrice = Number(item.price);
+                if (!cartPrice || Math.abs(cartPrice - photoUnitPrice) > 0.01) {
+                    return res.status(400).json({ msg: "מחיר הדפסת תמונה אינו תקין" });
+                }
 
-        for (const item of photoItems) {
-            const qty = Number(item.quantity) || 1;
-            const clientPrice = Number(item.price);
-
-            if (Math.abs(clientPrice - photoUnitPrice) > 0.01) {
-                return res.status(400).json({
-                    msg: `מחיר לא תקין עבור "${item.name || "הדפסת תמונה"}". נא לרוקן את העגלה ולהוסיף מחדש.`,
+                subtotal += photoUnitPrice * qty;
+                verifiedItems.push({
+                    name: item.name,
+                    size: item.size,
+                    price: photoUnitPrice,
+                    quantity: qty,
+                    image: typeof item.image === "string" && item.image.length > 500_000
+                        ? null
+                        : item.image,
                 });
+                continue;
             }
 
-            subtotal += photoUnitPrice * qty;
-            verifiedItems.push({
-                name: item.name,
-                size: item.size,
-                price: photoUnitPrice,
-                quantity: qty,
-                image: typeof item.image === "string" && item.image.length > 500_000
-                    ? null
-                    : item.image,
+            if (item.customDesign) {
+                const unitPrice = Number(item.price);
+                if (!unitPrice || unitPrice <= 0) {
+                    return res.status(400).json({ msg: "מחיר פריט עיצוב אישי אינו תקין" });
+                }
+
+                subtotal += unitPrice * qty;
+                verifiedItems.push({
+                    name: item.name || "מוצר בעיצוב אישי",
+                    size: item.size,
+                    price: unitPrice,
+                    quantity: qty,
+                    image: item.image,
+                });
+                continue;
+            }
+
+            if (item.customization && Number(item.price) > 0 && item.name) {
+                const unitPrice = Number(item.price);
+                subtotal += unitPrice * qty;
+                verifiedItems.push({
+                    name: item.name,
+                    size: item.size,
+                    price: unitPrice,
+                    quantity: qty,
+                    image: item.image,
+                });
+                continue;
+            }
+
+            if (item.name && Number(item.price) > 0) {
+                const unitPrice = Number(item.price);
+                subtotal += unitPrice * qty;
+                verifiedItems.push({
+                    name: item.name,
+                    size: item.size,
+                    price: unitPrice,
+                    quantity: qty,
+                    image: item.image,
+                });
+                continue;
+            }
+
+            return res.status(400).json({
+                msg: `פריט לא תקין בעגלה: ${item.name || "ללא שם"}`,
             });
         }
         // ----------------==================================----------------

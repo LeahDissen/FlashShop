@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
 import useAuthStore from './authStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
+import { normalizeCartItem } from '../utils/cartItem';
 
 const compactCartItem = (item) => {
   const compactCustomDesign = item?.customDesign
@@ -22,17 +23,12 @@ const compactCartItem = (item) => {
   };
 };
 
-const withProductId = (item) => ({
-  ...item,
-  productId: item.productId || item.product_id || item._id,
-  id: item.id || `cart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-});
-
 const prepareCartItems = async (items) =>
   Promise.all(
     items.map(async (item) => {
-      const image = await prepareCartDisplayImage(item.image);
-      return compactCartItem(withProductId({ ...item, image }));
+      const normalized = normalizeCartItem(item);
+      const image = await prepareCartDisplayImage(normalized.image);
+      return compactCartItem({ ...normalized, image });
     }),
   );
 
@@ -42,7 +38,9 @@ export const useCartStore = create(
       cartItems: [],
       loadCart: async (userId) => {
           const dbItems = await fetchCartFromDB(userId);
-          set({ cartItems: (dbItems || []).map(compactCartItem) });
+          if (dbItems && dbItems.length > 0) {
+              set({ cartItems: dbItems.map((item) => compactCartItem(normalizeCartItem(item))) });
+          }
       },
 
       resetCartLocal: () => {
@@ -105,7 +103,7 @@ export const useCartStore = create(
     {
       name: 'cart-storage',
       partialize: (state) => ({
-        cartItems: state.cartItems.map(compactCartItem),
+        cartItems: state.cartItems.map((item) => compactCartItem(normalizeCartItem(item))),
       }),
     }
   )
