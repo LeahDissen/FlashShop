@@ -23,12 +23,6 @@ const compactCartItem = (item) => {
   };
 };
 
-const withProductId = (item) => ({
-  ...item,
-  productId: item.productId || item.product_id || item._id,
-  id: item.id || `cart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-});
-
 const prepareCartItems = async (items) =>
   Promise.all(
     items.map(async (item) => {

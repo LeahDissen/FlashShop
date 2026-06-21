@@ -5,6 +5,10 @@ const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 
+const isValidObjectId = (id) =>
+    mongoose.Types.ObjectId.isValid(id) &&
+    String(new mongoose.Types.ObjectId(id)) === String(id);
+
 const extractProductIdFromLineId = (lineId) => {
     if (!lineId || typeof lineId !== "string") return null;
     const match = lineId.match(/^([a-f0-9]{24})-/i);
@@ -28,10 +32,6 @@ const resolveProductId = (item) => {
 
 // פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
 const isSameUser = (a, b) => String(a) === String(b);
-
-const isValidObjectId = (id) =>
-    mongoose.Types.ObjectId.isValid(id) &&
-    String(new mongoose.Types.ObjectId(id)) === String(id);
 
 const sanitizeCartItem = (item) => {
     const sanitized = {
@@ -305,7 +305,9 @@ exports.createOrder = async (req, res) => {
                     size: item.size,
                     price: photoUnitPrice,
                     quantity: qty,
-                    image: item.image,
+                    image: typeof item.image === "string" && item.image.length > 500_000
+                        ? null
+                        : item.image,
                 });
                 continue;
             }
