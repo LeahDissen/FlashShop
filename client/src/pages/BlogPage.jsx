@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAllTips, updateTip } from '../api/tips.js';
+import SmartImageInput from '../components/SmartImageInput';
 import useAuthStore from '../store/authStore.js';
 import { useTipsStore } from "../store/tipsStore.js";
 
@@ -94,11 +95,10 @@ export default function BlogPage() {
                         {editMode && isAdmin ? (
                             <div className="mb-6">
                                 <label className="block mb-2 font-semibold text-white">🔗 Main Image URL:</label>
-                                <input
-                                    className="w-full p-2 border border-gray-300 rounded text-white"
-                                    type="text"
+                                <SmartImageInput
+                                    className="w-full p-2 border border-gray-300 rounded text-white bg-white/10 placeholder-white/70"
                                     value={draft.img}
-                                    onChange={(e) => setDraft({ ...draft, img: e.target.value })}
+                                    onChange={(url) => setDraft({ ...draft, img: url })}
                                     placeholder="הזן כתובת URL לתמונת הרקע העליונה"
                                 />
                                 <input

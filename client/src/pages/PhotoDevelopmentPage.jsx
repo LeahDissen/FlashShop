@@ -5,6 +5,7 @@ import { getPhotoPrices } from '../api/photo';
 import AdminControls from '../components/AdminControls';
 import Gallery from '../components/Gallery';
 import Hero from '../components/Hero';
+import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useCartStore } from '../store/cartStore';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
@@ -214,6 +215,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             const qty = Math.max(1, img.quantity);
             return {
                 id: img.id,
+                itemType: 'photo-print',
                 size,
                 name: `פיתוח תמונה ${size} (${img.alt})`,
                 price: unitPrice,
@@ -233,11 +235,10 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             <h3 className="font-bold text-lg border-b pb-2">עריכת עמוד פיתוח תמונות</h3>
 
             <div>
-                <label className="block text-sm font-bold text-gray-700">תמונת רקע עליונה (URL):</label>
-                <input
-                    type="text"
+                <label className="block text-sm font-bold text-gray-700 mb-1">תמונת רקע עליונה (URL):</label>
+                <SmartImageInput
                     value={draft.img}
-                    onChange={(e) => updateDraft({ img: e.target.value })}
+                    onChange={(url) => updateDraft({ img: url })}
                     className="w-full border p-2 rounded ltr"
                 />
             </div>

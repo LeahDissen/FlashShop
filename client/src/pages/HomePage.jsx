@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { getPage } from '../api/pages';
 import { getAllTips } from '../api/tips';
 import AdminControls from '../components/AdminControls.jsx';
+import SmartImageInput from '../components/SmartImageInput';
 import Testimonials from '../components/Testimonials';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import useAppStore from '../store/appStore';
@@ -75,11 +76,12 @@ export default function HomePage() {
                 onChange={(e) => updateDraft({ title: e.target.value })}
             />
             <label>🔗 Main Image URL:</label>
-            <input
-                type="text"
+            <SmartImageInput
                 value={draft.mainImg}
-                onChange={(e) => updateDraft({ mainImg: e.target.value })}
+                onChange={(url) => updateDraft({ mainImg: url })}
                 style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
+                className="w-full"
+                previewClassName="h-[100px] w-[100px] rounded object-cover border border-gray-200"
             />
             <div className='container'>
                 {Array.isArray(draft.products) && draft.products.map((prod, index) => (
@@ -98,27 +100,21 @@ export default function HomePage() {
                             }}
                             style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
                         />
-                        <input
-                            type="text"
+                        <SmartImageInput
                             placeholder="URL התמונה"
                             value={prod.image}
-                            onChange={(e) => {
+                            onChange={(url) => {
                                 const updatedProducts = [...draft.products];
                                 updatedProducts[index] = {
                                     ...updatedProducts[index],
-                                    image: e.target.value
+                                    image: url
                                 };
                                 updateDraft({ products: updatedProducts });
                             }}
                             style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
+                            className="w-full"
+                            previewClassName="h-[100px] w-[100px] rounded object-cover border border-gray-200"
                         />
-                        {prod.image && (
-                            <img
-                                src={prod.image}
-                                alt={`Preview ${prod.name || index + 1}`}
-                                style={{ width: "100px", height: "100px", objectFit: "cover" }}
-                            />
-                        )}
                     </div>
                 ))}
             </div>

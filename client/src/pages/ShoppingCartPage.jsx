@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { checkCouponRequest } from "../api/club";
 import { getPage } from "../api/pages";
+import { getProducts } from "../api/products";
 import { saveCheckoutDraft } from "../utils/checkoutDraft";
 import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
+import SmartImageInput from "../components/SmartImageInput";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
@@ -28,12 +30,6 @@ function normalizeRecommendedTitle(value) {
   return trimmed;
 }
 
-const RECOMMENDED_PRODUCTS = [
-  { id: 3, name: "חולצה", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/shirt@2x.png" },
-  { id: 2, name: "קנבס", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/canvas@2x.png" },
-  { id: 1, name: "שעון קיר", price: 45.9, image: "https://c.animaapp.com/ssXwMPGd/img/wall-clock-mockup-right-view@2x.png" },
-];
-
 export default function ShoppingCartPage() {
   const cartItems = useCartStore((state) => state.cartItems);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
@@ -44,7 +40,7 @@ export default function ShoppingCartPage() {
 
   const [discount, setDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState("");
-  const [recommendedProducts] = useState(RECOMMENDED_PRODUCTS);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
 
   const adminControls = useAdminControl({
     img: DEFAULT_CART_HERO_IMG,
@@ -65,9 +61,14 @@ export default function ShoppingCartPage() {
   const handleQuantityChange = (itemId, delta) => updateItemQuantity(itemId, delta);
 
   const handleAddRecommended = (product) => {
+    const mongoId = product._id || product.id;
+    if (!mongoId) return;
     addToCart([
       {
-        id: `cart_${Date.now()}`,
+        ...product,
+        id: `${mongoId}-rec-${Date.now()}`,
+        _id: mongoId,
+        productId: mongoId,
         name: product.name,
         price: product.price,
         image: product.image,
@@ -103,6 +104,12 @@ export default function ShoppingCartPage() {
   };
 
   useEffect(() => {
+    getProducts()
+      .then((data) => setRecommendedProducts(Array.isArray(data) ? data.slice(0, 3) : []))
+      .catch(() => setRecommendedProducts([]));
+  }, []);
+
+  useEffect(() => {
     getPage("cart").then((data) => {
       if (data && Object.keys(data).length > 0) {
         const merged = {
@@ -122,8 +129,12 @@ export default function ShoppingCartPage() {
       <h3 className="font-bold text-lg border-b pb-2 text-[#f2665e]">עריכת תוכן עמוד עגלה</h3>
       <div className="space-y-3">
         <div>
-          <label className="block text-sm font-bold text-gray-700">תמונת כותרת (URL):</label>
-          <input type="text" value={draft.img} onChange={(e) => updateDraft({ img: e.target.value })} className="w-full border p-2 rounded ltr" />
+          <label className="block text-sm font-bold text-gray-700 mb-1">תמונת כותרת (URL):</label>
+          <SmartImageInput
+            value={draft.img}
+            onChange={(url) => updateDraft({ img: url })}
+            className="w-full border p-2 rounded ltr"
+          />
         </div>
         <div>
           <label className="block text-sm font-bold text-gray-700">כותרת ראשית:</label>
