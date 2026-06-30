@@ -22,6 +22,7 @@ import ShoppingCartPage from "./pages/ShoppingCartPage";
 import SignUpPage from "./pages/SignUpPage";
 import TipsPage from "./pages/TipsPage";
 import ProductSelectionPage from "./pages/ProductSelectionPage";
+import CaptionIdeasPage from "./pages/CaptionIdeasPage";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
@@ -56,6 +57,7 @@ export default function AppRoutes() {
                 <Route path="/tips" element={<Layout><TipsPage /></Layout>} />
                 <Route path="/profile" element={<Layout><ProfilePage /></Layout>} />
                 <Route path="/product-selection/:productId" element={<Layout><ProductSelectionPage /></Layout>} />
+                <Route path="/product-selection/:productId/caption-ideas" element={<Layout><CaptionIdeasPage /></Layout>} />
                 {/* Only admin can see this link */}
                 <Route path="/admindashboard" element={<AdminRoute><Layout><AdminDashboardPage /></Layout></AdminRoute>} />
                 <Route path="/editpages" element={<AdminRoute><Layout><EditPages /></Layout></AdminRoute>} />

@@ -105,6 +105,9 @@ export default function BulkProductUpload({ onComplete }) {
                     <p className="text-sm text-gray-500 mt-1">
                         העלו קובץ אקסל/CSV ותיקיית תמונות — המערכת תיצור מוצרים אוטומטית
                     </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        עמודת משפטים (captions): הפרידו בין משפטים ב-; ובין טקסט לקטגוריה ב-|
+                    </p>
                 </div>
                 <button
                     type="button"
