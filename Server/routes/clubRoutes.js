@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const clubController = require("../controllers/clubController");
 const multer = require("multer");
-const upload = multer();
+const upload = multer({ storage: multer.memoryStorage() });
 const {authAdmin} = require('../middlewares/auth');
 
 router.get("/members", authAdmin, clubController.getClubMembers);
