@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Phone, FileText, Upload, Image as ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, FileText, Upload, Image as ImageIcon, Loader2, Trash2, Palette, Sparkles, Type, Minus, Plus } from 'lucide-react';
 import { getProductById } from '../api/products';
 import { useCartStore } from '../store/cartStore';
 import { useProductStore } from '../store/productStore';
@@ -8,6 +8,13 @@ import { getPage } from '../api/pages';
 import { MAGNET_SIZES } from '../constants/productCategories';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
 import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
+import { withTieredPricingFields } from '../utils/cartItem';
+import ProductPricingInfo from '../components/ProductPricingInfo';
+import {
+    getProductOrderPricing,
+    hasTieredPricing,
+    formatPrice,
+} from '../utils/productQuantityPricing';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -15,9 +22,11 @@ const ProductSelectionPage = () => {
     const location = useLocation();
     const { addToCart } = useCartStore();
     const setSelectedProduct = useProductStore((state) => state.setSelectedProduct);
+    const setOrderQuantity = useProductStore((state) => state.setOrderQuantity);
 
     const [product, setProduct] = useState(location.state?.product ?? null);
     const [loadingProduct, setLoadingProduct] = useState(!location.state?.product);
+    const [quantityInput, setQuantityInput] = useState('1');
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedImage, setUploadedImage] = useState(null);
     const [magnetImage, setMagnetImage] = useState(null);
@@ -37,6 +46,7 @@ const ProductSelectionPage = () => {
     const fileInputRef = useRef(null);
     const magnetFileRef = useRef(null);
     const designerFileRef = useRef(null);
+    const designerFormRef = useRef(null);
 
     useEffect(() => {
         if (product) {
@@ -69,6 +79,73 @@ const ProductSelectionPage = () => {
         fetchPageDesign();
     }, []);
 
+    useEffect(() => {
+        if (!showDesignerForm) return;
+        const timer = window.setTimeout(() => {
+            designerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
+        return () => window.clearTimeout(timer);
+    }, [showDesignerForm]);
+
+    useEffect(() => {
+        setQuantityInput('1');
+        setOrderQuantity(1);
+    }, [productId, setOrderQuantity]);
+
+    const maxQuantity = product?.stock > 0 ? product.stock : 9999;
+
+    const getQuantity = () => {
+        const parsed = parseInt(quantityInput, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) return 1;
+        return Math.min(maxQuantity, parsed);
+    };
+
+    const applyQuantity = (next) => {
+        const clamped = Math.min(maxQuantity, Math.max(1, next));
+        setQuantityInput(String(clamped));
+        setOrderQuantity(clamped);
+        return clamped;
+    };
+
+    const handleDecreaseQuantity = () => {
+        applyQuantity(getQuantity() - 1);
+    };
+
+    const handleIncreaseQuantity = () => {
+        applyQuantity(getQuantity() + 1);
+    };
+
+    const handleQuantityInputChange = (e) => {
+        const raw = e.target.value.replace(/\D/g, '');
+        setQuantityInput(raw);
+        if (raw !== '') {
+            const parsed = parseInt(raw, 10);
+            if (Number.isFinite(parsed) && parsed >= 1) {
+                setOrderQuantity(Math.min(maxQuantity, parsed));
+            }
+        }
+    };
+
+    const handleQuantityInputBlur = () => {
+        applyQuantity(getQuantity());
+    };
+
+    const currentQuantity = useMemo(() => {
+        const parsed = parseInt(quantityInput, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) return 1;
+        const maxQty = product?.stock > 0 ? product.stock : 9999;
+        return Math.min(maxQty, parsed);
+    }, [quantityInput, product?.stock]);
+
+    const productPricing = useMemo(() => {
+        if (!product || isMagnetProduct(product)) return null;
+        return getProductOrderPricing(product, currentQuantity);
+    }, [product, currentQuantity]);
+
+    const showTieredPricing = product && hasTieredPricing(product) && !isMagnetProduct(product);
+
+    const resolveUnitPrice = () => (productPricing?.unitPrice ?? Number(product?.price)) || 0;
+
     if (loadingProduct) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#faf8f6]" dir="rtl">
@@ -97,19 +174,30 @@ const ProductSelectionPage = () => {
         }
     };
 
-    const buildCartItem = (overrides) => ({
-        productId: product._id,
-        name: product.name,
-        price: product.price || 0,
-        image: product.image,
-        ...overrides,
-    });
+    const buildCartItem = (overrides, { priceAddon = 0 } = {}) => {
+        const quantity = overrides.quantity ?? getQuantity();
+        const unitPrice = overrides.price ?? resolveUnitPrice();
+        const item = {
+            productId: product._id,
+            name: product.name,
+            price: unitPrice,
+            image: product.image,
+            quantity,
+            ...overrides,
+        };
+        if (magnetProduct) {
+            return item;
+        }
+        return withTieredPricingFields(item, product, { priceAddon });
+    };
 
     const handleSimpleAddToCart = async () => {
+        const quantity = getQuantity();
+        const unitPrice = resolveUnitPrice();
         await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-simple-${Date.now()}`,
-            quantity: 1,
-            price: product.price || 0,
+            quantity,
+            price: unitPrice,
         })]);
     };
 
@@ -135,11 +223,13 @@ const ProductSelectionPage = () => {
 
     const handleUploadAddToCart = async () => {
         if (!uploadedImage) return;
+        const quantity = getQuantity();
+        const unitPrice = resolveUnitPrice();
         await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-upload-${Date.now()}`,
             image: uploadedImage,
-            quantity: 1,
-            price: product.price || 0,
+            quantity,
+            price: unitPrice,
             customization: { type: 'upload-only', originalImage: product.image },
         })]);
     };
@@ -149,9 +239,10 @@ const ProductSelectionPage = () => {
             alert("יש להעלות תמונה למגנט");
             return;
         }
+        const quantity = getQuantity();
         await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-magnet-${Date.now()}`,
-            quantity: 1,
+            quantity,
             price: selectedMagnetSize.price,
             image: magnetImage,
             size: selectedMagnetSize.label,
@@ -164,10 +255,11 @@ const ProductSelectionPage = () => {
         })]);
     };
 
-    // מעבר לעמוד עריכה עצמית ومסירת המוצר המלא בסטייט
     const handleDesignClick = () => {
+        const quantity = applyQuantity(getQuantity());
         setSelectedProduct(product);
-        navigate(`/editor/${productId}`, { state: { product } });
+        setOrderQuantity(quantity);
+        navigate(`/editor/${productId}`, { state: { product, quantity } });
     };
 
     // שליחת טופס גרפיקאית עם וולידציות מורחבות
@@ -188,15 +280,17 @@ const ProductSelectionPage = () => {
             return;
         }
 
+        const quantity = getQuantity();
+        const unitPrice = resolveUnitPrice();
         const cartItem = buildCartItem({
             id: `${product._id}-designer-${Date.now()}`,
-            quantity: 1,
-            price: (product.price || 0) + 15,
+            quantity,
+            price: unitPrice + 15,
             customization: {
                 type: 'designer-service',
                 ...designerDetails
             }
-        });
+        }, { priceAddon: 15 });
 
         await addToCartAndNavigate([cartItem], {
             successMessage: 'הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!',
@@ -258,70 +352,145 @@ const ProductSelectionPage = () => {
             {/* Hero Banner */}
             <div className="w-full relative">
                 <div
-                    className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
+                    className="relative h-[160px] sm:h-[200px] bg-cover bg-center flex items-center justify-center text-white"
                     style={{ backgroundImage: `url(${heroBgImage})`, backgroundColor: '#a39589' }}
                 >
-                    <div className="absolute inset-0 bg-black/20"></div>
-                    <h1 className="relative z-10 text-[42px] sm:text-[50px] font-bold text-center text-white tracking-wide drop-shadow-sm" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
+                    <div className="absolute inset-0 bg-black/15"></div>
+                    <h1 className="relative z-10 text-3xl sm:text-4xl font-bold text-center text-white tracking-wide drop-shadow-sm" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
                         {product.name}
                     </h1>
-                    <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] rotate-180">
-                        <svg className="relative block w-[calc(100%+1.3px)] h-[50px] md:h-[70px]" viewBox="0 0 1200 120" preserveAspectRatio="none">
-                            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="#faf8f6"></path>
+                    <div className="absolute -bottom-px left-0 w-full leading-[0] rotate-180 z-10">
+                        <svg
+                            className="relative block w-full h-[42px] sm:h-[52px]"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 1200 120"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
+                                fill="#faf8f6"
+                            />
                         </svg>
                     </div>
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="relative py-12 px-4">
+            <div className="relative py-6 sm:py-8 px-4">
                 <div className="max-w-4xl mx-auto relative">
                     <button
-                        onClick={() => navigate(-1)}
+                        type="button"
+                        onClick={() => navigate('/products')}
                         className="absolute -top-8 right-0 flex items-center gap-2 text-gray-500 hover:text-[#f2665e] transition-colors font-medium text-sm sm:text-base cursor-pointer"
                     >
                         <ArrowLeft size={18} className="rotate-180" /> חזרה למוצרים
                     </button>
 
-                    <div className="space-y-8 mt-4">
+                    <div className="space-y-6 mt-4">
                         {/* כרטיס מוצר ראשי */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-                                <div className="w-full md:w-64 flex justify-center">
-                                    <img
-                                        src={product.image}
-                                        alt={product.name}
-                                        className="w-full max-w-[260px] h-48 object-cover rounded-xl bg-gray-50 border border-gray-100 shadow-sm"
-                                    />
+                        <div className="bg-white rounded-2xl shadow-sm border border-[#f2665e]/15 p-6 sm:p-8">
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+                                <div className="shrink-0 flex justify-center md:justify-start self-start">
+                                    <div className="p-1 rounded-lg bg-[#fff5f4] border border-[#f2665e]/20 w-fit">
+                                        <img
+                                            src={product.image}
+                                            alt={product.name}
+                                            className="w-28 h-28 object-cover rounded-md bg-white"
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="flex-1 text-right w-full flex flex-col justify-between min-h-[12rem]">
-                                    <div>
-                                        <h2 className="text-3xl font-bold text-[#f2665e] mb-2">{product.name}</h2>
-                                        <div className="mb-6">
-                                            {magnetProduct ? (
-                                                <>
-                                                    <span className="text-2xl font-bold text-gray-900">{selectedMagnetSize.price} ₪</span>
-                                                    <p className="text-sm text-gray-500 mt-1">מחיר לפי גודל מגנט: {selectedMagnetSize.label} ס&quot;מ</p>
-                                                </>
-                                            ) : (
-                                                <span className="text-2xl font-bold text-gray-900">{product.price} ₪</span>
-                                            )}
+                                <div className="flex-1 text-right w-full flex flex-col gap-6">
+                                    <div className="space-y-4">
+                                        <h2 className="text-2xl font-bold text-[#f2665e]">{product.name}</h2>
+                                        {product.description && (
+                                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                                                {product.description}
+                                            </p>
+                                        )}
+
+                                        <div className="rounded-xl bg-[#fff5f4]/60 border border-[#f2665e]/15 px-4 py-3 space-y-2">
+                                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                                {magnetProduct ? (
+                                                    <>
+                                                        <span className="text-xl font-semibold text-gray-900">{selectedMagnetSize.price} ₪</span>
+                                                        <span className="text-xs text-[#f2665e]/80">גודל {selectedMagnetSize.label} ס&quot;מ</span>
+                                                    </>
+                                                ) : showTieredPricing ? (
+                                                    <>
+                                                        <span className="text-xl font-semibold text-gray-900">
+                                                            {formatPrice(productPricing.unitPrice)}
+                                                            <span className="text-xs font-normal text-gray-500 mr-1">ליחידה</span>
+                                                        </span>
+                                                        <span className="text-sm font-semibold text-[#f2665e]">
+                                                            סה&quot;כ {formatPrice(productPricing.grandTotal)}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xl font-semibold text-gray-900">{product.price} ₪</span>
+                                                )}
+                                            </div>
+
                                             {!simpleProduct && !magnetProduct && (product.printWidth || product.printHeight) && (
-                                                <p className="text-sm text-[#f2665e] font-medium mt-2">
+                                                <p className="text-xs text-[#f2665e]/70">
                                                     משטח הדפסה: {product.printWidth ?? 12} × {product.printHeight ?? 18} ס&quot;מ
                                                 </p>
                                             )}
-                                            {!simpleProduct && !magnetProduct && (
-                                                <p className="text-sm text-gray-500 mt-1">עיצוב אישי ומקצועי על ידי הגרפיקאית שלנו בתוספת 15 ₪ בלבד</p>
-                                            )}
+
+                                            <div className="flex flex-wrap items-center gap-4 pt-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-medium text-[#f2665e]/80">כמות</span>
+                                                    <div className="inline-flex items-center border border-[#f2665e]/30 rounded-lg overflow-hidden bg-white">
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleDecreaseQuantity}
+                                                            disabled={getQuantity() <= 1}
+                                                            className="px-2.5 py-1.5 text-[#f2665e] hover:bg-[#fff5f4] disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                                                            aria-label="הפחת כמות"
+                                                        >
+                                                            <Minus size={16} />
+                                                        </button>
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            pattern="[0-9]*"
+                                                            value={quantityInput}
+                                                            onChange={handleQuantityInputChange}
+                                                            onBlur={handleQuantityInputBlur}
+                                                            className="w-11 py-1.5 text-center text-sm font-semibold text-gray-900 border-x border-[#f2665e]/20 outline-none"
+                                                            aria-label="כמות"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleIncreaseQuantity}
+                                                            disabled={getQuantity() >= maxQuantity}
+                                                            className="px-2.5 py-1.5 text-[#f2665e] hover:bg-[#fff5f4] disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                                                            aria-label="הוסף כמות"
+                                                        >
+                                                            <Plus size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {showTieredPricing && (
+                                                    <ProductPricingInfo
+                                                        product={product}
+                                                        quantity={currentQuantity}
+                                                    />
+                                                )}
+                                                {product.stock > 0 && product.stock < 9999 && (
+                                                    <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
+                                                        במלאי {product.stock}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
                                     {simpleProduct && (
                                         <button
                                             onClick={handleSimpleAddToCart}
-                                            className="w-full max-w-sm py-3 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-full text-sm font-bold transition-all shadow-sm cursor-pointer"
+                                            className="self-start px-6 py-2.5 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-xl text-sm font-semibold border-2 border-[#f2665e] transition-colors cursor-pointer shadow-sm"
                                         >
                                             הוסף לסל
                                         </button>
@@ -329,94 +498,95 @@ const ProductSelectionPage = () => {
 
                                     {magnetProduct && (
                                         <div className="space-y-4 w-full">
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-700 mb-2">בחרו גודל מגנט:</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {MAGNET_SIZES.map((size) => (
-                                                        <button
-                                                            key={size.label}
-                                                            type="button"
-                                                            onClick={() => setSelectedMagnetSize(size)}
-                                                            className={`px-4 py-2 rounded-full text-sm font-bold border transition-all cursor-pointer ${
-                                                                selectedMagnetSize.label === size.label
-                                                                    ? 'bg-[#f2665e] text-white border-[#f2665e]'
-                                                                    : 'bg-white text-[#f2665e] border-[#f2665e]/30 hover:bg-[#f2665e]/10'
-                                                            }`}
-                                                        >
-                                                            {size.label} — {size.price} ₪
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {MAGNET_SIZES.map((size) => (
+                                                    <button
+                                                        key={size.label}
+                                                        type="button"
+                                                        onClick={() => setSelectedMagnetSize(size)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors cursor-pointer ${
+                                                            selectedMagnetSize.label === size.label
+                                                                ? 'bg-[#f2665e] text-white border-[#f2665e]'
+                                                                : 'bg-white text-[#f2665e] border-[#f2665e]/40 hover:bg-[#fff5f4]'
+                                                        }`}
+                                                    >
+                                                        {size.label} — {size.price} ₪
+                                                    </button>
+                                                ))}
                                             </div>
-                                            <div className="w-full max-w-sm space-y-4">
+                                            <div className="flex flex-wrap items-center gap-3">
                                                 <button
                                                     type="button"
                                                     onClick={() => magnetFileRef.current?.click()}
                                                     disabled={isUploading}
-                                                    className="w-full py-2 bg-[#f2665e]/10 hover:bg-[#f2665e]/20 text-[#f2665e] rounded-full text-sm font-bold transition-all border border-[#f2665e]/10 cursor-pointer disabled:opacity-50"
+                                                    className="px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
                                                 >
-                                                    {isUploading ? 'מעלה תמונה...' : magnetImage ? 'החליפו תמונה' : 'העלו תמונה למגנט'}
+                                                    {isUploading ? 'מעלה...' : magnetImage ? 'החלפת תמונה' : 'העלאת תמונה'}
                                                 </button>
                                                 <input type="file" ref={magnetFileRef} onChange={handleMagnetFileChange} className="hidden" accept="image/*" />
-                                                {magnetImage && (
-                                                    <div className="relative inline-block">
-                                                        <img src={magnetImage} alt="תצוגת מגנט" className="max-w-[200px] rounded-lg border" />
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleRemoveMagnetImage}
-                                                            className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-md transition-all cursor-pointer"
-                                                            title="מחק תמונה"
-                                                            aria-label="מחק תמונה"
-                                                        >
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
-                                                )}
                                                 <button
                                                     onClick={handleMagnetAddToCart}
-                                                    className="w-full py-3 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-full text-sm font-bold transition-all shadow-sm cursor-pointer"
+                                                    className="px-5 py-2 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-xl text-sm font-semibold border-2 border-[#f2665e] transition-colors cursor-pointer"
                                                 >
-                                                    הוסף לסל {selectedMagnetSize.price} ₪
+                                                    הוסף לסל
                                                 </button>
                                             </div>
+                                            {magnetImage && (
+                                                <div className="relative inline-block">
+                                                    <img src={magnetImage} alt="תצוגת מגנט" className="max-w-[160px] rounded-lg border-2 border-[#f2665e]/20" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleRemoveMagnetImage}
+                                                        className="absolute -top-1.5 -left-1.5 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full transition-colors cursor-pointer"
+                                                        title="מחק תמונה"
+                                                        aria-label="מחק תמונה"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
                                     {!simpleProduct && !magnetProduct && (
                                     <>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mt-4">
-                                        
-                                        {/* כפתור 1: עיצוב עצמי */}
+                                    <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
                                         <button
                                             onClick={handleDesignClick}
-                                            className="w-full py-2 bg-[#f2665e]/10 hover:bg-[#f2665e]/20 text-[#f2665e] rounded-full text-sm font-bold transition-all text-center border border-[#f2665e]/10 cursor-pointer"
+                                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
-                                            עיצוב עצמי באתר
-                                        </button>
-                                        
-                                        {/* כפתור 2: עיצוב גרפיקאית */}
-                                        <button
-                                            onClick={() => { setShowDesignerForm(!showDesignerForm); setUploadedImage(null); }}
-                                            className={`w-full py-2 rounded-full text-sm font-bold transition-all text-center border cursor-pointer ${
-                                                showDesignerForm 
-                                                ? 'bg-[#f2665e] text-white border-[#f2665e]' 
-                                                : 'bg-[#f2665e]/10 hover:bg-[#f2665e]/20 text-[#f2665e] border-[#f2665e]/10'
-                                            }`}
-                                        >
-                                            עיצוב מותאם (גרפיקאית)
+                                            <Palette size={17} />
+                                            עיצוב עצמי
                                         </button>
 
-                                        {/* כפתור 3: העלאת תמונה */}
+                                        <button
+                                            onClick={() => { setShowDesignerForm(!showDesignerForm); setUploadedImage(null); }}
+                                            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer ${
+                                                showDesignerForm
+                                                    ? 'bg-[#f2665e] text-white border-[#f2665e]'
+                                                    : 'border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50'
+                                            }`}
+                                        >
+                                            <Sparkles size={17} />
+                                            עיצוב מותאם
+                                        </button>
+
                                         <button
                                             onClick={() => fileInputRef.current.click()}
                                             disabled={isUploading}
-                                            className="w-full py-2 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-full text-sm font-bold transition-all disabled:opacity-50 text-center shadow-sm cursor-pointer"
+                                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e] text-[#f2665e] bg-[#fff5f4] hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
                                         >
-                                            {isUploading ? (
-                                                <span className="flex items-center justify-center gap-1.5">
-                                                    <Loader2 size={16} className="animate-spin" /> מעלה...
-                                                </span>
-                                            ) : (uploadedImage ? 'החליפו תמונה מוכנה' : 'העלו תמונה מוכנה')}
+                                            {isUploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
+                                            {isUploading ? 'מעלה...' : 'העלאת תמונה'}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(`/product-selection/${productId}/caption-ideas`)}
+                                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
+                                        >
+                                            <Type size={17} />
+                                            רעיונות לכיתוב
                                         </button>
                                     </div>
 
@@ -457,7 +627,7 @@ const ProductSelectionPage = () => {
 
                         {/* טופס בקשת עיצוב מהגרפיקאית */}
                         {showDesignerForm && !simpleProduct && !magnetProduct && (
-                            <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6">
+                            <div ref={designerFormRef} className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 scroll-mt-24">
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 mb-1">עיצוב מותאם אישית על ידי גרפיקאית</h3>
                                     <p className="text-sm text-gray-500">הסבירו לנו מה אתם רוצים שיופיע, צרפו קובץ במידת הצורך, ואנו נשלח לכם סקיצה לאישור במייל!</p>
