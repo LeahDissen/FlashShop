@@ -1,7 +1,13 @@
-export default function CartItem({ item, onRemove, onQuantityChange }) {
-  const itemKey = item.id || item._id;
+import QuantityInput from './QuantityInput';
+
+export default function CartItem({ item, onRemove, onSetQuantity }) {
+  const itemKey = item.id;
   const lineTotal = item.price * item.quantity;
   const isDesignerService = item.customization?.type === 'designer-service';
+
+  if (!itemKey) {
+    return null;
+  }
 
   return (
     <div className="grid grid-cols-12 px-6 py-3 border-b border-gray-200 last:border-b-0 items-center hover:bg-gray-50/80">
@@ -41,28 +47,11 @@ export default function CartItem({ item, onRemove, onQuantityChange }) {
         </div>
       </div>
       <div className="col-span-3 flex justify-center">
-        <div className="inline-flex items-center border border-gray-300 rounded overflow-hidden bg-white">
-          <button
-            type="button"
-            onClick={() => onQuantityChange(itemKey, -1)}
-            disabled={item.quantity <= 1}
-            className="px-2.5 py-1 text-gray-700 hover:bg-gray-100 disabled:opacity-40"
-            aria-label="הפחת כמות"
-          >
-            −
-          </button>
-          <span className="px-3 py-1 border-x border-gray-300 font-medium min-w-[2rem] text-center">
-            {item.quantity}
-          </span>
-          <button
-            type="button"
-            onClick={() => onQuantityChange(itemKey, 1)}
-            className="px-2.5 py-1 text-gray-700 hover:bg-gray-100"
-            aria-label="הוסף כמות"
-          >
-            +
-          </button>
-        </div>
+        <QuantityInput
+          quantity={item.quantity}
+          onQuantityChange={(qty) => onSetQuantity(itemKey, qty)}
+          variant="cart"
+        />
       </div>
       <div className="col-span-3 text-center font-semibold text-gray-800 whitespace-nowrap">
         {lineTotal.toFixed(2)} ₪

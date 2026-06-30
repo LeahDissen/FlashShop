@@ -129,10 +129,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         }
     };
 
-    const handleQuantityChange = (id, delta) => {
-        setImages(prev => prev.map(img =>
-            img.id === id ? { ...img, quantity: Math.max(1, img.quantity + delta) } : img
-        ));
+    const handleSetQuantity = (id, quantity) => {
+        const qty = Math.min(9999, Math.max(1, Math.floor(Number(quantity)) || 1));
+        setImages((prev) => prev.map((img) => (img.id === id ? { ...img, quantity: qty } : img)));
     };
 
     const handleRemove = (id) => {
@@ -289,7 +288,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             />
             <Gallery
                 images={images}
-                onQuantityChange={handleQuantityChange}
+                onSetQuantity={handleSetQuantity}
                 onRemove={handleRemove}
                 onClearAll={handleClearAllImages}
                 onSizeChange={handleSizeChange}

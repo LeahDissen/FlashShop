@@ -11,6 +11,7 @@ import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
 import { useCartStore } from "../store/cartStore";
+import { assignCartLineIds, withTieredPricingFields } from "../utils/cartItem";
 
 const DEFAULT_CART_HERO_IMG = "https://images.unsplash.com/photo-1515488042361-ee00e616997e?w=1600&q=80";
 const DEFAULT_RECOMMENDED_TITLE = "אולי תאהבו גם את אלה...";
@@ -33,7 +34,7 @@ function normalizeRecommendedTitle(value) {
 export default function ShoppingCartPage() {
   const cartItems = useCartStore((state) => state.cartItems);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
-  const updateItemQuantity = useCartStore((state) => state.updateItemQuantity);
+  const setItemQuantity = useCartStore((state) => state.setItemQuantity);
   const addToCart = useCartStore((state) => state.addToCart);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const navigate = useNavigate();
@@ -57,23 +58,32 @@ export default function ShoppingCartPage() {
   const totalPrice = Math.max(0, subtotal - discount);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  useEffect(() => {
+    const items = useCartStore.getState().cartItems;
+    const migrated = assignCartLineIds(items);
+    const needsMigration = migrated.some((item, index) => item.id !== items[index]?.id);
+    if (needsMigration) {
+      useCartStore.setState({ cartItems: migrated });
+    }
+  }, []);
+
   const handleRemoveItem = (itemId) => removeFromCart(itemId);
-  const handleQuantityChange = (itemId, delta) => updateItemQuantity(itemId, delta);
+  const handleSetQuantity = (itemId, quantity) => setItemQuantity(itemId, quantity);
 
   const handleAddRecommended = (product) => {
     const mongoId = product._id || product.id;
     if (!mongoId) return;
+    const { _id, id: _productId, ...productFields } = product;
     addToCart([
-      {
-        ...product,
+      withTieredPricingFields({
+        ...productFields,
         id: `${mongoId}-rec-${Date.now()}`,
-        _id: mongoId,
         productId: mongoId,
         name: product.name,
         price: product.price,
         image: product.image,
         quantity: 1,
-      },
+      }, product),
     ]);
   };
 
@@ -198,10 +208,10 @@ export default function ShoppingCartPage() {
                 </div>
                 {cartItems.map((item) => (
                   <CartItem
-                    key={item.id || item._id}
+                    key={item.id}
                     item={item}
                     onRemove={handleRemoveItem}
-                    onQuantityChange={handleQuantityChange}
+                    onSetQuantity={handleSetQuantity}
                   />
                 ))}
               </div>
