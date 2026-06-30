@@ -16,11 +16,14 @@ import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
 import EditorHeader from '../components/editor/EditorHeader';
 import EditorSidebar from '../components/editor/EditorSidebar.jsx';
-import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
+import ProductPreviewModal from '../components/editor/ProductPreviewModal';
+import { ClockIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
 import { useProductStore } from '../store/productStore';
 import { useCartStore } from '../store/cartStore'; 
 import useAuthStore from '../store/authStore';
+import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
+import { withTieredPricingFields } from '../utils/cartItem';
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -61,7 +64,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const location = useLocation();
 
     // שליפת המוצר הנבחר מה-Store של המוצרים
-    const { selectedProduct, setSelectedProduct } = useProductStore();
+    const { selectedProduct, setSelectedProduct, orderQuantity } = useProductStore();
     const onSelectProduct = setSelectedProduct;
     
     // שליפת פונקציית ההוספה לסל מה-Store של העגלה
@@ -266,7 +269,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             previewDataUrl = await toPng(node, {
                 quality: 0.5,
                 pixelRatio: 0.5,
-                filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
+                filter: (node) =>
+                    !node.classList?.contains('canvas-grid-overlay')
+                    && !node.classList?.contains('canvas-safe-zone-overlay'),
                 backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
                 cacheBust: true,
             });
@@ -311,7 +316,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             return await toPng(node, {
                 quality: 1,
                 pixelRatio,
-                filter: (n) => !n.classList?.contains('canvas-grid-overlay'),
+                filter: (n) =>
+                    !n.classList?.contains('canvas-grid-overlay')
+                    && !n.classList?.contains('canvas-safe-zone-overlay'),
                 backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
                 style: { transform: 'scale(1)', outline: 'none', outlineOffset: 0 },
                 cacheBust: true,
@@ -350,10 +357,15 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     
                     // חילוץ חכם של המחיר: מנקה הכל חוץ ממספרים ונקודה (למשל מנקה סימני ₪ או רווחים)
                     if (selectedProduct.price !== undefined && selectedProduct.price !== null) {
-                        const rawPrice = String(selectedProduct.price).replace(/[^\d.]/g, '');
-                        const parsedPrice = parseFloat(rawPrice);
-                        if (!isNaN(parsedPrice) && parsedPrice > 0) {
-                            productPrice = parsedPrice; // המחיר המדויק מהאובייקט!
+                        const tieredPrice = getUnitPriceForQuantity(selectedProduct, orderQuantity || 1);
+                        if (tieredPrice > 0) {
+                            productPrice = tieredPrice;
+                        } else {
+                            const rawPrice = String(selectedProduct.price).replace(/[^\d.]/g, '');
+                            const parsedPrice = parseFloat(rawPrice);
+                            if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                                productPrice = parsedPrice;
+                            }
                         }
                     }
                 } else if (typeof selectedProduct === 'string') {
@@ -362,13 +374,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             }
 
             // ד. בניית אובייקט עגלה תקין לחלוטין עם המחיר והשם המקוריים
-            const cartItem = {
+            const cartItem = withTieredPricingFields({
                 id: `cart_${Date.now()}`,
                 productId: productOriginalId,
                 name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`, 
                 price: productPrice,            
                 image: cartThumb || savedProject.preview || selectedProduct?.image,
-                quantity: 1,
+                quantity: orderQuantity || 1,
                 customDesign: {
                     projectId: savedProject._id,
                     projectName: savedProject.name,
@@ -380,7 +392,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         height: canvasDimensions.heightCm,
                     },
                 }
-            };
+            }, typeof selectedProduct === 'object' ? selectedProduct : null);
 
             // ה. הזרקה לסל הקניות (תמונה ממוזערת/URL קל לתצוגה בעגלה)
             await addToCart([cartItem]);
@@ -398,7 +410,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions]);
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions, orderQuantity]);
 
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
@@ -439,7 +451,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             }
 
-            const cartItem = {
+            const cartItem = withTieredPricingFields({
                 id: `cart_${Date.now()}`,
                 productId: productOriginalId,
                 name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`,
@@ -452,7 +464,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     elements: proj.elements,
                     canvasBackground: proj.canvasBackground
                 }
-            };
+            }, typeof proj.selectedProduct === 'object' ? proj.selectedProduct : null);
 
             await addToCart([cartItem]);
             
@@ -541,33 +553,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [currentProjectId, userId]);
 
     const addTextElement = useCallback(() => {
-        const config = { content: 'טקסט ניתן לעריכה', fontSize: 32, bold: false };
-
         const newElement = {
+            ...createDefaultTextElement(canvasDimensions),
             id: `text_${Date.now()}`,
-            type: 'text',
-            content: config.content,
-            fontFamily: 'Arial',
-            fontSize: config.fontSize,
-            color: '#333333',
-            bold: config.bold,
-            italic: false,
-            underline: false,
-            textAlign: 'center',
-            direction: 'rtl',
-            ...centerPosition(280, 64, canvasDimensions.width, canvasDimensions.height),
-            width: 280,
-            height: 64,
-            backgroundColor: 'transparent',
-            borderColor: '#000000',
-            borderWidth: 0,
-            textShadowEnabled: false,
-            textShadowColor: '#000000',
-            textShadowBlur: 2,
-            textShadowOffsetX: 2,
-            textShadowOffsetY: 2,
-            opacity: 1,
-            rotation: 0,
         };
         const newElements = [...elements, newElement];
         updateElementsWithHistory(newElements);
@@ -848,6 +836,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     zoom={zoom}
                     canvasWidth={canvasDimensions.width}
                     canvasHeight={canvasDimensions.height}
+                    printWidthCm={canvasDimensions.widthCm}
+                    printHeightCm={canvasDimensions.heightCm}
                 />
             </div>
             <EditorFooter
@@ -939,88 +929,18 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 </div>
             )}
 
-            {/* Preview Modal – z גבוה מה-EditorHeader (60) כדי שלא ייחפוף מעל התמונה */}
-            {showPreviewModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-                    <div
-                        className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {isSaving && (
-                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
-                                <svg className="animate-spin h-12 w-12 text-red-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <p className="text-lg font-bold text-gray-800">מעבד הזמנה...</p>
-                                <p className="text-sm text-gray-500 mt-1">נא להמתין</p>
-                            </div>
-                        )}
-                        <div className="shrink-0 p-3 border-b flex justify-between items-center bg-gray-50 gap-2">
-                            <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2 min-w-0">
-                                <SparklesIcon className="w-5 h-5 text-red-400 shrink-0" />
-                                <span className="truncate">
-                                    תצוגה מקדימה: {selectedProduct?.name || (typeof selectedProduct === 'string' ? selectedProduct : 'העיצוב שלך')}
-                                </span>
-                            </h3>
-                            <button
-                                onClick={() => setShowPreviewModal(false)}
-                                disabled={isSaving}
-                                className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
-                            >
-                                <XIcon className="w-5 h-5 text-gray-500" />
-                            </button>
-                        </div>
-                        <div className="flex-1 min-h-0 p-4 overflow-auto bg-gray-100 flex flex-col items-center justify-center gap-3">
-                            <p className="text-sm text-gray-600 text-center">
-                                כך ייראה הקובץ להדפסה
-                                {printSizeLabel && (
-                                    <span className="text-[#f2665e] font-semibold"> · {printSizeLabel}</span>
-                                )}
-                            </p>
-                            {previewImage ? (
-                                <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 max-w-full">
-                                    <img
-                                        src={previewImage}
-                                        alt="תצוגת העיצוב להדפסה"
-                                        className="max-w-full max-h-[55vh] w-auto h-auto object-contain block mx-auto"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="text-center text-gray-500 py-8">
-                                    <p>טוען תצוגה מקדימה...</p>
-                                </div>
-                            )}
-                        </div>
-                        <div className="shrink-0 p-3 border-t bg-white flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowPreviewModal(false)}
-                                disabled={isSaving}
-                                className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                חזור לעריכה
-                            </button>
-                            <button 
-                                onClick={handleConfirmAndOrder}
-                                disabled={isSaving}
-                                className="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 min-w-[9.5rem] justify-center"
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        מעבד...
-                                    </>
-                                ) : (
-                                    'אישור והזמנה'
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ProductPreviewModal
+                isOpen={showPreviewModal}
+                onClose={() => setShowPreviewModal(false)}
+                previewImage={previewImage}
+                productNameHe={
+                    selectedProduct?.name
+                    || (typeof selectedProduct === 'string' ? selectedProduct : null)
+                }
+                printSizeLabel={printSizeLabel}
+                isSaving={isSaving}
+                onConfirm={handleConfirmAndOrder}
+            />
 
             {/* Loading Overlay */}
             {(isPreviewLoading || isSaving) && !showPreviewModal && (

@@ -1,6 +1,7 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon } from '../icons';
 import { ReactCrop } from 'react-image-crop';
+import { getSafeZoneInsets, analyzeDesignSafeZone, getDesignZoneWarningMessage } from '../../utils/safeZone';
 
 const rotatePoint = (point, angleDegrees) => {
   const angleRadians = (angleDegrees * Math.PI) / 180;
@@ -54,6 +55,8 @@ const Canvas = ({
   zoom,
   canvasWidth = 350,
   canvasHeight = 525,
+  printWidthCm,
+  printHeightCm,
 }) => {
   const [editingElementId, setEditingElementId] = useState(null);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -96,9 +99,51 @@ const Canvas = ({
     initialMouseY: 0,
     aspectRatio: 1,
   });
+  const bleedAlertShownRef = useRef(false);
+  const wasInteractingRef = useRef(false);
+  const canvasDimsRef = useRef({ canvasWidth, canvasHeight, printWidthCm, printHeightCm });
+  canvasDimsRef.current = { canvasWidth, canvasHeight, printWidthCm, printHeightCm };
+
+  const analyzeCurrentDesign = (items = elementsRef.current) => analyzeDesignSafeZone(
+    items,
+    canvasDimsRef.current.canvasWidth,
+    canvasDimsRef.current.canvasHeight,
+    canvasDimsRef.current.printWidthCm,
+    canvasDimsRef.current.printHeightCm,
+  );
+
+  const showDesignZoneAlert = (analysis = analyzeCurrentDesign()) => {
+    const message = getDesignZoneWarningMessage(analysis);
+    if (!message || bleedAlertShownRef.current) return;
+    bleedAlertShownRef.current = true;
+    window.setTimeout(() => alert(message), 0);
+  };
 
   const scale = zoom / 100;
   const selectedElement = elements.find(el => el.id === selectedElementId);
+  const safeZoneInsets = useMemo(
+    () => getSafeZoneInsets(canvasWidth, canvasHeight, printWidthCm, printHeightCm),
+    [canvasWidth, canvasHeight, printWidthCm, printHeightCm],
+  );
+  const designAnalysis = useMemo(
+    () => analyzeDesignSafeZone(
+      elements,
+      canvasWidth,
+      canvasHeight,
+      printWidthCm,
+      printHeightCm,
+    ),
+    [elements, canvasWidth, canvasHeight, printWidthCm, printHeightCm],
+  );
+  const hasBleedViolation = designAnalysis.hasOutside;
+  const hasTextNearEdgeWarning = designAnalysis.hasTextNearEdge && !designAnalysis.hasOutside;
+  const hasDesignNearEdgeWarning = designAnalysis.hasDesignNearEdge && !designAnalysis.hasOutside;
+
+  useEffect(() => {
+    if (!designAnalysis.hasOutside && !designAnalysis.hasNearEdge) {
+      bleedAlertShownRef.current = false;
+    }
+  }, [designAnalysis.hasOutside, designAnalysis.hasNearEdge]);
 
   useEffect(() => {
     if (!editingElementId) return;
@@ -174,10 +219,26 @@ const Canvas = ({
 
       if (dx !== 0 || dy !== 0) {
         e.preventDefault();
+        const nextLeft = currentSelectedElement.left + dx;
+        const nextTop = currentSelectedElement.top + dy;
         updateElement(selectedElementId, {
-          left: currentSelectedElement.left + dx,
-          top: currentSelectedElement.top + dy
+          left: nextLeft,
+          top: nextTop,
         });
+        const nextElements = elementsRef.current.map((el) => (
+          el.id === selectedElementId
+            ? { ...el, left: nextLeft, top: nextTop }
+            : el
+        ));
+        window.setTimeout(() => {
+          showDesignZoneAlert(analyzeDesignSafeZone(
+            nextElements,
+            canvasDimsRef.current.canvasWidth,
+            canvasDimsRef.current.canvasHeight,
+            canvasDimsRef.current.printWidthCm,
+            canvasDimsRef.current.printHeightCm,
+          ));
+        }, 0);
       }
     };
 
@@ -187,6 +248,7 @@ const Canvas = ({
 
   useEffect(() => {
     if (!isInteracting) return;
+    wasInteractingRef.current = true;
 
     const handleGlobalMouseMove = (e) => {
       if (dragInfo.current.isDragging && dragInfo.current.elementId) {
@@ -287,6 +349,7 @@ const Canvas = ({
     };
 
     const handleGlobalMouseUp = () => {
+      const didInteract = wasInteractingRef.current;
       setIsInteracting(false);
       if (dragInfo.current.isDragging) {
         dragInfo.current = { ...dragInfo.current, isDragging: false, pendingDrag: false, elementId: null };
@@ -299,6 +362,11 @@ const Canvas = ({
       if (resizeInfo.current.isResizing) {
         resizeInfo.current = { ...resizeInfo.current, isResizing: false, elementId: null };
       }
+
+      if (didInteract) {
+        showDesignZoneAlert(analyzeCurrentDesign());
+      }
+      wasInteractingRef.current = false;
     };
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -321,6 +389,9 @@ const Canvas = ({
   const handleBlur = (e, elementId) => {
     handleTextChange(elementId, e.currentTarget.innerText);
     setEditingElementId(null);
+    window.setTimeout(() => {
+      showDesignZoneAlert(analyzeCurrentDesign());
+    }, 150);
   };
 
   const handleDoubleClick = (e, elementId) => {
@@ -329,18 +400,11 @@ const Canvas = ({
     setEditingElementId(elementId);
   };
 
-  const beginTextEditing = (elementId) => {
-    setSelectedElementId(elementId);
-    setEditingElementId(elementId);
-  };
-
   const handleMouseDown = (e, el) => {
     if (el.id === croppingElementId || el.locked) return;
     if (el.type === 'text' && el.id === editingElementId) return;
 
-    if (el.type !== 'text') {
-      e.preventDefault();
-    }
+    e.preventDefault();
     e.stopPropagation();
 
     setSelectedElementId(el.id);
@@ -590,13 +654,6 @@ const Canvas = ({
       <div
         style={textStyle}
         onDoubleClick={!isGhost ? (e) => !el.locked && handleDoubleClick(e, textEl.id) : undefined}
-        onClick={!isGhost ? (e) => {
-          if (el.locked || croppingElementId) return;
-          e.stopPropagation();
-          if (selectedElementId === textEl.id) {
-            beginTextEditing(textEl.id);
-          }
-        } : undefined}
       >
         {textEl.content}
       </div>
@@ -693,10 +750,34 @@ const Canvas = ({
   const isEditingSelectedText = selectedElement?.type === 'text' && editingElementId === selectedElement.id;
 
   return (
-    <main className="flex-1 bg-gray-200 flex items-center justify-center p-8 overflow-auto" onClick={() => {
+    <main className="flex-1 bg-gray-200 flex flex-col items-center justify-center p-8 overflow-auto relative" onClick={() => {
       if (croppingElementId || editingElementId) return;
       setSelectedElementId(null);
     }}>
+      {hasBleedViolation && (
+        <div
+          role="alert"
+          className="mb-4 w-full max-w-lg rounded-lg border border-red-400 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-900 shadow-sm"
+        >
+          שימו לב: חלק מהעיצוב יוצא ממשטח הבטוח (הקו המקווקו) ועלול להיחתך בהדפסה
+        </div>
+      )}
+      {hasTextNearEdgeWarning && (
+        <div
+          role="alert"
+          className="mb-4 w-full max-w-lg rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900 shadow-sm"
+        >
+          הכיתוב קרוב מדי לקצה — מומלץ להזיז אותו יותר למרכז משטח הבטוח
+        </div>
+      )}
+      {hasDesignNearEdgeWarning && (
+        <div
+          role="alert"
+          className="mb-4 w-full max-w-lg rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900 shadow-sm"
+        >
+          חלק מהעיצוב קרוב מדי לקצה — מומלץ להזיז אותו יותר למרכז משטח הבטוח
+        </div>
+      )}
       <div
         id="canvas-container"
         className="shadow-lg relative transition-transform duration-200 ease-in-out origin-center"
@@ -719,6 +800,47 @@ const Canvas = ({
             }}
           />
         )}
+
+        {/* Safe zone – מסגרת חיתוך מקווקות */}
+        <div
+          className="absolute pointer-events-none canvas-safe-zone-overlay"
+          style={{
+            top: `${safeZoneInsets.top}px`,
+            left: `${safeZoneInsets.left}px`,
+            right: `${safeZoneInsets.right}px`,
+            bottom: `${safeZoneInsets.bottom}px`,
+            zIndex: 90,
+          }}
+          aria-hidden="true"
+        >
+          <svg
+            width="100%"
+            height="100%"
+            preserveAspectRatio="none"
+            style={{ display: 'block', overflow: 'visible' }}
+            aria-hidden="true"
+          >
+            <rect
+              width="100%"
+              height="100%"
+              fill="none"
+              stroke="rgba(0, 0, 0, 0.45)"
+              strokeWidth="1"
+              strokeDasharray="7 5"
+              vectorEffect="non-scaling-stroke"
+            />
+            <rect
+              width="100%"
+              height="100%"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.75)"
+              strokeWidth="1"
+              strokeDasharray="7 5"
+              strokeDashoffset="7"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
 
         {/* RENDER ELEMENTS (Content Only, Z-Index = index) */}
         {elements.map((el, index) => {

@@ -5,6 +5,12 @@ export const MIN_CANVAS_PX = 200;
 export const DEFAULT_WIDTH_CM = 12;
 export const DEFAULT_HEIGHT_CM = 18;
 export const PRINT_DPI = 300;
+/** כמה ס"מ מקטינים ממידות משטח ההדפסה למסגרת הבטוחה (רוחב−1, אורך−1) */
+export const SAFE_ZONE_TRIM_CM = 1;
+
+const DEFAULT_TEXT_WIDTH = 280;
+const DEFAULT_TEXT_HEIGHT = 64;
+const DEFAULT_TEXT_FONT_SIZE = 32;
 
 /**
  * מחשב גודל משטח העבודה בעורך לפי מידות ההדפסה שהמנהל הגדיר במוצר.
@@ -39,6 +45,12 @@ export function formatPrintSizeLabel(widthCm, heightCm) {
     return `${widthCm} × ${heightCm} ס"מ`;
 }
 
+/** ממיר ס"מ לפיקסלים על משטח העורך (מתחשב בקנה מידה כשהמשטח מוקטן) */
+export function cmToCanvasPx(cm, canvasWidthPx, widthCm) {
+    if (!widthCm || widthCm <= 0) return Math.round(cm * CM_TO_PX);
+    return Math.round((canvasWidthPx / widthCm) * cm);
+}
+
 /** מפתח לשמירת טיוטה – מפריד בין מוצרים ובין מידות שונות */
 export function getCanvasStorageKey(product, dims) {
     const id = product?._id || product?.id || 'no-product';
@@ -52,17 +64,48 @@ export function centerPosition(elementWidth, elementHeight, canvasWidth, canvasH
     };
 }
 
+/** ממרכז אלמנט בתוך אזור הבטוח (בתוך הקו המקווקו) */
+export function centerInSafeZone(elementWidth, elementHeight, dims) {
+    const safe = getSafeInnerSizePx(dims);
+    const marginX = Math.round((dims.width - safe.width) / 2);
+    const marginY = Math.round((dims.height - safe.height) / 2);
+    return {
+        left: marginX + Math.max(0, Math.round((safe.width - elementWidth) / 2)),
+        top: marginY + Math.max(0, Math.round((safe.height - elementHeight) / 2)),
+    };
+}
+
+function getSafeInnerSizePx(dims) {
+    const safeWidthCm = Math.max(1, (dims.widthCm || 0) - SAFE_ZONE_TRIM_CM);
+    const safeHeightCm = Math.max(1, (dims.heightCm || 0) - SAFE_ZONE_TRIM_CM);
+    return {
+        width: cmToCanvasPx(safeWidthCm, dims.width, dims.widthCm),
+        height: cmToCanvasPx(safeHeightCm, dims.height, dims.heightCm),
+    };
+}
+
+/** גודל תיבת טקסט ברירת מחדל – מתאים למשטחים קטנים כדי שלא יחרוג מאזור הבטוח */
+export function getDefaultTextBoxMetrics(dims) {
+    const safe = getSafeInnerSizePx(dims);
+    const width = Math.max(60, Math.min(DEFAULT_TEXT_WIDTH, Math.floor(safe.width * 0.82)));
+    const height = Math.max(28, Math.min(DEFAULT_TEXT_HEIGHT, Math.floor(safe.height * 0.18)));
+    const fontSize = Math.max(
+        10,
+        Math.min(DEFAULT_TEXT_FONT_SIZE, Math.round(DEFAULT_TEXT_FONT_SIZE * (width / DEFAULT_TEXT_WIDTH))),
+    );
+    return { width, height, fontSize };
+}
+
 /** אלמנט טקסט ברירת מחדל במרכז המשטח */
 export function createDefaultTextElement(dims) {
-    const width = 280;
-    const height = 64;
-    const { left, top } = centerPosition(width, height, dims.width, dims.height);
+    const { width, height, fontSize } = getDefaultTextBoxMetrics(dims);
+    const { left, top } = centerInSafeZone(width, height, dims);
 
     return {
         id: `text_${Date.now()}`,
         type: 'text',
         fontFamily: 'Arial',
-        fontSize: 32,
+        fontSize,
         color: '#333333',
         bold: false,
         italic: false,
@@ -109,13 +152,21 @@ export function normalizeEditorElements(elements, dims) {
     }
 
     const primary = textElements[0];
-    const width = Number(primary.width) > 40 ? Number(primary.width) : 280;
-    const height = Number(primary.height) > 24 ? Number(primary.height) : 64;
+    const defaults = getDefaultTextBoxMetrics(dims);
     const hasUsableContent = typeof primary.content === 'string' && primary.content.trim().length >= 2;
     const content = hasUsableContent ? primary.content : DEFAULT_TEXT_CONTENT;
-    const shouldCenter = content === DEFAULT_TEXT_CONTENT;
-    const position = shouldCenter
-        ? centerPosition(width, height, dims.width, dims.height)
+    const isDefaultContent = content === DEFAULT_TEXT_CONTENT;
+    const width = isDefaultContent
+        ? defaults.width
+        : (Number(primary.width) > 40 ? Number(primary.width) : defaults.width);
+    const height = isDefaultContent
+        ? defaults.height
+        : (Number(primary.height) > 24 ? Number(primary.height) : defaults.height);
+    const fontSize = isDefaultContent
+        ? defaults.fontSize
+        : (primary.fontSize ?? defaults.fontSize);
+    const position = isDefaultContent
+        ? centerInSafeZone(width, height, dims)
         : { left: primary.left ?? 0, top: primary.top ?? 0 };
 
     const normalizedText = {
@@ -124,6 +175,7 @@ export function normalizeEditorElements(elements, dims) {
         content,
         width,
         height,
+        fontSize,
         left: position.left,
         top: position.top,
         locked: false,
