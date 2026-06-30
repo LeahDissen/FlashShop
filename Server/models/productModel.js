@@ -12,5 +12,16 @@ let productSchema = new mongoose.Schema({
     /** מידות אזור ההדפסה בס"מ – משמשות לגודל משטח העבודה בעורך */
     printWidth: { type: Number, default: 12 },
     printHeight: { type: Number, default: 18 },
+    /** משפטים מתאימים לכיתוב על המוצר – מוצגים ללקוח בעמוד רעיונות לכיתובים */
+    captionIdeas: [{
+        text: { type: String, required: true, trim: true },
+        category: { type: String, default: "כללי", trim: true },
+    }],
+    /** מדרגות מחיר לפי כמות — ריק = מחיר קבוע בלבד */
+    priceTiers: [{
+        minQuantity: { type: Number, required: true, min: 1 },
+        maxQuantity: { type: Number, default: null },
+        unitPrice: { type: Number, required: true, min: 0 },
+    }],
 }, { timestamps: true });
 exports.ProductModel = mongoose.model("products", productSchema);
