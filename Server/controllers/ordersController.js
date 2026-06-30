@@ -4,6 +4,7 @@ const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
+const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
 
 const isValidObjectId = (id) =>
     mongoose.Types.ObjectId.isValid(id) &&
@@ -131,7 +132,7 @@ exports.getPendingOrderForUser = async (req, res) => {
         res.json(orders);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "There was an error, try again later" });
     }
 };
 
@@ -147,7 +148,7 @@ exports.getOrders = async (req, res) => {
         res.json(orders);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "There was an error, try again later" });
     }
 };
 
@@ -165,7 +166,7 @@ exports.getOrdersByUserId = async (req, res) => {
         res.json(orders);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "There was an error, try again later", err });
+        res.status(500).json({ msg: "There was an error, try again later" });
     }
 };
 
@@ -196,7 +197,7 @@ exports.updateOrder = async (req, res) => {
         res.json(order);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "Error updating cart", err });
+        res.status(500).json({ msg: "Error updating cart" });
     }
 };
 
@@ -223,7 +224,7 @@ exports.updateOrderStatus = async (req, res) => {
         res.json(order);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה בעדכון סטטוס ההזמנה", err });
+        res.status(500).json({ msg: "שגיאה בעדכון סטטוס ההזמנה" });
     }
 };
 
@@ -270,7 +271,7 @@ exports.createOrder = async (req, res) => {
                     return res.status(404).json({ msg: "המוצר המבוקש לא נמצא במערכת" });
                 }
 
-                let unitPrice = Number(product.price) || 0;
+                let unitPrice = getUnitPriceForQuantity(product, qty);
                 let name = product.name;
                 let image = product.image;
 
@@ -405,7 +406,7 @@ exports.createOrder = async (req, res) => {
         res.status(201).json(saved);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה ביצירת ההזמנה", err });
+        res.status(500).json({ msg: "שגיאה ביצירת ההזמנה" });
     }
 };
 
@@ -430,6 +431,6 @@ exports.getOrderById = async (req, res) => {
         res.json(order);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה בטעינת ההזמנה", err });
+        res.status(500).json({ msg: "שגיאה בטעינת ההזמנה" });
     }
 };
