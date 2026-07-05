@@ -28,7 +28,10 @@ const ProductPricingTableContent = ({ product, quantity = 0 }) => {
                             className={row.isActive ? 'bg-[#fff5f4]' : ''}
                         >
                             <td className="py-2 px-2 text-right border-b border-gray-100 text-gray-800">
-                                {row.rangeLabel}
+                                <span dir="ltr" className="inline-block [unicode-bidi:isolate]">
+                                    {row.rangeLtr}
+                                </span>
+                                {row.rangeSuffix}
                                 {row.isActive && (
                                     <span className="mr-1 text-[10px] font-bold text-[#f2665e]">
                                         ✓

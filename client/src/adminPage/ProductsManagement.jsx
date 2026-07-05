@@ -23,7 +23,7 @@ import {
 } from "../constants/productCategories";
 import { getProductDirectLink } from "../utils/productDisplay";
 import { CAPTION_CATEGORIES } from "../constants/captionCategories";
-import { validatePriceTiers } from "../utils/productQuantityPricing";
+import { validatePriceTiers, serializePriceTiers } from "../utils/productQuantityPricing";
 
 const createEmptyTier = () => ({
     id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -219,29 +219,33 @@ export default function ProductsManagement() {
                 alert(validation.message);
                 return;
             }
-            serializedTiers = validation.tiers.map((t) => ({
-                minQuantity: t.min,
-                maxQuantity: t.max,
-                unitPrice: t.unitPrice,
-            }));
+            serializedTiers = serializePriceTiers(priceTiers);
         }
 
         const displayType = getDisplayTypeForCategory(formData.category);
         const payload = {
-            ...formData,
-            displayType,
+            name: formData.name.trim(),
+            description: formData.description.trim(),
             price: Number(formData.price),
+            category: formData.category,
+            displayType,
             stock: Number(formData.stock),
+            image: formData.image.trim(),
             priceTiers: serializedTiers,
-            printWidth: isDesignCategory ? Number(formData.printWidth) || 12 : undefined,
-            printHeight: isDesignCategory ? Number(formData.printHeight) || 18 : undefined,
             captionIdeas: isDesignCategory
-                ? productCaptions.map(({ text, category }) => ({
-                    text: text.trim(),
-                    category: category || "כללי",
-                }))
+                ? productCaptions
+                    .map(({ text, category }) => ({
+                        text: text.trim(),
+                        category: category || "כללי",
+                    }))
+                    .filter((caption) => caption.text.length > 0)
                 : [],
         };
+
+        if (isDesignCategory) {
+            payload.printWidth = Number(formData.printWidth) || 12;
+            payload.printHeight = Number(formData.printHeight) || 18;
+        }
 
         try {
             if (isEditing) {
@@ -255,7 +259,13 @@ export default function ProductsManagement() {
             loadProducts();
         } catch (error) {
             console.error("Error saving product:", error);
-            alert("שגיאה בשמירה");
+            const status = error.response?.status;
+            const serverMsg = error.response?.data?.msg || error.response?.data?.message;
+            if (status === 401 || status === 403) {
+                alert(serverMsg || "אין הרשאה לשמור. יש להתחבר מחדש כמנהל.");
+            } else {
+                alert(serverMsg || "שגיאה בשמירה");
+            }
         }
     };
 
@@ -282,7 +292,7 @@ export default function ProductsManagement() {
                 ? tiers.map((t, i) => ({
                     id: `tier-${i}-${t.minQuantity}`,
                     minQuantity: t.minQuantity ?? "",
-                    maxQuantity: t.maxQuantity ?? "",
+                    maxQuantity: t.maxQuantity == null ? "" : t.maxQuantity,
                     unitPrice: t.unitPrice ?? "",
                 }))
                 : [],
@@ -534,7 +544,12 @@ export default function ProductsManagement() {
                                         <span>מחיר ליחידה (₪)</span>
                                         <span className="w-8" />
                                     </div>
-                                    {priceTiers.map((tier, index) => (
+                                    <p className="text-[11px] text-gray-500 px-1">
+                                        במדרגה האחרונה ניתן להשאיר מקסימום ריק — יוצג ללקוח כ&quot;50+&quot; / &quot;50 ומעלה&quot;
+                                    </p>
+                                    {priceTiers.map((tier, index) => {
+                                        const isLastTier = index === priceTiers.length - 1;
+                                        return (
                                         <div
                                             key={tier.id}
                                             className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center"
@@ -553,8 +568,10 @@ export default function ProductsManagement() {
                                                 min="1"
                                                 value={tier.maxQuantity}
                                                 onChange={(e) => handleTierChange(tier.id, "maxQuantity", e.target.value)}
-                                                placeholder={index === priceTiers.length - 1 ? "ללא (500+)" : "עד"}
+                                                placeholder={isLastTier ? "ומעלה" : "עד"}
+                                                title={isLastTier ? "השאירו ריק למדרגה פתוחה (למשל 50 ומעלה)" : undefined}
                                                 className="w-full p-2 border rounded-lg text-sm bg-white"
+                                                required={!isLastTier}
                                             />
                                             <input
                                                 type="number"
@@ -575,7 +592,8 @@ export default function ProductsManagement() {
                                                 <FaTrash className="text-xs" />
                                             </button>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                     <div className="flex gap-2 pt-1">
                                         <button
                                             type="button"

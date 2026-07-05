@@ -1,11 +1,18 @@
 /** תמחור מוצר לפי מדרגות כמות — שרת */
 
+function normalizeMaxQuantity(value) {
+    if (value == null || value === '') return null;
+    if (value === Infinity || value === 'Infinity') return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
 function normalizePriceTiers(tiers = []) {
     return [...tiers]
         .filter((t) => t && t.minQuantity != null && t.unitPrice != null)
         .map((t) => ({
             min: Number(t.minQuantity),
-            max: t.maxQuantity == null || t.maxQuantity === '' ? null : Number(t.maxQuantity),
+            max: normalizeMaxQuantity(t.maxQuantity),
             unitPrice: Number(t.unitPrice),
         }))
         .filter((t) => Number.isFinite(t.min) && Number.isFinite(t.unitPrice))

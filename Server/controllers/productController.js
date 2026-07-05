@@ -1,6 +1,64 @@
 const { ProductModel } = require("../models/productModel");
 const { generatePersonalizedProduct, generateGiftIdea } = require("../utils/aiService");
 
+function normalizeMaxQuantity(value) {
+    if (value == null || value === "") return null;
+    if (value === Infinity || value === "Infinity") return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
+function sanitizeProductBody(body = {}) {
+    const data = { ...body };
+
+    if (Array.isArray(data.priceTiers)) {
+        data.priceTiers = data.priceTiers
+            .filter((t) => t && t.minQuantity != null && t.unitPrice != null)
+            .map((t) => {
+                const row = {
+                    minQuantity: Number(t.minQuantity),
+                    unitPrice: Number(t.unitPrice),
+                };
+                const max = normalizeMaxQuantity(t.maxQuantity);
+                if (max != null) {
+                    row.maxQuantity = max;
+                }
+                return row;
+            })
+            .filter((t) => Number.isFinite(t.minQuantity) && Number.isFinite(t.unitPrice));
+    }
+
+    if (Array.isArray(data.captionIdeas)) {
+        data.captionIdeas = data.captionIdeas
+            .map((c) => ({
+                text: String(c?.text ?? "").trim(),
+                category: String(c?.category ?? "כללי").trim() || "כללי",
+            }))
+            .filter((c) => c.text.length > 0);
+    }
+
+    Object.keys(data).forEach((key) => {
+        if (data[key] === undefined) {
+            delete data[key];
+        }
+    });
+
+    return data;
+}
+
+function handleProductError(err, res) {
+    console.error(err);
+    if (err?.name === "ValidationError") {
+        const firstField = Object.values(err.errors || {})[0];
+        const message = firstField?.message || err.message;
+        return res.status(400).json({ msg: message });
+    }
+    if (err?.name === "CastError") {
+        return res.status(400).json({ msg: "נתוני המוצר אינם תקינים" });
+    }
+    return res.status(500).json({ msg: "שגיאה בשמירת המוצר" });
+}
+
 exports.getProducts = async (req, res) => {
   try {
     let products = await ProductModel.find({});
@@ -23,32 +81,30 @@ exports.getProductById = async (req, res) => {
 
 exports.addProduct = async (req, res) => {
   try {
-    const data = req.body;
+    const data = sanitizeProductBody(req.body);
     const product = new ProductModel(data);
     await product.save();
     res.json(product);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ msg: "There was an error, try again later", err });
+    handleProductError(err, res);
   }
 };
 
 exports.updateProduct = async (req, res) => {
   try {
     const id = req.params.id;
-    const data = req.body;
+    const data = sanitizeProductBody(req.body);
     const updatedProduct = await ProductModel.findByIdAndUpdate(
       id,
       { $set: data },
-      { new: true }
+      { new: true, runValidators: true },
     );
     if (!updatedProduct) {
       return res.status(404).json({ msg: "Product not found" });
     }
     res.json(updatedProduct);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "There was an error, try again later", err });
+    handleProductError(err, res);
   }
 };
 

@@ -1,13 +1,23 @@
 /** תמחור מוצר לפי מדרגות כמות — מקור אמת לתצוגה ולחישוב */
 
+function normalizeMaxQuantity(value) {
+    if (value == null || value === '') return null;
+    if (value === Infinity || value === 'Infinity') return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
+
 export function normalizePriceTiers(tiers = []) {
     return [...tiers]
         .filter((t) => t && t.minQuantity != null && t.unitPrice != null && t.unitPrice !== '')
-        .map((t) => ({
-            min: Number(t.minQuantity),
-            max: t.maxQuantity == null || t.maxQuantity === '' ? null : Number(t.maxQuantity),
-            unitPrice: Number(t.unitPrice),
-        }))
+        .map((t) => {
+            const max = normalizeMaxQuantity(t.maxQuantity);
+            return {
+                min: Number(t.minQuantity),
+                max,
+                unitPrice: Number(t.unitPrice),
+            };
+        })
         .filter((t) => Number.isFinite(t.min) && Number.isFinite(t.unitPrice))
         .sort((a, b) => a.min - b.min);
 }
@@ -30,10 +40,19 @@ export function getUnitPriceForQuantity(product, quantity) {
     return tier ? tier.unitPrice : fixedPrice;
 }
 
+export function formatQuantityRangeParts(row) {
+    if (row.max == null) {
+        return { ltr: `${row.min}+`, suffix: ' ומעלה' };
+    }
+    if (row.min === 1) {
+        return { ltr: `1–${row.max}`, suffix: ' יחידות' };
+    }
+    return { ltr: `${row.min}–${row.max}`, suffix: ' יחידות' };
+}
+
 export function formatQuantityRange(row) {
-    if (row.max == null) return `${row.min} יחידות ומעלה`;
-    if (row.min === 1) return `1–${row.max} יחידות`;
-    return `${row.min}–${row.max} יחידות`;
+    const parts = formatQuantityRangeParts(row);
+    return `${parts.ltr}${parts.suffix}`;
 }
 
 export function isQuantityInTier(quantity, tier) {
@@ -45,12 +64,17 @@ export function isQuantityInTier(quantity, tier) {
 
 export function getProductPricingTableDisplay(product, quantity = 0) {
     const tiers = normalizePriceTiers(product?.priceTiers);
-    return tiers.map((tier) => ({
-        ...tier,
-        rangeLabel: formatQuantityRange(tier),
-        priceLabel: `${tier.unitPrice.toFixed(2)} ₪`,
-        isActive: isQuantityInTier(quantity, tier),
-    }));
+    return tiers.map((tier) => {
+        const parts = formatQuantityRangeParts(tier);
+        return {
+            ...tier,
+            rangeLtr: parts.ltr,
+            rangeSuffix: parts.suffix,
+            rangeLabel: `${parts.ltr}${parts.suffix}`,
+            priceLabel: `${tier.unitPrice.toFixed(2)} ₪`,
+            isActive: isQuantityInTier(quantity, tier),
+        };
+    });
 }
 
 export function formatPrice(amount) {
@@ -75,11 +99,18 @@ export function validatePriceTiers(tiers) {
 
     for (let i = 0; i < normalized.length; i++) {
         const tier = normalized[i];
+        const isLast = i === normalized.length - 1;
         if (tier.min < 1) {
             return { valid: false, message: 'כמות מינימום חייבת להיות לפחות 1' };
         }
         if (tier.unitPrice < 0) {
             return { valid: false, message: 'מחיר ליחידה לא יכול להיות שלילי' };
+        }
+        if (!isLast && tier.max == null) {
+            return {
+                valid: false,
+                message: `מדרגה ${i + 1}: יש להזין מקסימום (ללא הגבלה מותר רק במדרגה האחרונה)`,
+            };
         }
         if (tier.max != null && tier.max < tier.min) {
             return { valid: false, message: `מדרגה ${i + 1}: כמות מקסימום קטנה ממינימום` };
@@ -105,9 +136,14 @@ export function validatePriceTiers(tiers) {
 export function serializePriceTiers(tiers) {
     const result = validatePriceTiers(tiers);
     if (!result.valid) return [];
-    return result.tiers.map((t) => ({
-        minQuantity: t.min,
-        maxQuantity: t.max,
-        unitPrice: t.unitPrice,
-    }));
+    return result.tiers.map((t) => {
+        const row = {
+            minQuantity: t.min,
+            unitPrice: t.unitPrice,
+        };
+        if (t.max != null) {
+            row.maxQuantity = t.max;
+        }
+        return row;
+    });
 }
