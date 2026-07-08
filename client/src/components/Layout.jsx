@@ -6,7 +6,7 @@ import Terms from "./Terms";
 
 export default function Layout({ children, compact = false }) {
     return (
-        <div className="flex flex-col min-h-screen font-sans">
+        <div className={`flex flex-col font-sans ${compact ? 'h-screen max-h-screen overflow-hidden' : 'min-h-screen'}`}>
             <Terms />
             <Club />
             
@@ -24,7 +24,7 @@ export default function Layout({ children, compact = false }) {
                 </div>
             </header>
 
-            <main className="flex-1 bg-gray-50 flex flex-col min-h-0">
+            <main className="flex-1 bg-gray-50 flex flex-col min-h-0 overflow-hidden">
                 {children}
             </main>
             {!compact && <Footer />}
