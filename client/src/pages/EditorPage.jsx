@@ -10,7 +10,18 @@ import {
     centerPosition,
     scaleElementsToCanvas,
     normalizeEditorElements,
+    getPrintExportPixelRatio,
+    fitImageElementBounds,
 } from '../utils/canvasDimensions';
+import {
+    enforceLayerOrder,
+    extractFrameAspectRatio,
+    getActiveGlobalFrame,
+    insertBelowGlobalFrame,
+    isGlobalFrame,
+    removeGlobalFrames,
+    stripLegacyDropzoneFields,
+} from '../utils/editorLayering';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
@@ -24,6 +35,7 @@ import { useCartStore } from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
+import { prepareFrameImageSrc } from '../utils/frameImageProcessing';
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -71,9 +83,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const addToCart = useCartStore((state) => state.addToCart);
     const userId = useAuthStore((state) => state.userId);
 
+    const [activeFrameAspectRatio, setActiveFrameAspectRatio] = useState(null);
+    const [orientationFlipped, setOrientationFlipped] = useState(false);
+
     const canvasDimensions = useMemo(
-        () => getCanvasDimensions(selectedProduct),
-        [selectedProduct]
+        () => getCanvasDimensions(selectedProduct, activeFrameAspectRatio, orientationFlipped),
+        [selectedProduct, activeFrameAspectRatio, orientationFlipped]
     );
     const printSizeLabel = formatPrintSizeLabel(
         canvasDimensions.widthCm,
@@ -86,7 +101,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     // --- ניהול סטייט מקומי וטיוטות ---
     const [elements, setElements] = useState(() =>
-        normalizeEditorElements(null, getCanvasDimensions(null))
+        normalizeEditorElements(null, getCanvasDimensions(null)),
     );
 
     const [canvasBackground, setCanvasBackground] = useState({ type: 'color', value: '#FFFFFF' });
@@ -118,6 +133,60 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${draftProductKey}`,
     }), [draftProductKey]);
 
+    const activeGlobalFrame = useMemo(
+        () => getActiveGlobalFrame(elements),
+        [elements],
+    );
+
+    const activeGlobalFrameId = useMemo(
+        () => activeGlobalFrame?.frameId || null,
+        [activeGlobalFrame],
+    );
+
+    useEffect(() => {
+        const frame = elements.find(isGlobalFrame);
+        if (!frame?.src || frame.src.startsWith('data:')) return undefined;
+
+        let cancelled = false;
+        prepareFrameImageSrc(frame.originalSrc || frame.src).then((processed) => {
+            if (cancelled || !processed || processed === frame.src) return;
+            setElements((prev) => enforceLayerOrder(
+                prev.map((el) => (
+                    isGlobalFrame(el)
+                        ? { ...el, src: processed, originalSrc: frame.originalSrc || frame.src }
+                        : el
+                )),
+            ));
+        });
+
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeGlobalFrameId]);
+
+    useEffect(() => {
+        setOrientationFlipped(false);
+    }, [selectedProduct?._id, selectedProduct?.id]);
+
+    useEffect(() => {
+        let changed = false;
+        const fixed = elements.map((el) => {
+            if (el.type !== 'image') return el;
+            const fitted = fitImageElementBounds(el);
+            if (fitted !== el) changed = true;
+            return fitted;
+        });
+        if (!changed) return;
+        setElements(enforceLayerOrder(fixed));
+    }, [elements]);
+
+    useEffect(() => {
+        const fromElements = extractFrameAspectRatio(elements);
+        if (fromElements && fromElements !== activeFrameAspectRatio) {
+            setActiveFrameAspectRatio(fromElements);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useEffect(() => {
         const normalized = normalizeEditorElements(elements, canvasDimensions);
         if (JSON.stringify(normalized) !== JSON.stringify(elements)) {
@@ -142,7 +211,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
     useEffect(() => {
-        const storageKey = getCanvasStorageKey(selectedProduct, canvasDimensions);
+        const storageKey = getCanvasStorageKey(
+            selectedProduct,
+            canvasDimensions,
+            activeFrameAspectRatio,
+            orientationFlipped,
+        );
         const savedKey = localStorage.getItem(draftStorage.canvasKey);
 
         if (canvasAppliedKeyRef.current === storageKey) {
@@ -159,10 +233,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         let nextElements;
 
         if (savedKey === storageKey && savedElementsRaw) {
-            nextElements = normalizeEditorElements(
+            nextElements = enforceLayerOrder(normalizeEditorElements(
                 safeJsonParse(savedElementsRaw, [createDefaultTextElement(canvasDimensions)]),
                 canvasDimensions,
-            );
+            ));
+            const savedAspect = extractFrameAspectRatio(nextElements);
+            if (savedAspect) setActiveFrameAspectRatio(savedAspect);
         } else {
             nextElements = [createDefaultTextElement(canvasDimensions)];
         }
@@ -197,6 +273,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         canvasDimensions.height,
         canvasDimensions.widthCm,
         canvasDimensions.heightCm,
+        activeFrameAspectRatio,
+        orientationFlipped,
         draftStorage,
     ]);
 
@@ -255,8 +333,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [history, historyIndex]);
 
     const updateElementsWithHistory = useCallback((newElements) => {
-        setElements(newElements);
-        addToHistory(newElements);
+        const layered = enforceLayerOrder(newElements);
+        setElements(layered);
+        addToHistory(layered);
     }, [addToHistory]);
 
     // פונקציית שמירת פרויקט לבסיס הנתונים
@@ -291,6 +370,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 height: canvasDimensions.height,
                 widthCm: canvasDimensions.widthCm,
                 heightCm: canvasDimensions.heightCm,
+                orientationFlipped,
             },
             preview: previewOverride || previewDataUrl || previewImage,
         };
@@ -301,7 +381,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     };
 
     /** צילום משטח העיצוב – בלי מוקאפ AI (מציג בדיוק מה שעיצבת) */
-    const captureCanvasImage = useCallback(async (pixelRatio = 2) => {
+    const captureCanvasImage = useCallback(async (pixelRatioOverride) => {
         const node = document.getElementById('canvas-container');
         if (!node) return null;
 
@@ -311,6 +391,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setZoom(100);
         }
         await new Promise((resolve) => setTimeout(resolve, 300));
+
+        const pixelRatio = pixelRatioOverride ?? getPrintExportPixelRatio(canvasDimensions);
 
         try {
             return await toPng(node, {
@@ -328,7 +410,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 setZoom(previousZoom);
             }
         }
-    }, [canvasBackground, zoom]);
+    }, [canvasBackground, zoom, canvasDimensions]);
 
     // --- 1. כפתור "אישור והזמנה" הראשי מתוך מסך התצוגה המקדימה ---
     const handleConfirmAndOrder = useCallback(async () => {
@@ -489,10 +571,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const handleLoadProjectFromDB = useCallback((project) => {
         try {
             const productForDims = project.selectedProduct || selectedProduct;
-            const dims = getCanvasDimensions(productForDims);
-            let loadedElements = (project.elements && project.elements.length > 0)
+            const savedW = project.canvasSize?.widthCm;
+            const savedH = project.canvasSize?.heightCm;
+            const nativeW = Number(productForDims?.printWidth) || 12;
+            const nativeH = Number(productForDims?.printHeight) || 18;
+            const loadedOrientationFlipped = project.canvasSize?.orientationFlipped ?? (
+                Boolean(savedW && savedH && savedW === nativeH && savedH === nativeW && savedW !== nativeW)
+            );
+            const dims = getCanvasDimensions(productForDims, null, loadedOrientationFlipped);
+            let loadedElements = enforceLayerOrder((project.elements && project.elements.length > 0)
                 ? project.elements
-                : [createDefaultTextElement(dims)];
+                : [createDefaultTextElement(dims)]);
+
+            const loadedAspect = extractFrameAspectRatio(loadedElements);
+            if (loadedAspect) setActiveFrameAspectRatio(loadedAspect);
+            setOrientationFlipped(loadedOrientationFlipped);
 
             if (project.canvasSize?.width && project.canvasSize?.height) {
                 loadedElements = scaleElementsToCanvas(
@@ -503,6 +596,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     dims.height,
                 );
             }
+
+            loadedElements = loadedElements.map((el) => (
+                isGlobalFrame(el)
+                    ? { ...el, width: dims.width, height: dims.height, top: 0, left: 0 }
+                    : el
+            ));
 
             setElements(loadedElements);
             setCanvasBackground(project.canvasBackground || { type: 'color', value: '#FFFFFF' });
@@ -519,7 +618,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setHistoryIndex(0);
             setSelectedElementId(null);
             const loadedProduct = project.selectedProduct || selectedProduct;
-            const loadedDims = getCanvasDimensions(loadedProduct);
+            const loadedDims = getCanvasDimensions(loadedProduct, loadedAspect, loadedOrientationFlipped);
             const loadedDraftKey = resolveDraftProductKey(loadedProduct, loadedProduct?._id || loadedProduct?.id || productId);
             const loadedDraftStorage = {
                 canvasKey: `${CANVAS_KEY_STORAGE_PREFIX}_${loadedDraftKey}`,
@@ -528,11 +627,19 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${loadedDraftKey}`,
             };
 
-            safeStorageSetItem(loadedDraftStorage.canvasKey, getCanvasStorageKey(loadedProduct, loadedDims));
+            safeStorageSetItem(
+                loadedDraftStorage.canvasKey,
+                getCanvasStorageKey(loadedProduct, loadedDims, loadedAspect, loadedOrientationFlipped),
+            );
             safeStorageSetItem(loadedDraftStorage.elements, JSON.stringify(loadedElements));
             safeStorageSetItem(loadedDraftStorage.background, JSON.stringify(project.canvasBackground || { type: 'color', value: '#FFFFFF' }));
             safeStorageSetItem(loadedDraftStorage.projectName, project.name || 'הפרויקט שלי');
-            canvasAppliedKeyRef.current = getCanvasStorageKey(loadedProduct, loadedDims);
+            canvasAppliedKeyRef.current = getCanvasStorageKey(
+                loadedProduct,
+                loadedDims,
+                loadedAspect,
+                loadedOrientationFlipped,
+            );
             lastCanvasPxRef.current = { width: dims.width, height: dims.height };
 
             setShowLoadModal(false);
@@ -552,12 +659,120 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [currentProjectId, userId]);
 
+    const applyGlobalFrame = useCallback(async (frame) => {
+        const newAspectRatio = frame.aspectRatio;
+        const dims = canvasDimensions;
+
+        let updatedElements = stripLegacyDropzoneFields(removeGlobalFrames(elements));
+
+        const processedSrc = await prepareFrameImageSrc(frame.imageUrl);
+
+        const frameElement = {
+            id: `globalFrame_${frame._id}`,
+            type: 'globalFrame',
+            frameId: frame._id,
+            src: processedSrc,
+            originalSrc: frame.imageUrl,
+            title: frame.title,
+            aspectRatio: frame.aspectRatio,
+            width: dims.width,
+            height: dims.height,
+            top: 0,
+            left: 0,
+            opacity: 1,
+            rotation: 0,
+            locked: true,
+        };
+
+        const layered = enforceLayerOrder([...updatedElements, frameElement]);
+        const storageKey = getCanvasStorageKey(
+            selectedProduct,
+            dims,
+            newAspectRatio,
+            orientationFlipped,
+        );
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = { width: dims.width, height: dims.height };
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+
+        updateElementsWithHistory(layered);
+        setSelectedElementId(null);
+        setActiveFrameAspectRatio(newAspectRatio);
+    }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
+
+    const removeGlobalFrame = useCallback(() => {
+        if (!elements.some(isGlobalFrame)) return;
+
+        const dims = canvasDimensions;
+        const updatedElements = stripLegacyDropzoneFields(removeGlobalFrames(elements));
+        const layered = enforceLayerOrder(updatedElements);
+        const storageKey = getCanvasStorageKey(selectedProduct, dims, null, orientationFlipped);
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = { width: dims.width, height: dims.height };
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+
+        updateElementsWithHistory(layered);
+        setSelectedElementId(null);
+        setActiveFrameAspectRatio(null);
+    }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
+
+    const handleToggleOrientation = useCallback(() => {
+        if (!selectedProduct?.allowOrientationToggle) return;
+
+        const prevDims = canvasDimensions;
+        const nextFlipped = !orientationFlipped;
+        const newDims = getCanvasDimensions(selectedProduct, activeFrameAspectRatio, nextFlipped);
+
+        let updatedElements = scaleElementsToCanvas(
+            elements,
+            prevDims.width,
+            prevDims.height,
+            newDims.width,
+            newDims.height,
+        );
+
+        updatedElements = updatedElements.map((el) => (
+            isGlobalFrame(el)
+                ? { ...el, width: newDims.width, height: newDims.height, top: 0, left: 0 }
+                : el
+        ));
+
+        const layered = enforceLayerOrder(updatedElements);
+        const storageKey = getCanvasStorageKey(
+            selectedProduct,
+            newDims,
+            activeFrameAspectRatio,
+            nextFlipped,
+        );
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = { width: newDims.width, height: newDims.height };
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+
+        setOrientationFlipped(nextFlipped);
+        updateElementsWithHistory(layered);
+        setSelectedElementId(null);
+    }, [
+        selectedProduct,
+        canvasDimensions,
+        orientationFlipped,
+        activeFrameAspectRatio,
+        elements,
+        updateElementsWithHistory,
+        draftStorage,
+    ]);
+
     const addTextElement = useCallback(() => {
         const newElement = {
             ...createDefaultTextElement(canvasDimensions),
             id: `text_${Date.now()}`,
         };
-        const newElements = [...elements, newElement];
+        const newElements = enforceLayerOrder([...elements, newElement]);
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
@@ -589,7 +804,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             sepia: 0,
             blur: 0,
         };
-        const newElements = [...elements, newElement];
+        const newElements = enforceLayerOrder(insertBelowGlobalFrame(elements, newElement));
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
@@ -619,7 +834,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             scaleX: 1,
             scaleY: 1,
         };
-        const newElements = [...elements, newElement];
+        const newElements = enforceLayerOrder(insertBelowGlobalFrame(elements, newElement));
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
@@ -637,6 +852,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const deleteElement = useCallback(() => {
         if (!selectedElementId) return;
+        const target = elements.find((el) => el.id === selectedElementId);
+        if (isGlobalFrame(target)) return;
+
         const newElements = elements.filter(el => el.id !== selectedElementId);
         updateElementsWithHistory(newElements);
         setSelectedElementId(null);
@@ -644,7 +862,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const duplicateElementWithState = useCallback(() => {
         const elementToDuplicate = elements.find(el => el.id === selectedElementId);
-        if (!elementToDuplicate || elementToDuplicate.locked) return;
+        if (!elementToDuplicate || elementToDuplicate.locked || isGlobalFrame(elementToDuplicate)) return;
 
         const newElement = {
             ...elementToDuplicate,
@@ -669,24 +887,49 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const handleBringToFront = useCallback(() => {
         if (!selectedElementId) return;
-        const index = elements.findIndex(el => el.id === selectedElementId);
-        if (index === -1 || index === elements.length - 1) return;
+        const el = elements.find((item) => item.id === selectedElementId);
+        if (!el || isGlobalFrame(el)) return;
 
         const newElements = [...elements];
+        const index = newElements.findIndex((item) => item.id === selectedElementId);
+        if (index === -1) return;
+
         const [removed] = newElements.splice(index, 1);
-        newElements.push(removed);
-        updateElementsWithHistory(newElements);
+
+        if (el.type === 'text') {
+            newElements.push(removed);
+        } else {
+            const frameIdx = newElements.findIndex(isGlobalFrame);
+            if (frameIdx === -1) {
+                newElements.push(removed);
+            } else {
+                newElements.splice(frameIdx, 0, removed);
+            }
+        }
+
+        updateElementsWithHistory(enforceLayerOrder(newElements));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const handleSendToBack = useCallback(() => {
         if (!selectedElementId) return;
-        const index = elements.findIndex(el => el.id === selectedElementId);
-        if (index === -1 || index === 0) return;
+        const el = elements.find((item) => item.id === selectedElementId);
+        if (!el || isGlobalFrame(el)) return;
 
         const newElements = [...elements];
+        const index = newElements.findIndex((item) => item.id === selectedElementId);
+        if (index === -1) return;
+
         const [removed] = newElements.splice(index, 1);
-        newElements.unshift(removed);
-        updateElementsWithHistory(newElements);
+
+        if (el.type === 'text') {
+            const frameIdx = newElements.findIndex(isGlobalFrame);
+            const insertAt = frameIdx === -1 ? 0 : frameIdx + 1;
+            newElements.splice(insertAt, 0, removed);
+        } else {
+            newElements.unshift(removed);
+        }
+
+        updateElementsWithHistory(enforceLayerOrder(newElements));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const deleteUploadedImage = useCallback((srcToDelete) => {
@@ -757,7 +1000,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setPreviewImage(null);
 
         try {
-            const dataUrl = await captureCanvasImage(2);
+            const dataUrl = await captureCanvasImage();
             if (!dataUrl) {
                 alert('לא נמצא משטח העיצוב. נסה לרענן את הדף.');
                 return;
@@ -773,7 +1016,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [captureCanvasImage]);
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 overflow-visible" style={{ direction: 'rtl' }}>
+        <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden" style={{ direction: 'rtl' }}>
             <EditorHeader
                 onExit={onNavigateToHome}
                 projectName={projectName}
@@ -790,21 +1033,14 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 printSizeLabel={printSizeLabel}
             />
 
-            <ContextualToolbar
-                selectedElement={selectedElement}
-                onUpdateElement={(props) => selectedElement && updateElement(selectedElement.id, props)}
-                onCrop={() => selectedElement && setCroppingElementId(selectedElement.id)}
-                onDuplicate={duplicateElementWithState}
-                onDelete={deleteElement}
-                onBringToFront={handleBringToFront}
-                onSendToBack={handleSendToBack}
-            />
-
-            <div className="flex-1 flex flex-row overflow-hidden">
+            <div className="flex-1 flex flex-row overflow-hidden min-h-0">
                 <EditorSidebar
                     addTextElement={addTextElement}
                     addImageElement={addImageElement}
                     addShapeElement={addShapeElement}
+                    onApplyGlobalFrame={applyGlobalFrame}
+                    onRemoveGlobalFrame={removeGlobalFrame}
+                    activeGlobalFrameId={activeGlobalFrameId}
                     uploadedImages={uploadedImages}
                     deleteUploadedImage={deleteUploadedImage}
                     selectedElement={selectedElement}
@@ -819,7 +1055,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     addUploadedBackground={addUploadedBackground}
                     deleteUploadedBackground={deleteUploadedBackground}
                 />
-                <Canvas
+                <div className="flex-1 min-h-0 min-w-0 relative overflow-hidden flex flex-col">
+                    {selectedElement && (
+                        <div className="absolute top-0 left-0 right-0 z-40">
+                            <ContextualToolbar
+                                selectedElement={selectedElement}
+                                onUpdateElement={(props) => selectedElement && updateElement(selectedElement.id, props)}
+                                onCrop={() => selectedElement && setCroppingElementId(selectedElement.id)}
+                                onDuplicate={duplicateElementWithState}
+                                onDelete={deleteElement}
+                                onBringToFront={handleBringToFront}
+                                onSendToBack={handleSendToBack}
+                            />
+                        </div>
+                    )}
+                    <Canvas
                     elements={elements}
                     selectedElementId={selectedElementId}
                     setSelectedElementId={setSelectedElementId}
@@ -838,7 +1088,10 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     canvasHeight={canvasDimensions.height}
                     printWidthCm={canvasDimensions.widthCm}
                     printHeightCm={canvasDimensions.heightCm}
+                    showOrientationToggle={Boolean(selectedProduct?.allowOrientationToggle)}
+                    onToggleOrientation={handleToggleOrientation}
                 />
+                </div>
             </div>
             <EditorFooter
                 showGrid={showGrid}

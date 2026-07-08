@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
-import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon } from '../icons';
+import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon, FlipHorizontalIcon, XIcon } from '../icons';
 import { ReactCrop } from 'react-image-crop';
 import { getSafeZoneInsets, analyzeDesignSafeZone, getDesignZoneWarningMessage } from '../../utils/safeZone';
+import { partitionElementsByLayer } from '../../utils/editorLayering';
 
 const rotatePoint = (point, angleDegrees) => {
   const angleRadians = (angleDegrees * Math.PI) / 180;
@@ -57,12 +58,15 @@ const Canvas = ({
   canvasHeight = 525,
   printWidthCm,
   printHeightCm,
+  showOrientationToggle = false,
+  onToggleOrientation,
 }) => {
   const [editingElementId, setEditingElementId] = useState(null);
   const [isInteracting, setIsInteracting] = useState(false);
   const [crop, setCrop] = useState();
   const [completedCrop, setCompletedCrop] = useState();
   const cropImageRef = useRef(null);
+  const mainRef = useRef(null);
   const textEditRefs = useRef({});
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
@@ -101,6 +105,7 @@ const Canvas = ({
   });
   const bleedAlertShownRef = useRef(false);
   const wasInteractingRef = useRef(false);
+  const [zoneWarningToast, setZoneWarningToast] = useState(null);
   const canvasDimsRef = useRef({ canvasWidth, canvasHeight, printWidthCm, printHeightCm });
   canvasDimsRef.current = { canvasWidth, canvasHeight, printWidthCm, printHeightCm };
 
@@ -116,11 +121,15 @@ const Canvas = ({
     const message = getDesignZoneWarningMessage(analysis);
     if (!message || bleedAlertShownRef.current) return;
     bleedAlertShownRef.current = true;
-    window.setTimeout(() => alert(message), 0);
+    setZoneWarningToast({
+      message,
+      type: analysis.hasOutside ? 'error' : 'warning',
+    });
   };
 
   const scale = zoom / 100;
   const selectedElement = elements.find(el => el.id === selectedElementId);
+  const layeredElements = useMemo(() => partitionElementsByLayer(elements), [elements]);
   const safeZoneInsets = useMemo(
     () => getSafeZoneInsets(canvasWidth, canvasHeight, printWidthCm, printHeightCm),
     [canvasWidth, canvasHeight, printWidthCm, printHeightCm],
@@ -135,13 +144,10 @@ const Canvas = ({
     ),
     [elements, canvasWidth, canvasHeight, printWidthCm, printHeightCm],
   );
-  const hasBleedViolation = designAnalysis.hasOutside;
-  const hasTextNearEdgeWarning = designAnalysis.hasTextNearEdge && !designAnalysis.hasOutside;
-  const hasDesignNearEdgeWarning = designAnalysis.hasDesignNearEdge && !designAnalysis.hasOutside;
-
   useEffect(() => {
     if (!designAnalysis.hasOutside && !designAnalysis.hasNearEdge) {
       bleedAlertShownRef.current = false;
+      setZoneWarningToast(null);
     }
   }, [designAnalysis.hasOutside, designAnalysis.hasNearEdge]);
 
@@ -466,7 +472,9 @@ const Canvas = ({
       initialRotation: el.rotation || 0,
       initialMouseX: e.clientX,
       initialMouseY: e.clientY,
-      aspectRatio: resizableEl.width / resizableEl.height,
+      aspectRatio: el.type === 'image' && el.naturalWidth > 0 && el.naturalHeight > 0
+        ? el.naturalWidth / el.naturalHeight
+        : resizableEl.width / resizableEl.height,
     };
     setIsInteracting(true);
   };
@@ -536,6 +544,28 @@ const Canvas = ({
   const renderElementContent = (el, isGhost = false) => {
     const elIsImage = el.type === 'image';
     const elIsShape = el.type === 'shape';
+    const elIsGlobalFrame = el.type === 'globalFrame';
+
+    if (elIsGlobalFrame) {
+      return (
+        <img
+          src={el.src}
+          alt=""
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            objectPosition: 'center',
+            opacity: isGhost ? 0 : (el.opacity ?? 1),
+            pointerEvents: 'none',
+            userSelect: 'none',
+            display: 'block',
+            background: 'transparent',
+          }}
+          draggable={false}
+        />
+      );
+    }
 
     if (el.type === 'image') {
       const imgEl = el;
@@ -750,43 +780,64 @@ const Canvas = ({
   const isEditingSelectedText = selectedElement?.type === 'text' && editingElementId === selectedElement.id;
 
   return (
-    <main className="flex-1 bg-gray-200 flex flex-col items-center justify-center p-8 overflow-auto relative" onClick={() => {
-      if (croppingElementId || editingElementId) return;
-      setSelectedElementId(null);
-    }}>
-      {hasBleedViolation && (
-        <div
-          role="alert"
-          className="mb-4 w-full max-w-lg rounded-lg border border-red-400 bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-900 shadow-sm"
-        >
-          שימו לב: חלק מהעיצוב יוצא ממשטח הבטוח (הקו המקווקו) ועלול להיחתך בהדפסה
-        </div>
-      )}
-      {hasTextNearEdgeWarning && (
-        <div
-          role="alert"
-          className="mb-4 w-full max-w-lg rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900 shadow-sm"
-        >
-          הכיתוב קרוב מדי לקצה — מומלץ להזיז אותו יותר למרכז משטח הבטוח
-        </div>
-      )}
-      {hasDesignNearEdgeWarning && (
-        <div
-          role="alert"
-          className="mb-4 w-full max-w-lg rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900 shadow-sm"
-        >
-          חלק מהעיצוב קרוב מדי לקצה — מומלץ להזיז אותו יותר למרכז משטח הבטוח
+    <section className="flex-1 min-h-0 min-w-0 w-full bg-gray-200 relative overflow-hidden">
+      {zoneWarningToast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 w-full max-w-lg px-4 pointer-events-none">
+          <div
+            role="alert"
+            className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg pointer-events-auto ${
+              zoneWarningToast.type === 'error'
+                ? 'border-red-400 bg-red-50 text-red-900'
+                : 'border-amber-400 bg-amber-50 text-amber-900'
+            }`}
+          >
+            <p className="flex-1 text-right leading-relaxed">{zoneWarningToast.message}</p>
+            <button
+              type="button"
+              onClick={() => setZoneWarningToast(null)}
+              className="shrink-0 p-1 rounded-md hover:bg-black/10 transition-colors"
+              aria-label="סגור הודעה"
+            >
+              <XIcon className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
       <div
+        ref={mainRef}
+        className="absolute inset-0 overflow-auto"
+        onClick={() => {
+          if (croppingElementId || editingElementId) return;
+          setSelectedElementId(null);
+        }}
+      >
+        <div className="flex min-h-full w-full items-center justify-center p-8 box-border">
+      <div className="flex flex-col items-center gap-4 shrink-0">
+        {showOrientationToggle && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleOrientation?.();
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f2665e] text-white font-semibold text-sm shadow-lg shadow-[#f2665e]/25 hover:bg-[#d95248] active:bg-[#c44840] transition-colors duration-200 pointer-events-auto"
+            aria-label="הפוך כיוון משטח"
+            title="הפוך כיוון משטח"
+          >
+            <FlipHorizontalIcon className="w-5 h-5 shrink-0" />
+            <span>הפוך כיוון משטח</span>
+          </button>
+        )}
+      <div
         id="canvas-container"
-        className="shadow-lg relative transition-transform duration-200 ease-in-out origin-center"
+        className="shrink-0 shadow-lg relative transition-transform duration-200 ease-in-out origin-center"
         style={{
           width: `${canvasWidth}px`,
           height: `${canvasHeight}px`,
           outline: '1px solid #fecaca',
           outlineOffset: '4px',
           transform: `scale(${scale})`,
+          isolation: 'isolate',
           ...canvasDynamicStyles,
         }}
       >
@@ -842,8 +893,11 @@ const Canvas = ({
           </svg>
         </div>
 
-        {/* RENDER ELEMENTS (Content Only, Z-Index = index) */}
-        {elements.map((el, index) => {
+        {/* RENDER ELEMENTS – תוכן תחתון, מסגרת overlay, טקסט */}
+        {[
+          ...layeredElements.bottom.map((el, index) => ({ el, zIndex: index })),
+          ...layeredElements.texts.map((el, index) => ({ el, zIndex: 1000 + index })),
+        ].map(({ el, zIndex }) => {
           const isCroppingThis = el.id === croppingElementId;
           const elIsImage = el.type === 'image';
           const elIsShape = el.type === 'shape';
@@ -871,7 +925,7 @@ const Canvas = ({
             height: hasFixedSize ? `${el.height}px` : 'auto',
             transform: `rotate(${el.rotation || 0}deg)`,
             transformOrigin: 'center center',
-            zIndex: isCroppingThis ? 50 : (el.id === editingElementId ? 110 : index),
+            zIndex: isCroppingThis ? 50 : (el.id === editingElementId ? 1100 : zIndex),
           };
 
           const innerWrapperStyle = {
@@ -950,6 +1004,32 @@ const Canvas = ({
           )
         })}
 
+        {/* שכבת מסגרת גלובלית – מעל תמונות, מתחת לטקסט, עם תמיכה בשקיפות PNG */}
+        {layeredElements.frames.length > 0 && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: 500, isolation: 'isolate' }}
+            aria-hidden="true"
+          >
+            {layeredElements.frames.map((el) => (
+              <div
+                key={el.id}
+                style={{
+                  position: 'absolute',
+                  top: `${el.top ?? 0}px`,
+                  left: `${el.left ?? 0}px`,
+                  width: `${el.width}px`,
+                  height: `${el.height}px`,
+                  pointerEvents: 'none',
+                  background: 'transparent',
+                }}
+              >
+                {renderElementContent(el)}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* SELECTION GHOST OVERLAY (Rendered ON TOP of everything) */}
         {selectedElement && !croppingElementId && !isEditingSelectedText && (
           <div
@@ -984,7 +1064,10 @@ const Canvas = ({
           />
         )}
       </div>
-    </main>
+      </div>
+        </div>
+      </div>
+    </section>
   );
 };
 

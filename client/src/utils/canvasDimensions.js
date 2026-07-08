@@ -12,18 +12,39 @@ const DEFAULT_TEXT_WIDTH = 280;
 const DEFAULT_TEXT_HEIGHT = 64;
 const DEFAULT_TEXT_FONT_SIZE = 32;
 
+/** ממיר מחרוזת יחס גובה-רוחב (למשל "4:3") לאובייקט */
+export function parseAspectRatio(ratio) {
+    if (!ratio) return null;
+    const parts = String(ratio).split(':').map(Number);
+    if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) {
+        return { width: parts[0], height: parts[1] };
+    }
+    return null;
+}
+
 /**
  * מחשב גודל משטח העבודה בעורך לפי מידות ההדפסה שהמנהל הגדיר במוצר.
+ * מידות המוצר נשארות קבועות – מסגרות גלובליות מותאמות לתוך המשטח (לא משנות אותו).
  * @param {object|null} product
- * @returns {{ width: number, height: number, widthCm: number, heightCm: number }}
+ * @param {string|null} _frameAspectRatio - נשמר לתאימות לאחור; אינו משנה את מידות המשטח
+ * @param {boolean} orientationFlipped - כאשר true, מחליף בין רוחב לאורך (אורך/רוחב)
+ * @returns {{ width: number, height: number, widthCm: number, heightCm: number, productWidthCm: number, productHeightCm: number, orientationFlipped: boolean }}
  */
-export function getCanvasDimensions(product) {
-    const widthCm = Number(product?.printWidth) > 0
+export function getCanvasDimensions(product, _frameAspectRatio = null, orientationFlipped = false) {
+    const productWidthCm = Number(product?.printWidth) > 0
         ? Number(product.printWidth)
         : DEFAULT_WIDTH_CM;
-    const heightCm = Number(product?.printHeight) > 0
+    const productHeightCm = Number(product?.printHeight) > 0
         ? Number(product.printHeight)
         : DEFAULT_HEIGHT_CM;
+
+    let widthCm = productWidthCm;
+    let heightCm = productHeightCm;
+
+    if (orientationFlipped) {
+        widthCm = productHeightCm;
+        heightCm = productWidthCm;
+    }
 
     let width = Math.round(widthCm * CM_TO_PX);
     let height = Math.round(heightCm * CM_TO_PX);
@@ -38,7 +59,15 @@ export function getCanvasDimensions(product) {
     width = Math.max(MIN_CANVAS_PX, width);
     height = Math.max(MIN_CANVAS_PX, height);
 
-    return { width, height, widthCm, heightCm };
+    return {
+        width,
+        height,
+        widthCm,
+        heightCm,
+        productWidthCm,
+        productHeightCm,
+        orientationFlipped: Boolean(orientationFlipped),
+    };
 }
 
 export function formatPrintSizeLabel(widthCm, heightCm) {
@@ -51,10 +80,14 @@ export function cmToCanvasPx(cm, canvasWidthPx, widthCm) {
     return Math.round((canvasWidthPx / widthCm) * cm);
 }
 
-/** מפתח לשמירת טיוטה – מפריד בין מוצרים ובין מידות שונות */
-export function getCanvasStorageKey(product, dims) {
+/** מפתח לשמירת טיוטה – מפריד בין מוצרים, מידות, כיוון ומסגרות שונות */
+export function getCanvasStorageKey(product, dims, frameAspectRatio = null, orientationFlipped = false) {
     const id = product?._id || product?.id || 'no-product';
-    return `${id}_${dims.widthCm}x${dims.heightCm}`;
+    const framePart = frameAspectRatio
+        ? `_ar${String(frameAspectRatio).replace(':', 'x')}`
+        : '';
+    const orientPart = orientationFlipped ? '_flip' : '';
+    return `${id}_${dims.widthCm}x${dims.heightCm}${framePart}${orientPart}`;
 }
 
 export function centerPosition(elementWidth, elementHeight, canvasWidth, canvasHeight) {
@@ -184,6 +217,35 @@ export function normalizeEditorElements(elements, dims) {
     return [normalizedText, ...nonText];
 }
 
+/** מתאים את מידות תיבת התמונה ליחס הגובה-רוחב המקורי (object-fit: contain) */
+export function fitImageElementBounds(el) {
+    if (el.type !== 'image' || !el.width || !el.height) return el;
+    if (!el.naturalWidth || !el.naturalHeight) return el;
+
+    const imageAspect = el.naturalWidth / el.naturalHeight;
+    const boxAspect = el.width / el.height;
+
+    if (Math.abs(boxAspect - imageAspect) < 0.01) return el;
+
+    if (boxAspect > imageAspect) {
+        const displayWidth = Math.round(el.height * imageAspect);
+        const widthDelta = el.width - displayWidth;
+        return {
+            ...el,
+            width: displayWidth,
+            left: Math.round((el.left ?? 0) + widthDelta / 2),
+        };
+    }
+
+    const displayHeight = Math.round(el.width / imageAspect);
+    const heightDelta = el.height - displayHeight;
+    return {
+        ...el,
+        height: displayHeight,
+        top: Math.round((el.top ?? 0) + heightDelta / 2),
+    };
+}
+
 /** משנה מיקום וגודל אלמנטים כשמשטח ההדפסה משתנה */
 export function scaleElementsToCanvas(elements, fromW, fromH, toW, toH) {
     if (!fromW || !fromH || (fromW === toW && fromH === toH)) {
@@ -191,6 +253,7 @@ export function scaleElementsToCanvas(elements, fromW, fromH, toW, toH) {
     }
     const scaleX = toW / fromW;
     const scaleY = toH / fromH;
+    const uniformScale = Math.min(scaleX, scaleY);
 
     return elements.map((el) => {
         const next = {
@@ -198,10 +261,21 @@ export function scaleElementsToCanvas(elements, fromW, fromH, toW, toH) {
             left: Math.round((el.left ?? 0) * scaleX),
             top: Math.round((el.top ?? 0) * scaleY),
         };
-        if (el.width != null) next.width = Math.round(el.width * scaleX);
-        if (el.height != null) next.height = Math.round(el.height * scaleY);
+        if (el.width != null) {
+            next.width = Math.round(
+                el.width * (el.type === 'image' || el.type === 'shape' ? uniformScale : scaleX),
+            );
+        }
+        if (el.height != null) {
+            next.height = Math.round(
+                el.height * (el.type === 'image' || el.type === 'shape' ? uniformScale : scaleY),
+            );
+        }
         if (el.fontSize != null) {
-            next.fontSize = Math.max(10, Math.round(el.fontSize * Math.min(scaleX, scaleY)));
+            next.fontSize = Math.max(10, Math.round(el.fontSize * uniformScale));
+        }
+        if (next.type === 'image') {
+            return fitImageElementBounds(next);
         }
         return next;
     });

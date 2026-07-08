@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getDesignFrames } from '../../api/designFrames';
+import { getFrameCategories } from '../../api/frameCategories';
 import { BackgroundIcon, ChevronLeftIcon, GridIcon, ImageIcon, NoColorIcon, PlusIcon, TextIcon, XIcon } from '../icons';
 
 const SidebarTab = ({ icon, label, isActive, onClick }) => {
@@ -295,10 +297,65 @@ const ElementSection = ({ title, items, onAdd, onShowAll }) => {
     );
 };
 
-const ElementsPanel = ({ addImageElement, addShapeElement }) => {
+const ElementsPanel = ({
+    addImageElement,
+    addShapeElement,
+    onApplyGlobalFrame,
+    onRemoveGlobalFrame,
+    activeGlobalFrameId,
+}) => {
     const [expandedCategory, setExpandedCategory] = useState(null);
+    const [globalFrames, setGlobalFrames] = useState([]);
+    const [frameCategories, setFrameCategories] = useState([]);
+    const [framesLoading, setFramesLoading] = useState(true);
+    const [frameCategoryFilter, setFrameCategoryFilter] = useState('הכל');
+
+    useEffect(() => {
+        let cancelled = false;
+        setFramesLoading(true);
+        Promise.all([getDesignFrames(), getFrameCategories()])
+            .then(([framesData, categoriesData]) => {
+                if (cancelled) return;
+                setGlobalFrames(Array.isArray(framesData) ? framesData : []);
+                setFrameCategories(Array.isArray(categoriesData) ? categoriesData : []);
+            })
+            .catch((err) => {
+                console.error('Failed to load global design frames', err);
+                if (!cancelled) {
+                    setGlobalFrames([]);
+                    setFrameCategories([]);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setFramesLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, []);
+
+    const categoryNames = frameCategories.map((c) => c.name).filter(Boolean);
+    const filterCategories = ['הכל', ...new Set([
+        ...categoryNames,
+        ...globalFrames.map((f) => f.category).filter(Boolean),
+    ])];
+
+    const filteredGlobalFrames = frameCategoryFilter === 'הכל'
+        ? globalFrames
+        : globalFrames.filter((f) => f.category === frameCategoryFilter);
+
+    const globalFrameItems = filteredGlobalFrames.map((frame) => ({
+        id: frame._id,
+        alt: frame.title,
+        src: frame.thumbnailUrl || frame.imageUrl,
+        isGlobalFrame: true,
+        frameData: frame,
+    }));
 
     const handleAdd = (item) => {
+        if (item.isGlobalFrame && item.frameData) {
+            onApplyGlobalFrame(item.frameData);
+            return;
+        }
+
         if (item.type === 'shape' && item.content) {
             addShapeElement(item.content);
             return;
@@ -323,6 +380,82 @@ const ElementsPanel = ({ addImageElement, addShapeElement }) => {
         img.src = item.src;
     };
 
+    const renderGlobalFramesSection = () => (
+        <div className="mb-8">
+            <div className="flex justify-between items-end mb-3 px-2">
+                <h3 className="font-bold text-gray-800 text-base">מסגרות עיצוב</h3>
+                {globalFrameItems.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setExpandedCategory({ title: 'מסגרות עיצוב', items: globalFrameItems, isGlobalFrames: true })}
+                        className="text-sm font-medium text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
+                    >
+                        <span>הצג הכל</span>
+                        <ChevronLeftIcon className="w-3 h-3" />
+                    </button>
+                )}
+            </div>
+
+            <button
+                type="button"
+                onClick={onRemoveGlobalFrame}
+                disabled={!activeGlobalFrameId}
+                className={`w-full mb-3 px-3 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors ${
+                    activeGlobalFrameId
+                        ? 'border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-500 hover:bg-red-50'
+                        : 'border-gray-200 text-gray-300 cursor-not-allowed'
+                }`}
+            >
+                ללא מסגרת
+            </button>
+
+            <div className="flex flex-wrap gap-2 mb-3 px-1">
+                {filterCategories.map((cat) => (
+                    <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setFrameCategoryFilter(cat)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                            frameCategoryFilter === cat
+                                ? 'bg-red-500 text-white border-red-500'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'
+                        }`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {framesLoading ? (
+                <p className="text-sm text-gray-400 px-2">טוען מסגרות...</p>
+            ) : globalFrameItems.length === 0 ? (
+                <p className="text-sm text-gray-400 px-2">אין מסגרות זמינות כרגע</p>
+            ) : (
+                <div className="grid grid-cols-3 gap-2 px-1">
+                    {globalFrameItems.slice(0, 6).map((item) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleAdd(item)}
+                            className={`aspect-square bg-white rounded-xl border shadow-sm hover:shadow-md transition-all p-1.5 flex items-center justify-center group ${
+                                activeGlobalFrameId === item.id
+                                    ? 'border-red-500 ring-2 ring-red-200'
+                                    : 'border-gray-200 hover:border-red-300'
+                            }`}
+                            title={item.alt}
+                        >
+                            <img
+                                src={item.src}
+                                alt={item.alt}
+                                className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                            />
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
     if (expandedCategory) {
         return (
             <div className="p-4 h-full flex flex-col">
@@ -337,12 +470,35 @@ const ElementsPanel = ({ addImageElement, addShapeElement }) => {
                     </button>
                 </div>
 
+                {expandedCategory.isGlobalFrames && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {filterCategories.map((cat) => (
+                            <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setFrameCategoryFilter(cat)}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                                    frameCategoryFilter === cat
+                                        ? 'bg-red-500 text-white border-red-500'
+                                        : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-3 gap-3 overflow-y-auto pb-4" style={{ scrollbarWidth: 'thin' }}>
-                    {expandedCategory.items.map(item => (
+                    {(expandedCategory.isGlobalFrames ? globalFrameItems : expandedCategory.items).map(item => (
                         <button
                             key={item.id}
                             onClick={() => handleAdd(item)}
-                            className="aspect-square bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-red-300 transition-all p-2 flex items-center justify-center group"
+                            className={`aspect-square bg-white rounded-xl border shadow-sm hover:shadow-md transition-all p-2 flex items-center justify-center group ${
+                                item.isGlobalFrame && activeGlobalFrameId === item.id
+                                    ? 'border-red-500 ring-2 ring-red-200'
+                                    : 'border-gray-200 hover:border-red-300'
+                            }`}
                             title={item.alt}
                         >
                             <img
@@ -359,6 +515,7 @@ const ElementsPanel = ({ addImageElement, addShapeElement }) => {
 
     return (
         <div className="p-4 overflow-y-auto h-full">
+            {renderGlobalFramesSection()}
             <ElementSection title="צורות" items={shapes} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "צורות", items: shapes })} />
             <ElementSection title="תמונות רקע" items={backgroundAssets} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "תמונות רקע", items: backgroundAssets })} />
             <ElementSection title="גרפיקות" items={graphics} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "גרפיקות", items: graphics })} />
@@ -487,6 +644,9 @@ const EditorSidebar = ({
     addTextElement,
     addImageElement,
     addShapeElement,
+    onApplyGlobalFrame,
+    onRemoveGlobalFrame,
+    activeGlobalFrameId,
     uploadedImages,
     deleteUploadedImage,
     selectedElement,
@@ -546,7 +706,15 @@ const EditorSidebar = ({
                         addUploadedBackground={addUploadedBackground}
                         deleteUploadedBackground={deleteUploadedBackground}
                     />}
-                    {activeTab === 'elements' && <ElementsPanel addImageElement={addImageElement} addShapeElement={addShapeElement} />}
+                    {activeTab === 'elements' && (
+                        <ElementsPanel
+                            addImageElement={addImageElement}
+                            addShapeElement={addShapeElement}
+                            onApplyGlobalFrame={onApplyGlobalFrame}
+                            onRemoveGlobalFrame={onRemoveGlobalFrame}
+                            activeGlobalFrameId={activeGlobalFrameId}
+                        />
+                    )}
                     {activeTab === 'text' && <TextPanel addTextElement={addTextElement} selectedElement={selectedElement} onUpdateElement={onUpdateElement} />}
                     {activeTab === 'images' && <ImagePanel addImageElement={addImageElement} uploadedImages={uploadedImages} deleteUploadedImage={deleteUploadedImage} />}
                 </div>
