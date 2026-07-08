@@ -1,4 +1,4 @@
-import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaMagic } from 'react-icons/fa';
+import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaMagic } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -55,6 +55,13 @@ export default function AdminDashboardPage() {
       description: "מעבר מהיר לעריכת התוכן בדפי הבית, אודות, טיפים ועוד.",
       icon: <FaEdit className="text-3xl text-white" />,
       link: "/editpages",
+    },
+    {
+      id: 7,
+      title: "מסגרות עיצוב גלובליות",
+      description: "ניהול מסגרות עיצוב מוכנות שזמינות לכל המוצרים בעורך.",
+      icon: <FaImage className="text-3xl text-white" />,
+      link: "/designframes",
     },
   ];
 

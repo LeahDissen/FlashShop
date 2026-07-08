@@ -23,6 +23,7 @@ import SignUpPage from "./pages/SignUpPage";
 import TipsPage from "./pages/TipsPage";
 import ProductSelectionPage from "./pages/ProductSelectionPage";
 import CaptionIdeasPage from "./pages/CaptionIdeasPage";
+import DesignFramesManagement from "./adminPage/DesignFramesManagement";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
@@ -66,6 +67,7 @@ export default function AppRoutes() {
                 <Route path="/sendmail" element={<AdminRoute><Layout><SendMailToClub /></Layout></AdminRoute>} />
                 <Route path="/updatecatalog" element={<AdminRoute><Layout><UpdateCatalog /></Layout></AdminRoute>} />
                 <Route path="/viewmessages" element={<AdminRoute><Layout><ViewMessages /></Layout></AdminRoute>} />
+                <Route path="/designframes" element={<AdminRoute><Layout><DesignFramesManagement /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                 <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />
