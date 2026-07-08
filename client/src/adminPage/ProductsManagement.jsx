@@ -42,6 +42,7 @@ const INITIAL_FORM_DATA = {
     image: "",
     printWidth: 12,
     printHeight: 18,
+    allowOrientationToggle: false,
 };
 
 export default function ProductsManagement() {
@@ -245,6 +246,7 @@ export default function ProductsManagement() {
         if (isDesignCategory) {
             payload.printWidth = Number(formData.printWidth) || 12;
             payload.printHeight = Number(formData.printHeight) || 18;
+            payload.allowOrientationToggle = Boolean(formData.allowOrientationToggle);
         }
 
         try {
@@ -281,6 +283,7 @@ export default function ProductsManagement() {
             image: product.image,
             printWidth: product.printWidth ?? 12,
             printHeight: product.printHeight ?? 18,
+            allowOrientationToggle: Boolean(product.allowOrientationToggle),
         });
         setProductCaptions(
             displayType === DISPLAY_TYPES.DESIGN ? (product.captionIdeas ?? []) : [],
@@ -735,6 +738,21 @@ export default function ProductsManagement() {
                                         />
                                     </div>
                                 </div>
+                                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                                    <input
+                                        type="checkbox"
+                                        name="allowOrientationToggle"
+                                        checked={Boolean(formData.allowOrientationToggle)}
+                                        onChange={(e) => setFormData((prev) => ({
+                                            ...prev,
+                                            allowOrientationToggle: e.target.checked,
+                                        }))}
+                                        className="rounded border-gray-300 text-[#f2665e] focus:ring-[#f2665e]"
+                                    />
+                                    <span className="text-xs text-gray-700">
+                                        לאפשר ללקוח להפוך את כיוון המשטח (אורך/רוחב)
+                                    </span>
+                                </label>
                             </div>
                         )}
 
