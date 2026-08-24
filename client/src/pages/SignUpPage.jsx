@@ -99,7 +99,7 @@ export default function SignUpPage() {
                     return;
                 }
                 if (error.code === 'ERR_NETWORK' || !error.response) {
-                    alert('לא ניתן להתחבר לשרת. ודאי שהשרת רץ (פורט 5000) ונסי שוב.');
+                    alert('לא ניתן להתחבר לשרת. נסי שוב בעוד רגע.');
                     return;
                 }
                 alert(serverMsg || error.response?.data?.details?.[0]?.message || 'יצירת החשבון נכשלה. אנא נסי שוב.');

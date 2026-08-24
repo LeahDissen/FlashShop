@@ -1,5 +1,6 @@
 import axios from "axios";
-const API_URL = `${import.meta.env.VITE_MONGO_API}/club`;
+import { MONGO_API } from "../config/api";
+const API_URL = `${MONGO_API}/club`;
 
 export const joinClubRequest = async (userData) => {
     const response = await axios.post(`${API_URL}/join`, userData);

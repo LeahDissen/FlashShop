@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { MONGO_API } from '../config/api';
 
-const API_URL = `${import.meta.env.VITE_MONGO_API}/products`;
+const API_URL = `${MONGO_API}/products`;
 
 export async function generatePersonalizedProduct(productName, userDesignDataUrl) {
   try {

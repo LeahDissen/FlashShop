@@ -5,7 +5,8 @@ import MiniCart from './MiniCart';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
-const API_URL = import.meta.env.VITE_MONGO_API;
+import { MONGO_API } from '../config/api';
+const API_URL = MONGO_API;
 
 export default function NavBar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);

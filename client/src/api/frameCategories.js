@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_MONGO_API}/frame-categories`;
+import { MONGO_API } from "../config/api";
+const API_URL = `${MONGO_API}/frame-categories`;
 
 export const getFrameCategories = async () => {
     const response = await axios.get(API_URL);

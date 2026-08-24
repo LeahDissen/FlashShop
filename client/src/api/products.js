@@ -1,5 +1,6 @@
 import axios from 'axios';
-const API_URL = `${import.meta.env.VITE_MONGO_API}/products`;
+import { MONGO_API } from '../config/api';
+const API_URL = `${MONGO_API}/products`;
 
 export const getProducts = async () => {
     const response = await axios.get(API_URL);

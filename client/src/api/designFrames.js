@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = `${import.meta.env.VITE_MONGO_API}/design-frames`;
+import { MONGO_API } from "../config/api";
+const API_URL = `${MONGO_API}/design-frames`;
 
 export const getDesignFrames = async (includeInactive = false) => {
     const response = await axios.get(API_URL, {

@@ -22,9 +22,24 @@ const PORT = config.PORT;
 const HOST_NAME = config.HOST_NAME;
 const app = express();
 
+const allowedOrigins = Array.from(new Set([
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://lustrous-speculoos-e2f3a6.netlify.app",
+  ...(process.env.CLIENT_URL || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+]));
+
 app.use(cors({
-  origin: process.env.CLIENT_URL,
-  credentials: true
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  credentials: true,
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -46,3 +61,7 @@ app.use("/frame-categories", frameCategoriesRoutes);
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);
 });
+// const PORT = process.env.PORT || 10000;
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
+// });
