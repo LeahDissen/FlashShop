@@ -17,11 +17,17 @@ import {
     enforceLayerOrder,
     extractFrameAspectRatio,
     getActiveGlobalFrame,
+    getDropzoneImageForSlot,
     insertBelowGlobalFrame,
+    isDropzoneImage,
     isGlobalFrame,
+    removeDropzoneImages,
     removeGlobalFrames,
+    replaceDropzoneImage,
     stripLegacyDropzoneFields,
 } from '../utils/editorLayering';
+import { fitImageToDropzone, isMultiDropzoneFrame, resolveDropzones } from '../utils/dropzoneUtils';
+import { detectEmptyPhotoSlots } from '../utils/detectEmptyPhotoSlots';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
@@ -35,7 +41,7 @@ import { useCartStore } from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
-import { prepareFrameImageSrc } from '../utils/frameImageProcessing';
+import { prepareFrameImageSrc, punchDropzoneHoles } from '../utils/frameImageProcessing';
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -145,23 +151,52 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     useEffect(() => {
         const frame = elements.find(isGlobalFrame);
-        if (!frame?.src || frame.src.startsWith('data:')) return undefined;
+        if (!frame) return undefined;
+
+        // כבר מעובד עם חורים / data URL – לא לדרוס
+        if (frame.holesPunched === 'v2') return undefined;
+        if (frame.src?.startsWith('data:') && !isMultiDropzoneFrame(frame)) return undefined;
 
         let cancelled = false;
-        prepareFrameImageSrc(frame.originalSrc || frame.src).then((processed) => {
-            if (cancelled || !processed || processed === frame.src) return;
-            setElements((prev) => enforceLayerOrder(
-                prev.map((el) => (
-                    isGlobalFrame(el)
-                        ? { ...el, src: processed, originalSrc: frame.originalSrc || frame.src }
-                        : el
-                )),
-            ));
-        });
+        const source = frame.originalSrc || frame.src;
+
+        (async () => {
+            try {
+                const processed = await prepareFrameImageSrc(source);
+                const nextSrc = isMultiDropzoneFrame(frame)
+                    ? await punchDropzoneHoles(processed, frame.dropzones)
+                    : processed;
+                if (cancelled || !nextSrc || nextSrc === frame.src) {
+                    // גם אם ה-src זהה, לסמן שעודכן לחורים v2
+                    if (!cancelled && isMultiDropzoneFrame(frame) && frame.holesPunched !== 'v2') {
+                        setElements((prev) => enforceLayerOrder(
+                            prev.map((el) => (
+                                isGlobalFrame(el) ? { ...el, holesPunched: 'v2' } : el
+                            )),
+                        ));
+                    }
+                    return;
+                }
+                setElements((prev) => enforceLayerOrder(
+                    prev.map((el) => (
+                        isGlobalFrame(el)
+                            ? {
+                                ...el,
+                                src: nextSrc,
+                                originalSrc: el.originalSrc || source,
+                                holesPunched: isMultiDropzoneFrame(el) ? 'v2' : false,
+                            }
+                            : el
+                    )),
+                ));
+            } catch (err) {
+                console.warn('Frame image prepare failed', err);
+            }
+        })();
 
         return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeGlobalFrameId]);
+    }, [activeGlobalFrameId, activeGlobalFrame?.dropzones?.length]);
 
     useEffect(() => {
         setOrientationFlipped(false);
@@ -663,25 +698,51 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         const newAspectRatio = frame.aspectRatio;
         const dims = canvasDimensions;
 
-        let updatedElements = stripLegacyDropzoneFields(removeGlobalFrames(elements));
+        let dropzones = Array.isArray(frame.dropzones) ? frame.dropzones : [];
+        let layoutType = frame.layoutType === 'multi_dropzone' ? 'multi_dropzone' : 'single_overlay';
+
+        // אם אין חלונות מוגדרים – מנסים לזהות ריבועים ריקים בתמונה (כמו בתבניות קולאז׳)
+        if (dropzones.length === 0) {
+            try {
+                const detected = await detectEmptyPhotoSlots(frame.imageUrl || frame.thumbnailUrl);
+                if (detected.length >= 2) {
+                    dropzones = detected;
+                    layoutType = 'multi_dropzone';
+                }
+            } catch (err) {
+                console.warn('Auto slot detection failed', err);
+            }
+        }
+
+        const isMulti = layoutType === 'multi_dropzone' && dropzones.length > 0;
+
+        let updatedElements = isMulti
+            ? removeDropzoneImages(removeGlobalFrames(elements))
+            : stripLegacyDropzoneFields(removeDropzoneImages(removeGlobalFrames(elements)));
 
         const processedSrc = await prepareFrameImageSrc(frame.imageUrl);
+        const frameSrc = isMulti
+            ? await punchDropzoneHoles(processedSrc, dropzones)
+            : processedSrc;
 
         const frameElement = {
             id: `globalFrame_${frame._id}`,
             type: 'globalFrame',
             frameId: frame._id,
-            src: processedSrc,
+            src: frameSrc,
             originalSrc: frame.imageUrl,
             title: frame.title,
             aspectRatio: frame.aspectRatio,
+            layoutType: isMulti ? 'multi_dropzone' : 'single_overlay',
+            dropzones: isMulti ? dropzones : [],
+            holesPunched: isMulti ? 'v2' : false,
             width: dims.width,
             height: dims.height,
             top: 0,
             left: 0,
             opacity: 1,
             rotation: 0,
-            locked: true,
+            locked: false,
         };
 
         const layered = enforceLayerOrder([...updatedElements, frameElement]);
@@ -698,15 +759,59 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
 
         updateElementsWithHistory(layered);
-        setSelectedElementId(null);
+        setSelectedElementId(frameElement.id);
         setActiveFrameAspectRatio(newAspectRatio);
     }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
+
+    const detectSlotsOnActiveFrame = useCallback(async () => {
+        const frame = getActiveGlobalFrame(elements);
+        if (!frame) {
+            alert('יש לבחור מסגרת קודם');
+            return;
+        }
+
+        const source = frame.originalSrc || frame.src;
+        if (!source) return;
+
+        try {
+            const detected = await detectEmptyPhotoSlots(source);
+            if (!detected.length) {
+                alert('לא נמצאו ריבועים ריקים במסגרת');
+                return;
+            }
+
+            const prepared = await prepareFrameImageSrc(source);
+            const punchedSrc = await punchDropzoneHoles(prepared, detected);
+
+            const withoutOldSlots = removeDropzoneImages(elements);
+            const updated = withoutOldSlots.map((el) => (
+                isGlobalFrame(el)
+                    ? {
+                        ...el,
+                        src: punchedSrc,
+                        originalSrc: el.originalSrc || source,
+                        layoutType: 'multi_dropzone',
+                        dropzones: detected,
+                        holesPunched: 'v2',
+                    }
+                    : el
+            ));
+
+            updateElementsWithHistory(enforceLayerOrder(updated));
+            setSelectedElementId(null);
+        } catch (err) {
+            console.error(err);
+            alert('שגיאה בזיהוי חלונות מהמסגרת');
+        }
+    }, [elements, updateElementsWithHistory]);
 
     const removeGlobalFrame = useCallback(() => {
         if (!elements.some(isGlobalFrame)) return;
 
         const dims = canvasDimensions;
-        const updatedElements = stripLegacyDropzoneFields(removeGlobalFrames(elements));
+        const updatedElements = stripLegacyDropzoneFields(
+            removeDropzoneImages(removeGlobalFrames(elements)),
+        );
         const layered = enforceLayerOrder(updatedElements);
         const storageKey = getCanvasStorageKey(selectedProduct, dims, null, orientationFlipped);
 
@@ -740,6 +845,25 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 ? { ...el, width: newDims.width, height: newDims.height, top: 0, left: 0 }
                 : el
         ));
+
+        // התאמה מחדש של תמונות חלונות הקולאז׳ לגודל החדש
+        const frame = updatedElements.find(isGlobalFrame);
+        if (frame && isMultiDropzoneFrame(frame)) {
+            const resolved = resolveDropzones(
+                frame.dropzones,
+                frame.width,
+                frame.height,
+                frame.left ?? 0,
+                frame.top ?? 0,
+            );
+            updatedElements = updatedElements.map((el) => {
+                if (!isDropzoneImage(el)) return el;
+                const zone = resolved.find((z) => z.id === el.dropzoneId);
+                if (!zone) return el;
+                const fitted = fitImageToDropzone(el.naturalWidth, el.naturalHeight, zone);
+                return { ...el, ...fitted };
+            });
+        }
 
         const layered = enforceLayerOrder(updatedElements);
         const storageKey = getCanvasStorageKey(
@@ -810,6 +934,61 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
 
+    const addImageToDropzone = useCallback((dropzoneId, src, naturalWidth, naturalHeight) => {
+        const frame = getActiveGlobalFrame(elements);
+        if (!frame || !isMultiDropzoneFrame(frame) || !dropzoneId) return;
+
+        const resolved = resolveDropzones(
+            frame.dropzones,
+            frame.width || canvasDimensions.width,
+            frame.height || canvasDimensions.height,
+            frame.left ?? 0,
+            frame.top ?? 0,
+        );
+        const zone = resolved.find((z) => z.id === dropzoneId);
+        if (!zone) return;
+
+        const fitted = fitImageToDropzone(naturalWidth, naturalHeight, zone);
+        const newElement = {
+            id: `image_dz_${dropzoneId}_${Date.now()}`,
+            type: 'image',
+            dropzoneId,
+            src,
+            width: fitted.width,
+            height: fitted.height,
+            top: fitted.top,
+            left: fitted.left,
+            opacity: 1,
+            rotation: 0,
+            naturalWidth,
+            naturalHeight,
+            scaleX: 1,
+            scaleY: 1,
+            brightness: 100,
+            contrast: 100,
+            grayscale: 0,
+            sepia: 0,
+            blur: 0,
+            locked: false,
+        };
+
+        const newElements = enforceLayerOrder(replaceDropzoneImage(elements, dropzoneId, newElement));
+        updateElementsWithHistory(newElements);
+        setSelectedElementId(newElement.id);
+        setUploadedImages((prev) => (prev.includes(src) ? prev : [...prev, src]));
+    }, [elements, updateElementsWithHistory, canvasDimensions]);
+
+    const clearDropzoneImage = useCallback((dropzoneId) => {
+        if (!dropzoneId) return;
+        const existing = getDropzoneImageForSlot(elements, dropzoneId);
+        if (!existing) return;
+        const newElements = enforceLayerOrder(
+            elements.filter((el) => !(isDropzoneImage(el) && el.dropzoneId === dropzoneId)),
+        );
+        updateElementsWithHistory(newElements);
+        if (selectedElementId === existing.id) setSelectedElementId(null);
+    }, [elements, selectedElementId, updateElementsWithHistory]);
+
     const addShapeElement = useCallback((svgContent) => {
         const width = 100;
         const height = 100;
@@ -840,29 +1019,80 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [elements, updateElementsWithHistory, canvasDimensions]);
 
     const updateElement = useCallback((id, newProps) => {
-        setElements(prev =>
-            prev.map(el => {
-                if (el.id === id) {
-                    return { ...el, ...newProps };
-                }
-                return el;
-            }),
-        );
+        setElements((prev) => {
+            const target = prev.find((el) => el.id === id);
+            if (!target) return prev;
+
+            // הזזת/שינוי גודל מסגרת – חלונות הקולאז׳ זזים יחד איתה
+            if (
+                isGlobalFrame(target)
+                && (newProps.left !== undefined
+                    || newProps.top !== undefined
+                    || newProps.width !== undefined
+                    || newProps.height !== undefined)
+            ) {
+                const nextFrame = { ...target, ...newProps };
+                const dx = (nextFrame.left ?? 0) - (target.left ?? 0);
+                const dy = (nextFrame.top ?? 0) - (target.top ?? 0);
+                const sizeChanged = (
+                    (newProps.width !== undefined && newProps.width !== target.width)
+                    || (newProps.height !== undefined && newProps.height !== target.height)
+                );
+
+                return prev.map((el) => {
+                    if (el.id === id) return nextFrame;
+                    if (!isDropzoneImage(el)) return el;
+
+                    if (sizeChanged && isMultiDropzoneFrame(nextFrame)) {
+                        const zones = resolveDropzones(
+                            nextFrame.dropzones,
+                            nextFrame.width,
+                            nextFrame.height,
+                            nextFrame.left ?? 0,
+                            nextFrame.top ?? 0,
+                        );
+                        const zone = zones.find((z) => z.id === el.dropzoneId);
+                        if (!zone) return el;
+                        return { ...el, ...fitImageToDropzone(el.naturalWidth, el.naturalHeight, zone) };
+                    }
+
+                    if (dx || dy) {
+                        return { ...el, left: (el.left ?? 0) + dx, top: (el.top ?? 0) + dy };
+                    }
+                    return el;
+                });
+            }
+
+            return prev.map((el) => (el.id === id ? { ...el, ...newProps } : el));
+        });
     }, []);
 
     const deleteElement = useCallback(() => {
         if (!selectedElementId) return;
         const target = elements.find((el) => el.id === selectedElementId);
-        if (isGlobalFrame(target)) return;
+        if (!target) return;
+
+        if (isGlobalFrame(target)) {
+            removeGlobalFrame();
+            return;
+        }
 
         const newElements = elements.filter(el => el.id !== selectedElementId);
         updateElementsWithHistory(newElements);
         setSelectedElementId(null);
-    }, [elements, selectedElementId, updateElementsWithHistory]);
+    }, [elements, selectedElementId, updateElementsWithHistory, removeGlobalFrame]);
+
+    const selectGlobalFrame = useCallback(() => {
+        const frame = getActiveGlobalFrame(elements);
+        if (!frame) return;
+        setSelectedElementId(frame.id);
+    }, [elements]);
 
     const duplicateElementWithState = useCallback(() => {
         const elementToDuplicate = elements.find(el => el.id === selectedElementId);
         if (!elementToDuplicate || elementToDuplicate.locked || isGlobalFrame(elementToDuplicate)) return;
+        // תמונות קולאז׳ – לא משכפלים (חלון אחד לתמונה)
+        if (isDropzoneImage(elementToDuplicate)) return;
 
         const newElement = {
             ...elementToDuplicate,
@@ -1033,31 +1263,10 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 printSizeLabel={printSizeLabel}
             />
 
-            <div className="flex-1 flex flex-row overflow-hidden min-h-0">
-                <EditorSidebar
-                    addTextElement={addTextElement}
-                    addImageElement={addImageElement}
-                    addShapeElement={addShapeElement}
-                    onApplyGlobalFrame={applyGlobalFrame}
-                    onRemoveGlobalFrame={removeGlobalFrame}
-                    activeGlobalFrameId={activeGlobalFrameId}
-                    uploadedImages={uploadedImages}
-                    deleteUploadedImage={deleteUploadedImage}
-                    selectedElement={selectedElement}
-                    onUpdateElement={(props) => {
-                        if (selectedElement) {
-                            updateElement(selectedElement.id, props);
-                        }
-                    }}
-                    canvasBackground={canvasBackground}
-                    setCanvasBackground={setCanvasBackground}
-                    uploadedBackgrounds={uploadedBackgrounds}
-                    addUploadedBackground={addUploadedBackground}
-                    deleteUploadedBackground={deleteUploadedBackground}
-                />
-                <div className="flex-1 min-h-0 min-w-0 relative overflow-hidden flex flex-col">
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+                <div className="order-1 md:order-2 flex-1 min-h-0 min-w-0 relative overflow-hidden flex flex-col">
                     {selectedElement && (
-                        <div className="absolute top-0 left-0 right-0 z-40">
+                        <div className="absolute top-0 left-0 right-0 z-40 overflow-x-auto">
                             <ContextualToolbar
                                 selectedElement={selectedElement}
                                 onUpdateElement={(props) => selectedElement && updateElement(selectedElement.id, props)}
@@ -1090,7 +1299,37 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     printHeightCm={canvasDimensions.heightCm}
                     showOrientationToggle={Boolean(selectedProduct?.allowOrientationToggle)}
                     onToggleOrientation={handleToggleOrientation}
+                    onAddImageToDropzone={addImageToDropzone}
                 />
+                </div>
+                <div className="order-2 md:order-1 shrink-0 md:h-full md:flex md:flex-col">
+                    <EditorSidebar
+                        addTextElement={addTextElement}
+                        addImageElement={addImageElement}
+                        addShapeElement={addShapeElement}
+                        onApplyGlobalFrame={applyGlobalFrame}
+                        onRemoveGlobalFrame={removeGlobalFrame}
+                        onSelectGlobalFrame={selectGlobalFrame}
+                        onDetectFrameSlots={detectSlotsOnActiveFrame}
+                        activeGlobalFrameId={activeGlobalFrameId}
+                        activeGlobalFrame={activeGlobalFrame}
+                        elements={elements}
+                        onAddImageToDropzone={addImageToDropzone}
+                        onClearDropzoneImage={clearDropzoneImage}
+                        uploadedImages={uploadedImages}
+                        deleteUploadedImage={deleteUploadedImage}
+                        selectedElement={selectedElement}
+                        onUpdateElement={(props) => {
+                            if (selectedElement) {
+                                updateElement(selectedElement.id, props);
+                            }
+                        }}
+                        canvasBackground={canvasBackground}
+                        setCanvasBackground={setCanvasBackground}
+                        uploadedBackgrounds={uploadedBackgrounds}
+                        addUploadedBackground={addUploadedBackground}
+                        deleteUploadedBackground={deleteUploadedBackground}
+                    />
                 </div>
             </div>
             <EditorFooter

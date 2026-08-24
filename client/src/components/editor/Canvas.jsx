@@ -1,8 +1,10 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
-import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon, FlipHorizontalIcon, XIcon } from '../icons';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { flushSync } from 'react-dom';
+import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon, FlipHorizontalIcon, XIcon, TextIcon, PlusIcon } from '../icons';
 import { ReactCrop } from 'react-image-crop';
 import { getSafeZoneInsets, analyzeDesignSafeZone, getDesignZoneWarningMessage } from '../../utils/safeZone';
-import { partitionElementsByLayer } from '../../utils/editorLayering';
+import { partitionElementsByLayer, getDropzoneImageForSlot } from '../../utils/editorLayering';
+import { getClipStyle, isMultiDropzoneFrame, resolveDropzones } from '../../utils/dropzoneUtils';
 
 const rotatePoint = (point, angleDegrees) => {
   const angleRadians = (angleDegrees * Math.PI) / 180;
@@ -60,6 +62,7 @@ const Canvas = ({
   printHeightCm,
   showOrientationToggle = false,
   onToggleOrientation,
+  onAddImageToDropzone,
 }) => {
   const [editingElementId, setEditingElementId] = useState(null);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -68,6 +71,10 @@ const Canvas = ({
   const cropImageRef = useRef(null);
   const mainRef = useRef(null);
   const textEditRefs = useRef({});
+  const dropzoneFileInputRef = useRef(null);
+  const pendingDropzoneIdRef = useRef(null);
+  /** מונע ביטול בחירה מיידי אחרי לחיצה על אלמנט (בגלל re-render של שכבת הבחירה) */
+  const skipCanvasDeselectUntilRef = useRef(0);
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
 
@@ -79,6 +86,14 @@ const Canvas = ({
     initialMouseY: 0,
     initialTop: 0,
     initialLeft: 0,
+    wasAlreadySelected: false,
+    didMove: false,
+  });
+  /** שמירת מצב הלחיצה האחרונה לזיהוי הקשה שנייה על טקסט (מובייל) */
+  const lastTapRef = useRef({
+    elementId: null,
+    wasAlreadySelected: false,
+    didMove: false,
   });
 
   const rotationInfo = useRef({
@@ -130,6 +145,43 @@ const Canvas = ({
   const scale = zoom / 100;
   const selectedElement = elements.find(el => el.id === selectedElementId);
   const layeredElements = useMemo(() => partitionElementsByLayer(elements), [elements]);
+  const activeFrame = layeredElements.frames[0] || null;
+  const resolvedDropzones = useMemo(() => {
+    if (!activeFrame || !isMultiDropzoneFrame(activeFrame)) return [];
+    return resolveDropzones(
+      activeFrame.dropzones,
+      activeFrame.width || canvasWidth,
+      activeFrame.height || canvasHeight,
+      activeFrame.left ?? 0,
+      activeFrame.top ?? 0,
+    );
+  }, [activeFrame, canvasWidth, canvasHeight]);
+
+  const handleDropzoneUploadClick = useCallback((dropzoneId) => {
+    if (!onAddImageToDropzone || !dropzoneId) return;
+    pendingDropzoneIdRef.current = dropzoneId;
+    dropzoneFileInputRef.current?.click();
+  }, [onAddImageToDropzone]);
+
+  const handleDropzoneFileChange = useCallback((event) => {
+    const file = event.target.files?.[0];
+    const dropzoneId = pendingDropzoneIdRef.current;
+    pendingDropzoneIdRef.current = null;
+    if (event.target) event.target.value = '';
+    if (!file || !dropzoneId || !onAddImageToDropzone) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result;
+      if (!result) return;
+      const img = new Image();
+      img.onload = () => {
+        onAddImageToDropzone(dropzoneId, result, img.naturalWidth, img.naturalHeight);
+      };
+      img.src = result;
+    };
+    reader.readAsDataURL(file);
+  }, [onAddImageToDropzone]);
   const safeZoneInsets = useMemo(
     () => getSafeZoneInsets(canvasWidth, canvasHeight, printWidthCm, printHeightCm),
     [canvasWidth, canvasHeight, printWidthCm, printHeightCm],
@@ -151,28 +203,50 @@ const Canvas = ({
     }
   }, [designAnalysis.hasOutside, designAnalysis.hasNearEdge]);
 
-  useEffect(() => {
-    if (!editingElementId) return;
+  const focusTextEditor = useCallback((elementId) => {
+    const node = textEditRefs.current[elementId];
+    const element = elementsRef.current.find((el) => el.id === elementId);
+    if (!node || element?.type !== 'text') return false;
 
-    const timer = window.setTimeout(() => {
-      const node = textEditRefs.current[editingElementId];
-      const element = elementsRef.current.find((el) => el.id === editingElementId);
-      if (!node || element?.type !== 'text') return;
+    if (node.textContent !== element.content) {
+      node.textContent = element.content;
+    }
 
-      if (node.textContent !== element.content) {
-        node.textContent = element.content;
-      }
-      node.focus();
+    node.focus({ preventScroll: true });
 
+    try {
       const selection = window.getSelection();
       const range = document.createRange();
       range.selectNodeContents(node);
       selection?.removeAllRanges();
       selection?.addRange(range);
-    }, 0);
+    } catch {
+      // חלק מדפדפני מובייל לא תומכים בבחירת טווח על contentEditable
+    }
+    return true;
+  }, []);
 
+  /** כניסה לעריכת טקסט – flushSync כדי שהמקלדת במובייל תיפתח בתוך מחוות המשתמש */
+  const startTextEditing = useCallback((elementId) => {
+    const element = elementsRef.current.find((el) => el.id === elementId);
+    if (!element || element.type !== 'text' || element.locked) return;
+
+    flushSync(() => {
+      setSelectedElementId(elementId);
+      setEditingElementId(elementId);
+    });
+
+    if (!focusTextEditor(elementId)) {
+      window.requestAnimationFrame(() => focusTextEditor(elementId));
+    }
+  }, [focusTextEditor, setSelectedElementId]);
+
+  useEffect(() => {
+    if (!editingElementId) return;
+    // גיבוי אם ה־ref עדיין לא מוכן אחרי flushSync
+    const timer = window.setTimeout(() => focusTextEditor(editingElementId), 0);
     return () => window.clearTimeout(timer);
-  }, [editingElementId]);
+  }, [editingElementId, focusTextEditor]);
 
   useEffect(() => {
     if (!croppingElementId) {
@@ -257,26 +331,31 @@ const Canvas = ({
     wasInteractingRef.current = true;
 
     const handleGlobalMouseMove = (e) => {
+      const point = e.touches?.[0] || e.changedTouches?.[0] || e;
+      const clientX = point.clientX;
+      const clientY = point.clientY;
+
       if (dragInfo.current.isDragging && dragInfo.current.elementId) {
-        const dx = (e.clientX - dragInfo.current.initialMouseX) / scale;
-        const dy = (e.clientY - dragInfo.current.initialMouseY) / scale;
+        const dx = (clientX - dragInfo.current.initialMouseX) / scale;
+        const dy = (clientY - dragInfo.current.initialMouseY) / scale;
 
         const newTop = dragInfo.current.initialTop + dy;
         const newLeft = dragInfo.current.initialLeft + dx;
 
         updateElement(dragInfo.current.elementId, { top: newTop, left: newLeft });
       } else if (dragInfo.current.elementId && dragInfo.current.pendingDrag) {
-        const dx = e.clientX - dragInfo.current.initialMouseX;
-        const dy = e.clientY - dragInfo.current.initialMouseY;
+        const dx = clientX - dragInfo.current.initialMouseX;
+        const dy = clientY - dragInfo.current.initialMouseY;
         if (Math.hypot(dx, dy) > 4) {
           dragInfo.current.isDragging = true;
           dragInfo.current.pendingDrag = false;
+          dragInfo.current.didMove = true;
         }
       }
       else if (rotationInfo.current.isRotating && rotationInfo.current.elementId) {
         const { centerX, centerY, startAngle, initialRotation } = rotationInfo.current;
-        const currentX = e.clientX - centerX;
-        const currentY = e.clientY - centerY;
+        const currentX = clientX - centerX;
+        const currentY = clientY - centerY;
         const currentAngle = Math.atan2(currentY, currentX) * (180 / Math.PI);
 
         let newRotation = initialRotation + (currentAngle - startAngle);
@@ -288,8 +367,8 @@ const Canvas = ({
           initialRotation, initialMouseX, initialMouseY, aspectRatio
         } = resizeInfo.current;
 
-        const dx = (e.clientX - initialMouseX) / scale;
-        const dy = (e.clientY - initialMouseY) / scale;
+        const dx = (clientX - initialMouseX) / scale;
+        const dy = (clientY - initialMouseY) / scale;
 
         const rotatedDelta = rotatePoint({ x: dx, y: dy }, -initialRotation);
 
@@ -355,12 +434,28 @@ const Canvas = ({
     };
 
     const handleGlobalMouseUp = () => {
+      if (
+        dragInfo.current.elementId ||
+        rotationInfo.current.isRotating ||
+        resizeInfo.current.isResizing
+      ) {
+        lastTapRef.current = {
+          elementId: dragInfo.current.elementId,
+          wasAlreadySelected: dragInfo.current.wasAlreadySelected,
+          didMove: Boolean(dragInfo.current.didMove || dragInfo.current.isDragging),
+        };
+      }
+
       const didInteract = wasInteractingRef.current;
       setIsInteracting(false);
-      if (dragInfo.current.isDragging) {
-        dragInfo.current = { ...dragInfo.current, isDragging: false, pendingDrag: false, elementId: null };
-      } else if (dragInfo.current.pendingDrag) {
-        dragInfo.current = { ...dragInfo.current, pendingDrag: false, elementId: null };
+      if (dragInfo.current.isDragging || dragInfo.current.pendingDrag || dragInfo.current.elementId) {
+        dragInfo.current = {
+          ...dragInfo.current,
+          isDragging: false,
+          pendingDrag: false,
+          elementId: null,
+          didMove: false,
+        };
       }
       if (rotationInfo.current.isRotating) {
         rotationInfo.current = { ...rotationInfo.current, isRotating: false, elementId: null };
@@ -375,10 +470,17 @@ const Canvas = ({
       wasInteractingRef.current = false;
     };
 
+    window.addEventListener('pointermove', handleGlobalMouseMove);
+    window.addEventListener('pointerup', handleGlobalMouseUp);
+    window.addEventListener('pointercancel', handleGlobalMouseUp);
+    // גיבוי לדפדפנים ישנים בלי Pointer Events מלאים
     window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
 
     return () => {
+      window.removeEventListener('pointermove', handleGlobalMouseMove);
+      window.removeEventListener('pointerup', handleGlobalMouseUp);
+      window.removeEventListener('pointercancel', handleGlobalMouseUp);
       window.removeEventListener('mousemove', handleGlobalMouseMove);
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
@@ -402,16 +504,23 @@ const Canvas = ({
 
   const handleDoubleClick = (e, elementId) => {
     e.stopPropagation();
-    setSelectedElementId(elementId);
-    setEditingElementId(elementId);
+    startTextEditing(elementId);
   };
 
   const handleMouseDown = (e, el) => {
     if (el.id === croppingElementId || el.locked) return;
     if (el.type === 'text' && el.id === editingElementId) return;
 
-    e.preventDefault();
     e.stopPropagation();
+    skipCanvasDeselectUntilRef.current = Date.now() + 400;
+
+    const point = e.touches?.[0] || e;
+    const wasAlreadySelected = selectedElementId === el.id;
+
+    // בטקסט שכבר נבחר – לא מונעים default, כדי שהקלדה במובייל תוכל לקבל פוקוס
+    if (!(el.type === 'text' && wasAlreadySelected)) {
+      e.preventDefault();
+    }
 
     setSelectedElementId(el.id);
 
@@ -419,10 +528,13 @@ const Canvas = ({
       isDragging: el.type !== 'text',
       pendingDrag: el.type === 'text',
       elementId: el.id,
-      initialMouseX: e.clientX,
-      initialMouseY: e.clientY,
+      initialMouseX: point.clientX,
+      initialMouseY: point.clientY,
       initialTop: el.top,
       initialLeft: el.left,
+      wasAlreadySelected,
+      didMove: false,
+      dropzoneId: el.dropzoneId || null,
     };
     setIsInteracting(true);
   };
@@ -454,7 +566,7 @@ const Canvas = ({
   };
 
   const handleResizeStart = (e, el, handle) => {
-    if (el.locked || (el.type !== 'image' && el.type !== 'shape')) return;
+    if (el.locked || (el.type !== 'image' && el.type !== 'shape' && el.type !== 'globalFrame')) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -542,8 +654,6 @@ const Canvas = ({
   const gridCellSize = canvasWidth / gridSize;
 
   const renderElementContent = (el, isGhost = false) => {
-    const elIsImage = el.type === 'image';
-    const elIsShape = el.type === 'shape';
     const elIsGlobalFrame = el.type === 'globalFrame';
 
     if (elIsGlobalFrame) {
@@ -670,10 +780,19 @@ const Canvas = ({
           }}
           contentEditable
           suppressContentEditableWarning
-          style={textStyle}
+          inputMode="text"
+          enterKeyHint="done"
+          style={{
+            ...textStyle,
+            WebkitUserSelect: 'text',
+            userSelect: 'text',
+            touchAction: 'manipulation',
+          }}
           onBlur={(e) => handleBlur(e, textEl.id)}
           onInput={(e) => handleTextInput(textEl.id, e.currentTarget.innerText)}
           onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
         />
@@ -709,7 +828,22 @@ const Canvas = ({
             zIndex: 100,
           }}
           onMouseDown={e => e.stopPropagation()}
+          onPointerDown={e => e.stopPropagation()}
+          onTouchStart={e => e.stopPropagation()}
         >
+          {el.type === 'text' && !el.locked && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                startTextEditing(el.id);
+              }}
+              aria-label="ערוך טקסט"
+              className="p-2 text-[#f2665e] hover:bg-red-50 rounded-md"
+            >
+              <TextIcon className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
             aria-label={el.locked ? "בטל נעילה" : "נעל"}
@@ -719,7 +853,7 @@ const Canvas = ({
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
-            disabled={el.locked}
+            disabled={el.locked || el.type === 'globalFrame'}
             aria-label="שכפל"
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:text-gray-400 disabled:cursor-not-allowed"
           >
@@ -728,7 +862,7 @@ const Canvas = ({
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             disabled={el.locked}
-            aria-label="מחק"
+            aria-label={el.type === 'globalFrame' ? 'הסר מסגרת' : 'מחק'}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             <TrashIcon className="w-5 h-5" />
@@ -745,8 +879,8 @@ const Canvas = ({
           }}
         />
 
-        {/* Rotate Handle */}
-        {!el.locked && (
+        {/* Rotate Handle – לא למסגרת קולאז׳ פנימית (רק הזזה/גודל) */}
+        {!el.locked && !el.dropzoneId && (
           <div
             className="absolute left-1/2 -translate-x-1/2 p-1 cursor-grab bg-white rounded-full shadow active:cursor-grabbing"
             style={{ pointerEvents: 'auto', bottom: '-40px' }}
@@ -756,8 +890,8 @@ const Canvas = ({
           </div>
         )}
 
-        {/* Resize Handles - Only for Image/Shape */}
-        {!el.locked && (el.type === 'image' || el.type === 'shape') && Object.keys(handlePositions).map(pos => (
+        {/* Resize Handles – כולל תמונות בתוך חלונות קולאז׳ */}
+        {!el.locked && (el.type === 'image' || el.type === 'shape' || el.type === 'globalFrame') && Object.keys(handlePositions).map(pos => (
           <div
             key={pos}
             style={{
@@ -806,12 +940,25 @@ const Canvas = ({
       <div
         ref={mainRef}
         className="absolute inset-0 overflow-auto"
-        onClick={() => {
+        onClick={(e) => {
           if (croppingElementId || editingElementId) return;
+          if (Date.now() < skipCanvasDeselectUntilRef.current) return;
+          // אל תבטל בחירה אם הלחיצה הגיעה מתוך משטח העיצוב/אלמנט
+          if (e.target.closest?.('#canvas-container')) return;
           setSelectedElementId(null);
         }}
       >
-        <div className="flex min-h-full w-full items-center justify-center p-8 box-border">
+        <div
+          className="flex min-h-full w-full items-center justify-center p-3 sm:p-6 md:p-8 box-border canvas-deselect-area"
+          onClick={(e) => {
+            if (croppingElementId || editingElementId) return;
+            if (Date.now() < skipCanvasDeselectUntilRef.current) return;
+            // לחיצה על הריפוד סביב הקנבס מבטלת בחירה; לחיצה על הקנבס עצמו מטופלת שם
+            if (e.target === e.currentTarget) {
+              setSelectedElementId(null);
+            }
+          }}
+        >
       <div className="flex flex-col items-center gap-4 shrink-0">
         {showOrientationToggle && (
           <button
@@ -839,6 +986,14 @@ const Canvas = ({
           transform: `scale(${scale})`,
           isolation: 'isolate',
           ...canvasDynamicStyles,
+        }}
+        onClick={(e) => {
+          // לחיצה על רקע ריק בתוך הקנבס מבטלת בחירה
+          if (croppingElementId || editingElementId) return;
+          if (Date.now() < skipCanvasDeselectUntilRef.current) return;
+          if (e.target === e.currentTarget) {
+            setSelectedElementId(null);
+          }
         }}
       >
         {/* Grid Overlay */}
@@ -959,10 +1114,27 @@ const Canvas = ({
             >
               <div
                 style={innerWrapperStyle}
-                onMouseDown={(e) => handleMouseDown(e, el)}
+                onPointerDown={(e) => {
+                  if (e.pointerType === 'mouse' && e.button !== 0) return;
+                  handleMouseDown(e, el);
+                }}
                 onClick={(e) => {
                   if (croppingElementId) return;
                   e.stopPropagation();
+
+                  const tap = lastTapRef.current;
+                  const isSecondTapOnText =
+                    el.type === 'text' &&
+                    !el.locked &&
+                    tap.elementId === el.id &&
+                    tap.wasAlreadySelected &&
+                    !tap.didMove;
+
+                  if (isSecondTapOnText) {
+                    startTextEditing(el.id);
+                    return;
+                  }
+
                   setSelectedElementId(el.id);
                 }}
               >
@@ -1004,29 +1176,165 @@ const Canvas = ({
           )
         })}
 
-        {/* שכבת מסגרת גלובלית – מעל תמונות, מתחת לטקסט, עם תמיכה בשקיפות PNG */}
+        {/* תצוגת תמונות קולאז׳ – מתחת למסגרת */}
+        {resolvedDropzones.length > 0 && (
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 400 }} aria-hidden="true">
+            {resolvedDropzones.map((zone) => {
+              const imageEl = getDropzoneImageForSlot(elements, zone.id);
+              if (!imageEl) return null;
+              const clipStyle = getClipStyle(zone);
+              return (
+                <div
+                  key={`visual-${zone.id}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${zone.left}px`,
+                    top: `${zone.top}px`,
+                    width: `${zone.width}px`,
+                    height: `${zone.height}px`,
+                    overflow: 'hidden',
+                    ...clipStyle,
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: `${(imageEl.left ?? 0) - zone.left}px`,
+                      top: `${(imageEl.top ?? 0) - zone.top}px`,
+                      width: `${imageEl.width}px`,
+                      height: `${imageEl.height}px`,
+                    }}
+                  >
+                    {renderElementContent(imageEl)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* שכבת מסגרת גלובלית – לחיצה לבחירה ולהזזה */}
         {layeredElements.frames.length > 0 && (
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0"
             style={{ zIndex: 500, isolation: 'isolate' }}
-            aria-hidden="true"
           >
             {layeredElements.frames.map((el) => (
               <div
                 key={el.id}
+                role="button"
+                tabIndex={0}
+                aria-label={el.title ? `מסגרת: ${el.title}` : 'מסגרת עיצוב'}
+                aria-pressed={selectedElementId === el.id}
                 style={{
                   position: 'absolute',
                   top: `${el.top ?? 0}px`,
                   left: `${el.left ?? 0}px`,
                   width: `${el.width}px`,
                   height: `${el.height}px`,
-                  pointerEvents: 'none',
+                  pointerEvents: 'auto',
+                  cursor: el.locked ? 'not-allowed' : 'move',
                   background: 'transparent',
+                }}
+                onPointerDown={(e) => {
+                  if (e.pointerType === 'mouse' && e.button !== 0) return;
+                  e.stopPropagation();
+                  handleMouseDown(e, el);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedElementId(el.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelectedElementId(el.id);
+                  }
                 }}
               >
                 {renderElementContent(el)}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* לחיצה על חלונות קולאז׳ – מעל המסגרת */}
+        {resolvedDropzones.length > 0 && (
+          <div className="absolute inset-0" style={{ zIndex: 550 }} aria-label="חלונות תמונה לקולאז׳">
+            <input
+              ref={dropzoneFileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              className="hidden"
+              onChange={handleDropzoneFileChange}
+            />
+            {resolvedDropzones.map((zone) => {
+              const imageEl = getDropzoneImageForSlot(elements, zone.id);
+              const clipStyle = getClipStyle(zone);
+              const isSelected = imageEl && selectedElementId === imageEl.id;
+
+              return (
+                <div
+                  key={`hit-${zone.id}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${zone.left}px`,
+                    top: `${zone.top}px`,
+                    width: `${zone.width}px`,
+                    height: `${zone.height}px`,
+                    overflow: 'hidden',
+                    zIndex: isSelected ? 560 : 550,
+                    ...clipStyle,
+                  }}
+                >
+                  {imageEl ? (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={zone.label || 'תמונת קולאז׳'}
+                      aria-pressed={isSelected}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        cursor: 'move',
+                        background: 'transparent',
+                        boxShadow: isSelected ? 'inset 0 0 0 2px #3B82F6' : 'none',
+                      }}
+                      onPointerDown={(e) => {
+                        if (e.pointerType === 'mouse' && e.button !== 0) return;
+                        e.stopPropagation();
+                        // תמיד משתמשים בגרסה העדכנית מה-ref כדי שהגרירה תהיה חלקה
+                        const latest = elementsRef.current.find((item) => item.id === imageEl.id) || imageEl;
+                        handleMouseDown(e, latest);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedElementId(imageEl.id);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        handleDropzoneUploadClick(zone.id);
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDropzoneUploadClick(zone.id);
+                      }}
+                      className="w-full h-full flex flex-col items-center justify-center gap-1 bg-white/70 hover:bg-white/90 border-2 border-dashed border-red-300 text-red-500 transition-colors"
+                      aria-label={`העלה תמונה ל${zone.label || 'חלון'}`}
+                    >
+                      <PlusIcon className="w-6 h-6" />
+                      <span className="text-[10px] sm:text-xs font-bold px-1 text-center leading-tight">
+                        {zone.label || 'העלה תמונה'}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -1037,20 +1345,67 @@ const Canvas = ({
               position: 'absolute',
               top: `${selectedElement.top}px`,
               left: `${selectedElement.left}px`,
-              width: (selectedElement.type === 'image' || selectedElement.type === 'shape' || selectedElement.type === 'text')
+              width: (selectedElement.type === 'image'
+                || selectedElement.type === 'shape'
+                || selectedElement.type === 'text'
+                || selectedElement.type === 'globalFrame')
                 ? `${selectedElement.width}px`
                 : 'auto',
-              height: (selectedElement.type === 'image' || selectedElement.type === 'shape' || selectedElement.type === 'text')
+              height: (selectedElement.type === 'image'
+                || selectedElement.type === 'shape'
+                || selectedElement.type === 'text'
+                || selectedElement.type === 'globalFrame')
                 ? `${selectedElement.height}px`
                 : 'auto',
               transform: `rotate(${selectedElement.rotation || 0}deg)`,
               transformOrigin: 'center center',
-              zIndex: 100,
+              zIndex: (selectedElement.type === 'globalFrame' || selectedElement.dropzoneId) ? 600 : 100,
               pointerEvents: 'none',
             }}
           >
             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-              {selectedElement.type !== 'text' && renderElementContent(selectedElement, true)}
+              {selectedElement.type !== 'text'
+                && selectedElement.type !== 'globalFrame'
+                && !selectedElement.dropzoneId
+                && renderElementContent(selectedElement, true)}
+
+              {selectedElement.type === 'globalFrame' && !selectedElement.locked && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'auto',
+                    cursor: 'move',
+                    background: 'transparent',
+                  }}
+                  onPointerDown={(e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    e.stopPropagation();
+                    handleMouseDown(e, selectedElement);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="הזז מסגרת"
+                />
+              )}
+
+              {selectedElement.dropzoneId && !selectedElement.locked && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'auto',
+                    cursor: 'move',
+                    background: 'transparent',
+                  }}
+                  onPointerDown={(e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    e.stopPropagation();
+                    handleMouseDown(e, selectedElement);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="הזז תמונה בחלון"
+                />
+              )}
 
               {renderSelectionUI(selectedElement)}
             </div>

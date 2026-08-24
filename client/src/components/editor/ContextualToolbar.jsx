@@ -159,7 +159,7 @@ const ContextualToolbar = ({
     const currentFill = selectedElement.fill;
 
     return (
-        <div className="contextual-toolbar h-16 bg-white border-b border-gray-200 flex items-center px-4 gap-2 shadow-sm relative z-40 shrink-0 overflow-visible">
+        <div className="contextual-toolbar h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center px-2 sm:px-4 gap-1 sm:gap-2 shadow-sm relative z-40 shrink-0 overflow-x-auto overflow-y-visible scrollbar-thin">
             
             {/* Selection Tools */}
             <div className="flex items-center gap-1">
