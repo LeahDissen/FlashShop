@@ -6,6 +6,7 @@ import { getProducts } from "../api/products";
 import { saveCheckoutDraft } from "../utils/checkoutDraft";
 import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
+import CartCheckoutBar from "../components/CartCheckoutBar";
 import SmartImageInput from "../components/SmartImageInput";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
@@ -193,15 +194,15 @@ export default function ShoppingCartPage() {
             <div className="space-y-6">
               
               {/* באנר עליון: כמות הפריטים בסל - עודכן לגודל text-xl */}
-              <div className="w-full bg-[#f2665e] rounded-full py-3 px-6 text-center shadow-sm max-w-2xl mx-auto">
-                <p className="text-xl font-bold text-white tracking-wide">
+              <div className="w-full bg-[#f2665e] rounded-full py-2.5 sm:py-3 px-4 sm:px-6 text-center shadow-sm max-w-2xl mx-auto">
+                <p className="text-base sm:text-xl font-bold text-white tracking-wide">
                   יש לי {totalItems} פריטים בסל
                 </p>
               </div>
 
-              {/* כותרות + פריטים — אותה פריסת grid (6-3-3) */}
+              {/* כותרות + פריטים */}
               <div className="max-w-2xl mx-auto">
-                <div className="grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
+                <div className="hidden sm:grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
                   <div className="col-span-6 text-right">פריטים</div>
                   <div className="col-span-3 text-center">כמות</div>
                   <div className="col-span-3 text-center">מחיר</div>
@@ -216,37 +217,19 @@ export default function ShoppingCartPage() {
                 ))}
               </div>
 
-              {/* באר סיכום הזמנה ותשלום תחתון */}
+              {/* באר סיכום הזמנה ותשלום */}
               <div className="max-w-2xl mx-auto pt-2">
-                <div className="w-full bg-[#f2665e] rounded-full py-4 px-6 sm:px-8 shadow-md flex flex-row items-center justify-between text-white">
-                  
-                  {/* כפתורי פעולה */}
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={handleCheckout}
-                      className="bg-white text-[#f2665e] hover:bg-[#f8dcdb] text-xs sm:text-sm font-medium px-6 py-2 rounded-full transition-all duration-200 shadow-sm whitespace-nowrap"
-                    >
-                      {draft.payBtn || "רוצה לשלם"}
-                    </button>
-
-                    <button 
-                      onClick={() => {
-                        const code = prompt(draft.codePlaceholder || "הזן קוד קופון");
-                        if (code !== null) handleCoupon(code).then(res => alert(res.msg));
-                      }}
-                      className="bg-[#f8dcdb]/80 text-[#f2665e] hover:bg-white text-xs sm:text-sm font-medium px-5 py-2 rounded-full transition-all duration-200 shadow-sm whitespace-nowrap"
-                    >
-                      {appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
-                    </button>
-                  </div>
-
-                  {/* סה"כ לתשלום - עודכן לגודל אחיד text-xl עבור הכיתוב והמחיר כאחד */}
-                  <div className="text-left flex flex-row items-center gap-2 text-xl font-bold">
-                    <span className="opacity-95">סה"כ לתשלום:</span>
-                    <span className="tracking-tight">₪{totalPrice.toFixed(2)}</span>
-                  </div>
-
-                </div>
+                <CartCheckoutBar
+                  totalPrice={totalPrice}
+                  subtotal={subtotal}
+                  discount={discount}
+                  onCheckout={handleCheckout}
+                  onCoupon={handleCoupon}
+                  payBtnLabel={draft.payBtn || "רוצה לשלם"}
+                  couponBtnLabel={appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
+                  codePlaceholder={draft.codePlaceholder || "הזן קוד קופון"}
+                  codeApplyLabel={draft.codeBtn || "החל"}
+                />
               </div>
 
             </div>

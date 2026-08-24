@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-/** פס תשלום תחתון — מחובר לכרטיס העגלה, עיצוב Figma */
+/** פס תשלום תחתון — רספונסיבי, סה״כ + כפתורים בלי חפיפה */
 export default function CartCheckoutBar({
   totalPrice,
   subtotal,
@@ -34,27 +34,29 @@ export default function CartCheckoutBar({
   return (
     <div className={embedded ? '' : 'mt-3'}>
       <div
-        className={`bg-[#f2665e] px-4 py-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 ${
-          embedded ? '' : 'rounded-xl shadow-sm'
+        className={`bg-[#f2665e] px-4 py-4 sm:px-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${
+          embedded ? '' : 'rounded-2xl sm:rounded-full shadow-md'
         }`}
       >
-        <div className="text-white text-center sm:text-right order-2 sm:order-1">
-          <span className="text-sm sm:text-base font-medium">סה&quot;כ לתשלום: </span>
-          <span className="text-lg sm:text-xl font-bold tracking-wide">
-            {totalPrice.toFixed(2)} ₪
-          </span>
+        <div className="text-white text-center sm:text-right shrink-0">
+          <p className="text-base sm:text-lg font-bold leading-snug">
+            <span className="opacity-95">סה&quot;כ לתשלום: </span>
+            <span className="tracking-tight whitespace-nowrap">
+              {totalPrice.toFixed(2)} ₪
+            </span>
+          </p>
           {discount > 0 && (
-            <p className="text-xs text-white/85 mt-0.5">
+            <p className="text-xs text-white/85 mt-1">
               לפני הנחה: {subtotal.toFixed(2)} ₪
             </p>
           )}
         </div>
 
-        <div className="flex items-center justify-center gap-2 sm:gap-3 order-1 sm:order-2">
+        <div className="flex flex-row w-full sm:w-auto items-stretch sm:items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={() => setShowCoupon((v) => !v)}
-            className="min-w-[120px] text-sm bg-[#ffeae8] text-[#a83232] font-bold py-2 px-5 rounded-full border border-white/40 hover:bg-white transition-colors shadow-sm"
+            className="flex-1 sm:flex-none text-sm bg-[#ffeae8] text-[#a83232] font-bold py-2.5 px-3 sm:px-4 rounded-full border border-white/40 hover:bg-white transition-colors shadow-sm whitespace-nowrap"
           >
             {couponBtnLabel}
           </button>
@@ -62,7 +64,7 @@ export default function CartCheckoutBar({
             type="button"
             onClick={onCheckout}
             disabled={disabled}
-            className="min-w-[120px] text-sm bg-white text-[#f2665e] font-bold py-2 px-6 rounded-full hover:bg-gray-50 disabled:opacity-60 shadow-sm"
+            className="flex-1 sm:flex-none text-sm bg-white text-[#f2665e] font-bold py-2.5 px-3 sm:px-5 rounded-full hover:bg-gray-50 disabled:opacity-60 shadow-sm whitespace-nowrap"
           >
             {payBtnLabel}
           </button>

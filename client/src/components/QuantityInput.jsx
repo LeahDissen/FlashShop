@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 
 const VARIANTS = {
     cart: {
-        wrapper: 'inline-flex items-center border border-gray-300 rounded overflow-hidden bg-white',
-        button: 'px-2.5 py-1 text-gray-700 hover:bg-gray-100 disabled:opacity-40',
-        input: 'w-10 py-1 text-center font-medium border-x border-gray-300 outline-none focus:bg-gray-50',
+        wrapper: 'inline-flex items-center border border-gray-300 rounded-md overflow-hidden bg-white shrink-0',
+        button: 'min-w-[36px] h-9 px-2.5 text-lg leading-none text-gray-700 hover:bg-gray-100 disabled:opacity-40 touch-manipulation select-none',
+        input: 'w-11 h-9 py-0 text-center font-medium border-x border-gray-300 outline-none focus:bg-gray-50',
     },
     photo: {
         wrapper: 'bg-white/80 backdrop-blur-sm rounded-full p-1 flex items-center shadow-md',
