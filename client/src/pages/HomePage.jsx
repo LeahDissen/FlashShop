@@ -1,334 +1,454 @@
-import { useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useNavigate, Link } from 'react-router-dom';
 import { getPage } from '../api/pages';
 import { getAllTips } from '../api/tips';
 import AdminControls from '../components/AdminControls.jsx';
 import SmartImageInput from '../components/SmartImageInput';
-import Testimonials from '../components/Testimonials';
+import Testimonials, { DEFAULT_TESTIMONIALS } from '../components/Testimonials';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import useAppStore from '../store/appStore';
 import { useTipsStore } from '../store/tipsStore';
 
-export default function HomePage() {
-    const adminControls = useAdminControl({
-        title: "",
-        mainImg: "",
-        products: [],
-        goToAll: "",
-        goToAbout: "",
-        textAbout: "",
-        goToTips: ""
-    }, "home");
+/** Parse a Redis field that may arrive as JSON string or already-parsed value */
+const parseJsonField = (value, fallback) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== "string" || !value.trim()) return fallback;
+    try {
+        const raw = value.trim();
+        const parsed = JSON.parse(raw.startsWith("[") || raw.startsWith("{") ? raw : `[${raw}]`);
+        return Array.isArray(parsed) ? parsed : fallback;
+    } catch (err) {
+        console.error("Failed to parse JSON field:", err);
+        return fallback;
+    }
+};
 
+/** Stable initial data — defined outside component to prevent recreation on every render */
+const INITIAL_DATA = {
+    title: "",
+    mainImg: "",
+    products: [],
+    goToAll: "",
+    goToAbout: "",
+    titleAbout: "",
+    textAbout: "",
+    titleTestimonials: "",
+    testimonials: DEFAULT_TESTIMONIALS,
+    goToTips: ""
+};
+
+/**
+ * HomePage — Figma-inspired layout with responsive hero.
+ *
+ * Layout:
+ *  - Hero: heading + CTA + wave photo (stacks on tablet/mobile)
+ *  - Product grid: 6 tiles + shipping badge
+ *  - Story, Testimonials, Tips
+ */
+export default function HomePage() {
+    const adminControls = useAdminControl(INITIAL_DATA, "home");
     const { draft, updateDraft, editMode } = adminControls;
+
     const setClubOpen = useAppStore(state => state.setClubOpen);
-    const Navigate = useNavigate();
+    const navigate = useNavigate();
     const [recentTips, setRecentTips] = useState([]);
     const setCurrentTip = useTipsStore(state => state.setCurrentTip);
 
+    // Track if we already loaded data — prevent double-fetch
+    const loadedRef = useRef(false);
+
+    /** Show club popup after 8s if not dismissed this session */
     useEffect(() => {
         const dismissed = sessionStorage.getItem("club-popup-dismissed");
         if (dismissed) return;
-
         const timer = setTimeout(() => {
-            if (!sessionStorage.getItem("club-popup-dismissed")) {
-                setClubOpen(true);
-            }
+            if (!sessionStorage.getItem("club-popup-dismissed")) setClubOpen(true);
         }, 8000);
-
         return () => clearTimeout(timer);
     }, [setClubOpen]);
 
+    /** Fetch CMS data and tips exactly once on mount */
     useEffect(() => {
+        if (loadedRef.current) return;
+        loadedRef.current = true;
+
         getPage("home").then((data) => {
-            if (typeof data.products === "string") {
-                try {
-                    const fixedJson = data.products.trim();
-                    const jsonToParse = fixedJson.startsWith("[") ? fixedJson : `[${fixedJson}]`;
-                    data.products = JSON.parse(jsonToParse);
-                } catch (err) {
-                    console.error("Failed to parse products JSON:", err);
-                    data.products = [];
-                }
-            }
+            data.products = parseJsonField(data.products, []);
+            data.testimonials = parseJsonField(data.testimonials, DEFAULT_TESTIMONIALS);
             adminControls.setPage(data);
             adminControls.setDraft(data);
         });
-        getAllTips(1, 2).then((data) => {
-            if (data && data.tips) {
-                setRecentTips(data.tips);
-            }
-        }).catch(err => console.error("Failed to fetch tips:", err));
 
-    }, []);
+        getAllTips(1, 2)
+            .then((data) => { if (data?.tips) setRecentTips(data.tips); })
+            .catch((err) => console.error("Failed to fetch tips:", err));
+    }); // intentionally no dependency array — the ref guard prevents double-execution
 
+    /**
+     * Truncates text to maxLength characters.
+     * @param {string} text
+     * @param {number} maxLength
+     * @returns {string}
+     */
     const truncateText = (text, maxLength) => {
         if (!text) return "";
         return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
     };
 
+    /**
+     * Updates a specific field of one product in the draft array.
+     * @param {number} index
+     * @param {string} field
+     * @param {string} value
+     */
+    const updateProduct = (index, field, value) => {
+        const updated = [...(draft.products || [])];
+        // Ensure slot exists
+        while (updated.length <= index) updated.push({});
+        updated[index] = { ...updated[index], [field]: value };
+        updateDraft({ products: updated });
+    };
+
+    const updateTestimonial = (index, field, value) => {
+        const updated = [...(Array.isArray(draft.testimonials) ? draft.testimonials : DEFAULT_TESTIMONIALS)];
+        updated[index] = { ...updated[index], id: updated[index]?.id ?? index + 1, [field]: value };
+        updateDraft({ testimonials: updated });
+    };
+
+    const addTestimonial = () => {
+        const list = Array.isArray(draft.testimonials) ? draft.testimonials : [...DEFAULT_TESTIMONIALS];
+        updateDraft({
+            testimonials: [...list, { id: Date.now(), text: "", name: "" }]
+        });
+    };
+
+    const removeTestimonial = (index) => {
+        const list = Array.isArray(draft.testimonials) ? draft.testimonials : [...DEFAULT_TESTIMONIALS];
+        updateDraft({ testimonials: list.filter((_, i) => i !== index) });
+    };
+
+    /** Always 6 grid slots — real products or empty placeholders */
+    const gridItems = useMemo(() => {
+        const list = Array.isArray(draft.products) ? draft.products : [];
+        return [
+            ...list.slice(0, 6),
+            ...Array(Math.max(0, 6 - list.length)).fill(null)
+        ];
+    }, [draft.products]);
+
+    // ─── Admin Edit Panel ─────────────────────────────────────────────────────
     const EditContent = (
-        <>
-            <input
-                type="text"
-                value={draft.title}
-                style={{ width: "100%", height: "250px" }}
-                onChange={(e) => updateDraft({ title: e.target.value })}
-            />
-            <label>🔗 Main Image URL:</label>
-            <SmartImageInput
-                value={draft.mainImg}
-                onChange={(url) => updateDraft({ mainImg: url })}
-                style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                className="w-full"
-                previewClassName="h-[100px] w-[100px] rounded object-cover border border-gray-200"
-            />
-            <div className='container'>
-                {Array.isArray(draft.products) && draft.products.map((prod, index) => (
-                    <div key={index} className='product-card'>
-                        <input
-                            type="text"
-                            placeholder="שם המוצר"
-                            value={prod.name || ''}
-                            onChange={(e) => {
-                                const updatedProducts = [...draft.products];
-                                updatedProducts[index] = {
-                                    ...updatedProducts[index],
-                                    name: e.target.value
-                                };
-                                updateDraft({ products: updatedProducts });
-                            }}
-                            style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                        />
-                        <SmartImageInput
-                            placeholder="URL התמונה"
-                            value={prod.image}
-                            onChange={(url) => {
-                                const updatedProducts = [...draft.products];
-                                updatedProducts[index] = {
-                                    ...updatedProducts[index],
-                                    image: url
-                                };
-                                updateDraft({ products: updatedProducts });
-                            }}
-                            style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-                            className="w-full"
-                            previewClassName="h-[100px] w-[100px] rounded object-cover border border-gray-200"
-                        />
-                    </div>
-                ))}
+        <div dir="rtl" className="space-y-5 text-right text-sm text-gray-700 p-3">
+            <div>
+                <label className="font-bold block mb-1">כותרת ראשית:</label>
+                <input
+                    type="text"
+                    value={draft.title || ''}
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ title: e.target.value })}
+                />
             </div>
-            <input
-                type="text"
-                value={draft.goToAll}
-                style={{ width: "100%", height: "50px", marginTop: "10px" }}
-                onChange={(e) => updateDraft({ goToAll: e.target.value })}
-            />
-            <input
-                type="text"
-                value={draft.goToAbout}
-                style={{ width: "100%", height: "50px", marginTop: "10px" }}
-                onChange={(e) => updateDraft({ goToAbout: e.target.value })}
-            />
-            <textarea
-                style={{ width: "100%", height: "150px", marginTop: "10px" }}
-                value={draft.textAbout}
-                onChange={(e) => updateDraft({ textAbout: e.target.value })}
-            />
-            <input
-                type="text"
-                value={draft.goToTips}
-                style={{ width: "100%", height: "50px", marginTop: "10px" }}
-                onChange={(e) => updateDraft({ goToTips: e.target.value })}
-            />
-        </>
-    );
-
-    const ViewContent = (
-        <div className="w-full bg-white">
-            {/* HERO & PRODUCTS SECTION */}
-            <section className="relative w-full overflow-hidden bg-white pb-10">
-                <div className="relative z-10 w-full">
-                    <div className="flex items-start justify-between">
-                        {/* RIGHT: Image & Red Wave */}
-                        {draft.mainImg && (
-                            <div className="relative" style={{ width: '32%', flexShrink: 0, minHeight: '500px' }}>
-                                <svg width="0" height="0" style={{ position: 'absolute' }}>
-                                    <defs>
-                                        <clipPath id="cornerWaveClip" clipPathUnits="objectBoundingBox">
-                                            <path d="M 1,0 L 1,0.9 Q 0.55,1.05 0.15,0.85 Q 0,0.425 0.15,0 L 1,0 Z" />
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                                <div
-                                    style={{
-                                        width: '100%',
-                                        height: '500px',
-                                        clipPath: 'url(#cornerWaveClip)',
-                                        position: 'relative',
-                                        zIndex: '20'
-                                    }}
-                                >
-                                    <img
-                                        src={draft.mainImg}
-                                        alt="main"
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                                <div
-                                    style={{
-                                        position: 'absolute',
-                                        top: '-50px',
-                                        right: '0',
-                                        width: '120%',
-                                        height: '650px',
-                                        background: 'linear-gradient(180deg, #ff5555 0%, #ff9aaa 100%)',
-                                        clipPath: 'url(#cornerWaveClip)',
-                                        zIndex: '10',
-                                    }}
-                                ></div>
-                            </div>
-                        )}
-
-                        {/*  LEFT: Text + Products Grid */}
-                        <div className="flex-1 flex flex-col pr-20 pt-10 pl-10 relative z-30">
-                            <div className="text-right mb-8">
-                                <h1
-                                    className="text-5xl font-bold mb-4"
-                                    style={{
-                                        color: '#ff5555',
-                                        lineHeight: '1.2'
-                                    }}
-                                >
-                                    {draft.title}
-                                </h1>
+            <div>
+                <label className="font-bold block mb-1">🖼 תמונת Hero:</label>
+                <SmartImageInput
+                    value={draft.mainImg || ''}
+                    onChange={(url) => updateDraft({ mainImg: url })}
+                    className="w-full border p-2 rounded ltr"
+                    previewClassName="h-[80px] w-[80px] rounded object-cover border border-gray-200"
+                />
+            </div>
+            <div>
+                <label className="font-bold block mb-2">6 מוצרים — תמונה + שם + קישור:</label>
+                <div className="grid grid-cols-2 gap-3">
+                    {gridItems.map((prod, index) => (
+                        <div key={index} className="border rounded-xl p-3 bg-gray-50 space-y-2">
+                            <p className="font-bold text-xs" style={{ color: '#ff5a5a' }}>מוצר {index + 1}</p>
+                            <input
+                                type="text"
+                                placeholder="שם הקטגוריה"
+                                value={prod?.name || ''}
+                                className="w-full border rounded p-1.5 text-xs"
+                                onChange={(e) => updateProduct(index, 'name', e.target.value)}
+                            />
+                            <SmartImageInput
+                                placeholder="URL תמונה"
+                                value={prod?.image || ''}
+                                onChange={(url) => updateProduct(index, 'image', url)}
+                                className="w-full border p-1.5 rounded ltr text-xs"
+                                previewClassName="h-[48px] w-[48px] rounded object-cover border border-gray-200"
+                            />
+                            <input
+                                type="text"
+                                placeholder="קישור (e.g. /products)"
+                                value={prod?.link || ''}
+                                className="w-full border rounded p-1.5 text-xs ltr"
+                                dir="ltr"
+                                onChange={(e) => updateProduct(index, 'link', e.target.value)}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div>
+                <label className="font-bold block mb-1">כפתור "לכל המוצרים":</label>
+                <input
+                    type="text"
+                    value={draft.goToAll || ''}
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ goToAll: e.target.value })}
+                />
+            </div>
+            <div>
+                <label className="font-bold block mb-1">כותרת "הסיפור שלנו":</label>
+                <input
+                    type="text"
+                    value={draft.titleAbout || ''}
+                    placeholder="זה הסיפור שלנו <"
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ titleAbout: e.target.value })}
+                />
+            </div>
+            <div>
+                <label className="font-bold block mb-1">טקסט "הסיפור שלנו":</label>
+                <textarea
+                    className="w-full border rounded p-2 h-28"
+                    value={draft.textAbout || ''}
+                    onChange={(e) => updateDraft({ textAbout: e.target.value })}
+                />
+            </div>
+            <div>
+                <label className="font-bold block mb-1">כותרת המלצות לקוחות:</label>
+                <input
+                    type="text"
+                    value={draft.titleTestimonials || ''}
+                    placeholder="תראו מה מספרים עלינו <"
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ titleTestimonials: e.target.value })}
+                />
+            </div>
+            <div>
+                <label className="font-bold block mb-2">המלצות לקוחות:</label>
+                <div className="space-y-3">
+                    {(Array.isArray(draft.testimonials) ? draft.testimonials : DEFAULT_TESTIMONIALS).map((item, index) => (
+                        <div key={item.id ?? index} className="border rounded-xl p-3 bg-gray-50 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <p className="font-bold text-xs" style={{ color: '#ff5a5a' }}>המלצה {index + 1}</p>
                                 <button
-                                    onClick={() => setClubOpen(true)}
-                                    className="px-8 py-2 rounded-full text-white font-medium shadow-lg hover:shadow-xl transition-all"
-                                    style={{ backgroundColor: '#ff5555' }}
+                                    type="button"
+                                    onClick={() => removeTestimonial(index)}
+                                    className="text-xs text-red-500 hover:underline"
                                 >
-                                    {draft.goToAbout}
+                                    מחק
                                 </button>
                             </div>
+                            <input
+                                type="text"
+                                placeholder="שם הלקוח/ה"
+                                value={item?.name || ''}
+                                className="w-full border rounded p-1.5 text-xs"
+                                onChange={(e) => updateTestimonial(index, 'name', e.target.value)}
+                            />
+                            <textarea
+                                placeholder="טקסט ההמלצה"
+                                value={item?.text || ''}
+                                className="w-full border rounded p-1.5 text-xs h-20"
+                                onChange={(e) => updateTestimonial(index, 'text', e.target.value)}
+                            />
+                        </div>
+                    ))}
+                    <button
+                        type="button"
+                        onClick={addTestimonial}
+                        className="w-full border border-dashed border-[#f2665e] text-[#f2665e] rounded-xl py-2 text-xs font-bold hover:bg-red-50 transition"
+                    >
+                        + הוסף המלצה
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label className="font-bold block mb-1">כפתור "לכל הטיפים":</label>
+                <input
+                    type="text"
+                    value={draft.goToTips || ''}
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ goToTips: e.target.value })}
+                />
+            </div>
+        </div>
+    );
 
-                            <div className="w-full max-w-3xl mr-auto mt-5 text-right">
-                                <div className="grid grid-cols-3 gap-4">
-                                    {Array.isArray(draft.products) &&
-                                        draft.products.slice(0, 6).map((prod, index) => (
-                                            <div
-                                                key={index}
-                                                className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer overflow-hidden aspect-square"
-                                            >
-                                                <img
-                                                    src={prod.image}
-                                                    alt={prod.name || `product-${index}`}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                        ))}
-                                </div>
+    // ─── View Content ─────────────────────────────────────────────────────────
+    const ViewContent = (
+        <div className="w-full bg-white overflow-x-hidden">
+
+            {/* ══ HERO + PRODUCTS ═══════════════════════════════════════════ */}
+            <section className="home-hero">
+                <div className="home-hero__inner">
+                    <div className="home-hero__row">
+                        <div className="home-hero__copy">
+                            <h1 className="home-hero__title">
+                                {draft.title || (<>מה הסיפור<br />שלכם?</>)}
+                            </h1>
+                        </div>
+
+                        <div className="home-hero__media">
+                            <div className="home-hero__frame">
+                                {draft.mainImg ? (
+                                    <div className="home-hero__photo">
+                                        <img src={draft.mainImg} alt="תמונת Hero" />
+                                    </div>
+                                ) : (
+                                    <div className="home-hero__placeholder">תמונת Hero</div>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                className="home-hero__float"
+                                onClick={() => navigate('/photo-development')}
+                                aria-label="לפיתוח תמונות"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+                                    aria-hidden="true">
+                                    <path d="M12 19V5" />
+                                    <path d="M5 12l7-7 7 7" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="home-products">
+                        <div className="home-products__grid">
+                            {gridItems.map((prod, index) => (
+                                prod?.image ? (
+                                    <Link
+                                        key={index}
+                                        to={prod.link || '/products'}
+                                        aria-label={prod.name || `קטגוריה ${index + 1}`}
+                                        className="home-products__tile"
+                                    >
+                                        <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
+                                        {prod.name ? (
+                                            <span className="home-products__tile-label">{prod.name}</span>
+                                        ) : null}
+                                    </Link>
+                                ) : (
+                                    <div key={index} className="home-products__empty">
+                                        {prod?.name || `מוצר ${index + 1}`}
+                                    </div>
+                                )
+                            ))}
+                        </div>
+
+                        <div className="home-products__badge" aria-label="משלוחים לכל הארץ">
+                            <svg className="home-products__badge-ring" viewBox="0 0 100 100" aria-hidden="true">
+                                <defs>
+                                    <path id="shipRing" d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
+                                </defs>
+                                <text fill="#F2665E" fontSize="9.5" fontWeight="700" letterSpacing="1.2">
+                                    <textPath xlinkHref="#shipRing" href="#shipRing" startOffset="0%">
+                                        משלוחים לכל הארץ · משלוחים לכל הארץ ·
+                                    </textPath>
+                                </text>
+                            </svg>
+                            <div className="home-products__badge-inner">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
+                                    viewBox="0 0 24 24" fill="none" stroke="#F2665E"
+                                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                    aria-hidden="true">
+                                    <rect x="1" y="3" width="15" height="13" rx="1" />
+                                    <path d="M16 8h4l3 5v3h-7V8z" />
+                                    <circle cx="5.5" cy="18.5" r="2.5" />
+                                    <circle cx="18.5" cy="18.5" r="2.5" />
+                                </svg>
                             </div>
                         </div>
                     </div>
 
-                    <div className="text-center mt-12 mb-8 w-full">
+                    <div className="home-products__all">
                         <button
-                            onClick={() => Navigate('/products')}
-                            className="px-12 py-3 rounded-full text-white font-bold shadow-lg hover:shadow-xl transition-all text-lg"
-                            style={{ backgroundColor: '#ff5555' }}
+                            type="button"
+                            onClick={() => navigate('/products')}
+                            className="home-products__all-btn"
                         >
-                            {draft.goToAll}
+                            {draft.goToAll || "לכל המוצרים"}
                         </button>
                     </div>
-
                 </div>
             </section>
 
-            {/* STORY SECTION */}
-            <section className="w-full pt-4 pb-10 px-6 bg-white relative z-10">
-                <div className="max-w-3xl mx-auto text-center">
-                    <h2 className="text-2xl font-bold mb-2 text-[#ff5555]">
-                        זה הסיפור שלנו
+            {/* ══ STORY ═════════════════════════════════════════════════════ */}
+            <section className="home-story">
+                <div className="home-story__inner">
+                    <h2 className="home-story__title">
+                        {draft.titleAbout || "זה הסיפור שלנו <"}
                     </h2>
-                    <p className="text-gray-700 text-sm leading-relaxed mb-0">
-                        {draft.textAbout}
-                    </p>
+                    <p className="home-story__text">{draft.textAbout}</p>
                 </div>
             </section>
 
-            {/* REVIEWS WAVE HEADER */}
-            <div className="relative -mt-24 z-0">
+            {/* ══ TESTIMONIALS + TIPS ═══════════════════════════════════════ */}
+            <div className="home-social">
                 <svg
-                    viewBox="0 0 1440 320"
-                    className="w-full block h-auto"
+                    viewBox="0 0 1440 90"
+                    style={{ display: 'block', width: '100%', height: 72, marginBottom: -2 }}
                     preserveAspectRatio="none"
+                    aria-hidden="true"
                 >
                     <path
                         fill="#fda49e"
-                        d="M0,96L48,106.7C96,117,192,139,288,144C384,149,480,139,576,128C672,117,768,107,864,112C960,117,1056,139,1152,138.7C1248,139,1344,117,1392,106.7L1440,96L1440,320L0,320Z"
-                    ></path>
+                        d="M0,50 C180,90 360,10 540,45 C720,80 900,15 1080,50 C1260,85 1380,30 1440,45 L1440,90 L0,90 Z"
+                    />
                 </svg>
 
-                <div className="absolute inset-0 flex flex-col justify-start items-center pt-32 px-4 text-center">
-                    <h3 className="text-xl font-bold mb-4 text-white drop-shadow-md">
-                        תראו מה מספרים עלינו
+                <div className="home-social__band">
+                    <h3 className="home-social__title">
+                        {draft.titleTestimonials || "תראו מה מספרים עלינו <"}
                     </h3>
+                    <Testimonials items={draft.testimonials} />
 
-                    <Testimonials />
-                </div>
-            </div>
-
-            {/* TIPS SECTION */}
-            <section className="w-full py-12 px-6" style={{ backgroundColor: '#fda49e' }}>
-                <div className="max-w-5xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                    <div className="home-tips">
                         {recentTips.length > 0 ? (
                             recentTips.map((tip) => (
                                 <Link
-                                    style={{ backgroundColor: '#fff0f0' }}
-                                    to={`/tips/tip_page`}
+                                    to="/tips/tip_page"
                                     key={tip._id}
                                     onClick={() => setCurrentTip(tip)}
-                                    className="bg-white rounded-2xl shadow-md hover:shadow-lg transition-all overflow-hidden flex h-48 sm:h-40 cursor-pointer"
+                                    className="home-tips__card"
                                 >
-                                    <div className="w-1/3 h-full relative shrink-0">
-                                         <img
-                                            src={tip.img}
-                                            alt={tip.title}
-                                            className="w-full h-full object-cover"
-                                        />
+                                    <div className="home-tips__img">
+                                        <img src={tip.img} alt={tip.title} />
                                     </div>
-                                    <div className="w-2/3 p-5 text-right flex flex-col justify-center">
-                                        <h4 
-                                            className="text-lg font-bold mb-2 line-clamp-1" 
-                                            style={{ color: '#ff5555' }}
-                                        >
+                                    <div className="home-tips__body">
+                                        <h4 className="line-clamp-2">
                                             {tip.title ? tip.title.split(":")[0].trim() : ""}
                                         </h4>
-                                        <p className="text-black text-sm leading-relaxed line-clamp-3 md:line-clamp-4">
+                                        <p className="line-clamp-3">
                                             {truncateText(tip.summary || tip.content, 90)}
                                         </p>
                                     </div>
                                 </Link>
                             ))
                         ) : (
-                            <div className="col-span-2 text-center text-gray-400 font-medium">
+                            <p className="text-center text-white/80 text-sm" style={{ gridColumn: '1 / -1' }}>
                                 טוען טיפים...
-                            </div>
+                            </p>
                         )}
                     </div>
 
-                    <div className="text-center">
+                    <div className="home-tips__cta">
                         <button
-                            onClick={() => Navigate('/tips')}
-                            className="px-12 py-3 rounded-full text-white font-bold shadow-lg hover:shadow-xl transition-all text-lg hover:bg-opacity-90"
-                            style={{ backgroundColor: '#ff5555' }}
+                            type="button"
+                            onClick={() => navigate('/tips')}
+                            className="home-tips__cta-btn"
                         >
-                            {draft.goToTips}
+                            {draft.goToTips || "לכל הטיפים"}
                         </button>
                     </div>
                 </div>
-            </section>
+            </div>
         </div>
     );
 
