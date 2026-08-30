@@ -17,11 +17,13 @@ const catalogRoutes = require("./routes/catalogRoutes.js");
 const captionIdeasRoutes = require("./routes/captionIdeasRoutes.js");
 const designFramesRoutes = require("./routes/designFramesRoutes.js");
 const frameCategoriesRoutes = require("./routes/frameCategoriesRoutes.js");
+const editorSettingsRoutes = require("./routes/editorSettingsRoutes.js");
+const designUploadsRoutes = require("./routes/designUploadsRoutes.js");
 
 const PORT = config.PORT;
 const HOST_NAME = config.HOST_NAME;
 const app = express();
-
+app.set('trust proxy', 1);
 const allowedOrigins = Array.from(new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -57,6 +59,8 @@ app.use("/catalog", catalogRoutes);
 app.use("/caption-ideas", captionIdeasRoutes);
 app.use("/design-frames", designFramesRoutes);
 app.use("/frame-categories", frameCategoriesRoutes);
+app.use("/editor-settings", editorSettingsRoutes);
+app.use("/design-uploads", designUploadsRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://${HOST_NAME}:${PORT}`);
