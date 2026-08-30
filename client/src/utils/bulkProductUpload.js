@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { addProduct } from '../api/products';
 import { getDisplayTypeForCategory } from '../constants/productCategories';
+import { parseCaptionsFromCell } from '../constants/captionCategories';
 import { uploadImageToCloudinary } from './cloudinaryUpload';
 
 const CONCURRENCY = 3;
@@ -52,6 +53,11 @@ const COLUMN_ALIASES = {
     שםקובץתמונה: 'imageFile',
     שםקובץתמונמדויק: 'imageFile',
     תמונה: 'imageFile',
+    captions: 'captions',
+    כיתובים: 'captions',
+    משפטים: 'captions',
+    משפטיםמתאימים: 'captions',
+    רעיונותלכיתובים: 'captions',
 };
 
 /** סדר עמודות ברירת מחדל כשכותרות חסרות/לא מזוהות */
@@ -64,6 +70,7 @@ const POSITIONAL_FIELDS = [
     'width',
     'height',
     'imageFile',
+    'captions',
 ];
 
 function normalizeKey(key) {
@@ -188,6 +195,7 @@ function validateRow(row, rowIndex) {
             imageFile,
             width: toNumber(row.width, 12),
             height: toNumber(row.height, 18),
+            captions: parseCaptionsFromCell(row.captions),
         },
     };
 }
@@ -209,6 +217,7 @@ async function processRow(rowData, imageMap) {
         stock: rowData.stock,
         image: imageUrl,
         displayType,
+        captionIdeas: rowData.captions ?? [],
     };
 
     if (displayType === 'design') {
@@ -297,15 +306,17 @@ export function downloadBulkProductTemplate() {
         'רוחב שטח הדפסה',
         'גובה שטח הדפסה',
         'שם קובץ תמונה מדויק (imageFile)',
+        'משפטים מתאימים (captions)',
     ];
     const dataRows = [
-        ['כוסות וספלים', 'ספל מעוצב', 'ספל קרמי עם הדפסה אישית', 45, 100, 12, 18, 'mug.jpg'],
-        ['מגנטים', 'מגנט 10x15', 'מגנט עם תמונה אישית', 8, 200, 10, 15, 'magnet.jpg'],
+        ['כוסות וספלים', 'ספל מעוצב', 'ספל קרמי עם הדפסה אישית', 45, 100, 12, 18, 'mug.jpg', 'תמיד ביחד|אהבה;אמא שלי – המלכה שלי|משפחה'],
+        ['מגנטים', 'מגנט 10x15', 'מגנט עם תמונה אישית', 8, 200, 10, 15, 'magnet.jpg', 'זכרונות יפים;מזל טוב!|יום הולדת'],
     ];
 
     const sheetData = [
         ['FlashShop - קובץ דוגמה להעלאת מוצרים מרוכזת'],
         ['מלאו את פרטי המוצרים החל משורה 6. שמות קבצי התמונה חייבים להתאים בדיוק לקבצים שהועלו.'],
+        ['עמודת משפטים: הפרידו בין משפטים ב-; ובין טקסט לקטגוריה ב-| (לדוגמה: תמיד ביחד|אהבה;מזל טוב!)'],
         [''],
         [''],
         headerRow,

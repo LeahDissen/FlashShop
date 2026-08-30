@@ -18,7 +18,15 @@ export const useAdminControl = (initialData, endpoint) => {
 
     const saveChanges = async () => {
         try {
-            await updatePage(endpoint, draft);
+            const payload = { ...draft };
+            // Redis hash values must be strings — stringify object/array fields
+            Object.keys(payload).forEach((key) => {
+                const value = payload[key];
+                if (value !== null && typeof value === 'object') {
+                    payload[key] = JSON.stringify(value);
+                }
+            });
+            await updatePage(endpoint, payload);
             setPage(draft);
             setEditMode(false);
             setPreviewMode(false);

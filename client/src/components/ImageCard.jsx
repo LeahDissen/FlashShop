@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { RotateCw } from 'lucide-react';
 import { XIcon } from './icons';
 import PhotoCroppedPreview from './PhotoCroppedPreview';
+import QuantityInput from './QuantityInput';
 import {
     DEFAULT_CROP,
     DEFAULT_PHOTO_PRINT_SIZE,
@@ -11,7 +12,7 @@ import {
 
 const ImageCard = ({
     image,
-    onQuantityChange,
+    onSetQuantity,
     onRemove,
     onImageSelect,
     isSelected,
@@ -127,27 +128,13 @@ const ImageCard = ({
                 </div>
             </div>
 
-            <div className="absolute bottom-2 left-2 right-2 flex justify-center z-10">
-                <div className="bg-white/80 backdrop-blur-sm rounded-full p-1 flex items-center shadow-md">
-                    <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onQuantityChange(image.id, -1); }}
-                        className="text-gray-700 hover:text-[#f2665e] text-2xl font-light px-2 disabled:text-gray-300 transition-colors"
-                        disabled={image.quantity <= 1}
-                        aria-label="הפחת כמות"
-                    >
-                        −
-                    </button>
-                    <span className="text-gray-800 font-semibold w-6 text-center">{image.quantity}</span>
-                    <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); onQuantityChange(image.id, 1); }}
-                        className="text-gray-700 hover:text-[#f2665e] text-2xl font-light px-2 transition-colors"
-                        aria-label="הוסף כמות"
-                    >
-                        +
-                    </button>
-                </div>
+            <div className="absolute bottom-2 left-2 right-2 flex justify-center z-10" onClick={(e) => e.stopPropagation()}>
+                <QuantityInput
+                    quantity={image.quantity}
+                    onQuantityChange={(qty) => onSetQuantity(image.id, qty)}
+                    variant="photo"
+                    stopPropagation
+                />
             </div>
         </div>
     );

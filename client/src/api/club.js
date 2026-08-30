@@ -1,9 +1,9 @@
 import axios from "axios";
-const API_URL = `${import.meta.env.VITE_MONGO_API}/club`;
+import { MONGO_API } from "../config/api";
+const API_URL = `${MONGO_API}/club`;
 
 export const joinClubRequest = async (userData) => {
     const response = await axios.post(`${API_URL}/join`, userData);
-    console.log("api is correct: " + response.data);
     return response.data;
 };
 export const checkCouponRequest = async (code, userId) => {
@@ -26,8 +26,7 @@ export const getClubMembers = async () => {
 
 export const sendBroadcastEmail = async (formData) => {
     const response = await axios.post(`${API_URL}/broadcast`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        withCredentials: true
+        withCredentials: true,
     });
     return response.data;
 };

@@ -44,7 +44,7 @@ exports.joinClub = async (req, res) => {
         if (err.code === 11000) {
             return res.status(400).json({ msg: "אתה כבר חבר מועדון" });
         }
-        res.status(500).json({ msg: "שגיאה בהצטרפות", err });
+        res.status(500).json({ msg: "שגיאה בהצטרפות" });
     }
 };
 
@@ -91,7 +91,7 @@ exports.checkGiftCode = async (req, res) => {
 
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה בבדיקת הקוד", err });
+        res.status(500).json({ msg: "שגיאה בבדיקת הקוד" });
     }
 };
 
@@ -109,7 +109,7 @@ exports.redeemGift = async (req, res) => {
         res.json({ msg: "המתנה נוצלה בהצלחה!", data: updatedMember });
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה במימוש המתנה", err });
+        res.status(500).json({ msg: "שגיאה במימוש המתנה" });
     }
 };
 
@@ -121,27 +121,40 @@ exports.getClubMembers = async (req, res) => {
         res.json(members);
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה בטעינת חברי המועדון", err });
+        res.status(500).json({ msg: "שגיאה בטעינת חברי המועדון" });
     }
 };
 
 exports.sendBroadcastEmail = async (req, res) => {
     try {
-        const { subject, message, recipientType } = req.body;
+        const subject = req.body?.subject?.trim();
+        const message = req.body?.message?.trim();
+        const recipientType = (req.body?.recipientType || 'all').trim();
+
+        if (!subject || !message) {
+            return res.status(400).json({ msg: "נא למלא נושא ותוכן הודעה" });
+        }
+
         let query = {};
         if (recipientType === 'new_members') {
-            const oneMonthAgo = new Date();
-            oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
-            query = { createdAt: { $gte: oneMonthAgo } };
-        }
-        else if (recipientType === 'birthday') {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            query = {
+                createdAt: {
+                    $gte: startOfMonth,
+                    $lt: startOfNextMonth,
+                },
+            };
+        } else if (recipientType === 'birthday') {
             const currentMonth = new Date().getMonth() + 1;
             query = {
                 $expr: {
-                    $eq: [{ $month: "$birthDate" }, currentMonth]
-                }
+                    $eq: [{ $month: "$birthDate" }, currentMonth],
+                },
             };
         }
+
         const members = await ClubModel.find(query);
         const emails = members.map(m => m.email);
 
@@ -152,19 +165,19 @@ exports.sendBroadcastEmail = async (req, res) => {
         if (req.file) {
             attachments.push({
                 filename: req.file.originalname,
-                content: req.file.buffer
+                content: req.file.buffer,
             });
         }
         await sendEmail(
             emails,
             subject,
-            { title: subject, message: message },
+            { title: subject, message },
             "./template/generalMail.handlebars",
-            attachments
+            attachments,
         );
         res.json({ msg: `המייל נשלח בהצלחה ל-${members.length} חברי מועדון!` });
     } catch (err) {
         console.log(err);
-        res.status(500).json({ msg: "שגיאה בשליחת המיילים", err });
+        res.status(500).json({ msg: "שגיאה בשליחת המיילים" });
     }
 };

@@ -1,5 +1,6 @@
 import axios from 'axios';
-const API_URL = `${import.meta.env.VITE_MONGO_API}/catalog`;
+import { MONGO_API } from '../config/api';
+const API_URL = `${MONGO_API}/catalog`;
 
 export const uploadCatalog = async (formData) => {
     const response = await axios.post(`${API_URL}/upload-catalog`, formData, {

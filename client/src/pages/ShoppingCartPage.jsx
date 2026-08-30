@@ -6,11 +6,13 @@ import { getProducts } from "../api/products";
 import { saveCheckoutDraft } from "../utils/checkoutDraft";
 import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
+import CartCheckoutBar from "../components/CartCheckoutBar";
 import SmartImageInput from "../components/SmartImageInput";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
 import { useCartStore } from "../store/cartStore";
+import { assignCartLineIds, withTieredPricingFields } from "../utils/cartItem";
 
 const DEFAULT_CART_HERO_IMG = "https://images.unsplash.com/photo-1515488042361-ee00e616997e?w=1600&q=80";
 const DEFAULT_RECOMMENDED_TITLE = "אולי תאהבו גם את אלה...";
@@ -33,7 +35,7 @@ function normalizeRecommendedTitle(value) {
 export default function ShoppingCartPage() {
   const cartItems = useCartStore((state) => state.cartItems);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
-  const updateItemQuantity = useCartStore((state) => state.updateItemQuantity);
+  const setItemQuantity = useCartStore((state) => state.setItemQuantity);
   const addToCart = useCartStore((state) => state.addToCart);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const navigate = useNavigate();
@@ -57,23 +59,32 @@ export default function ShoppingCartPage() {
   const totalPrice = Math.max(0, subtotal - discount);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  useEffect(() => {
+    const items = useCartStore.getState().cartItems;
+    const migrated = assignCartLineIds(items);
+    const needsMigration = migrated.some((item, index) => item.id !== items[index]?.id);
+    if (needsMigration) {
+      useCartStore.setState({ cartItems: migrated });
+    }
+  }, []);
+
   const handleRemoveItem = (itemId) => removeFromCart(itemId);
-  const handleQuantityChange = (itemId, delta) => updateItemQuantity(itemId, delta);
+  const handleSetQuantity = (itemId, quantity) => setItemQuantity(itemId, quantity);
 
   const handleAddRecommended = (product) => {
     const mongoId = product._id || product.id;
     if (!mongoId) return;
+    const { _id, id: _productId, ...productFields } = product;
     addToCart([
-      {
-        ...product,
+      withTieredPricingFields({
+        ...productFields,
         id: `${mongoId}-rec-${Date.now()}`,
-        _id: mongoId,
         productId: mongoId,
         name: product.name,
         price: product.price,
         image: product.image,
         quantity: 1,
-      },
+      }, product),
     ]);
   };
 
@@ -183,60 +194,42 @@ export default function ShoppingCartPage() {
             <div className="space-y-6">
               
               {/* באנר עליון: כמות הפריטים בסל - עודכן לגודל text-xl */}
-              <div className="w-full bg-[#f2665e] rounded-full py-3 px-6 text-center shadow-sm max-w-2xl mx-auto">
-                <p className="text-xl font-bold text-white tracking-wide">
+              <div className="w-full bg-[#f2665e] rounded-full py-2.5 sm:py-3 px-4 sm:px-6 text-center shadow-sm max-w-2xl mx-auto">
+                <p className="text-base sm:text-xl font-bold text-white tracking-wide">
                   יש לי {totalItems} פריטים בסל
                 </p>
               </div>
 
-              {/* כותרות + פריטים — אותה פריסת grid (6-3-3) */}
+              {/* כותרות + פריטים */}
               <div className="max-w-2xl mx-auto">
-                <div className="grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
+                <div className="hidden sm:grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
                   <div className="col-span-6 text-right">פריטים</div>
                   <div className="col-span-3 text-center">כמות</div>
                   <div className="col-span-3 text-center">מחיר</div>
                 </div>
                 {cartItems.map((item) => (
                   <CartItem
-                    key={item.id || item._id}
+                    key={item.id}
                     item={item}
                     onRemove={handleRemoveItem}
-                    onQuantityChange={handleQuantityChange}
+                    onSetQuantity={handleSetQuantity}
                   />
                 ))}
               </div>
 
-              {/* באר סיכום הזמנה ותשלום תחתון */}
+              {/* באר סיכום הזמנה ותשלום */}
               <div className="max-w-2xl mx-auto pt-2">
-                <div className="w-full bg-[#f2665e] rounded-full py-4 px-6 sm:px-8 shadow-md flex flex-row items-center justify-between text-white">
-                  
-                  {/* כפתורי פעולה */}
-                  <div className="flex items-center gap-3">
-                    <button 
-                      onClick={handleCheckout}
-                      className="bg-white text-[#f2665e] hover:bg-[#f8dcdb] text-xs sm:text-sm font-medium px-6 py-2 rounded-full transition-all duration-200 shadow-sm whitespace-nowrap"
-                    >
-                      {draft.payBtn || "רוצה לשלם"}
-                    </button>
-
-                    <button 
-                      onClick={() => {
-                        const code = prompt(draft.codePlaceholder || "הזן קוד קופון");
-                        if (code !== null) handleCoupon(code).then(res => alert(res.msg));
-                      }}
-                      className="bg-[#f8dcdb]/80 text-[#f2665e] hover:bg-white text-xs sm:text-sm font-medium px-5 py-2 rounded-full transition-all duration-200 shadow-sm whitespace-nowrap"
-                    >
-                      {appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
-                    </button>
-                  </div>
-
-                  {/* סה"כ לתשלום - עודכן לגודל אחיד text-xl עבור הכיתוב והמחיר כאחד */}
-                  <div className="text-left flex flex-row items-center gap-2 text-xl font-bold">
-                    <span className="opacity-95">סה"כ לתשלום:</span>
-                    <span className="tracking-tight">₪{totalPrice.toFixed(2)}</span>
-                  </div>
-
-                </div>
+                <CartCheckoutBar
+                  totalPrice={totalPrice}
+                  subtotal={subtotal}
+                  discount={discount}
+                  onCheckout={handleCheckout}
+                  onCoupon={handleCoupon}
+                  payBtnLabel={draft.payBtn || "רוצה לשלם"}
+                  couponBtnLabel={appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
+                  codePlaceholder={draft.codePlaceholder || "הזן קוד קופון"}
+                  codeApplyLabel={draft.codeBtn || "החל"}
+                />
               </div>
 
             </div>

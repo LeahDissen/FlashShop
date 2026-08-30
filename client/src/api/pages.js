@@ -1,5 +1,6 @@
 import axios from "axios";
-const API_URL = `${import.meta.env.VITE_REDIS_API}/api/page`;
+import { REDIS_API } from "../config/api";
+const API_URL = `${REDIS_API}/api/page`;
 
 export const getPage = async (endpoint) => {
     const url = `${API_URL}/${endpoint}`;

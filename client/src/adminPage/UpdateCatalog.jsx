@@ -3,13 +3,14 @@ import { FaCheckCircle, FaCloudUploadAlt, FaExclamationCircle, FaFilePdf } from 
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from 'react-router-dom';
 import { uploadCatalog } from '../api/admin';
+import { MONGO_API } from '../config/api';
 
 export default function UpdateCatalog() {
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
-    const DOWNLOAD_URL = `${import.meta.env.VITE_MONGO_API}/catalog/download-catalog`;
+    const DOWNLOAD_URL = `${MONGO_API}/catalog/download-catalog`;
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];

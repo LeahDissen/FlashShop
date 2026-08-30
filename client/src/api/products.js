@@ -1,5 +1,6 @@
 import axios from 'axios';
-const API_URL = `${import.meta.env.VITE_MONGO_API}/products`;
+import { MONGO_API } from '../config/api';
+const API_URL = `${MONGO_API}/products`;
 
 export const getProducts = async () => {
     const response = await axios.get(API_URL);
@@ -19,19 +20,18 @@ export const getProductImage = async (productId) => {
 }
 
 export const addProduct = async (productData) => {
-
-    const response = await axios.post(API_URL, productData);
+    const response = await axios.post(API_URL, productData, { withCredentials: true });
     return response.data;
-}
+};
 
 export const updateProduct = async (productId, productData) => {
-    const response = await axios.put(`${API_URL}/${productId}`, productData
-      
-    );
+    const response = await axios.put(`${API_URL}/${productId}`, productData, {
+        withCredentials: true,
+    });
     return response.data;
-}
+};
 
 export const deleteProduct = async (productId) => {
-    const response = await axios.delete(`${API_URL}/${productId}`);
+    const response = await axios.delete(`${API_URL}/${productId}`, { withCredentials: true });
     return response.data;
-}
+};

@@ -10,17 +10,38 @@ import {
     centerPosition,
     scaleElementsToCanvas,
     normalizeEditorElements,
+    getPrintExportPixelRatio,
+    fitImageElementBounds,
 } from '../utils/canvasDimensions';
+import {
+    enforceLayerOrder,
+    extractFrameAspectRatio,
+    getActiveGlobalFrame,
+    getDropzoneImageForSlot,
+    insertBelowGlobalFrame,
+    isDropzoneImage,
+    isGlobalFrame,
+    removeDropzoneImages,
+    removeGlobalFrames,
+    replaceDropzoneImage,
+    stripLegacyDropzoneFields,
+} from '../utils/editorLayering';
+import { fitImageToDropzone, isMultiDropzoneFrame, resolveDropzones } from '../utils/dropzoneUtils';
+import { detectEmptyPhotoSlots } from '../utils/detectEmptyPhotoSlots';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
 import EditorHeader from '../components/editor/EditorHeader';
 import EditorSidebar from '../components/editor/EditorSidebar.jsx';
-import { ClockIcon, SparklesIcon, TrashIcon, XIcon } from '../components/icons';
+import ProductPreviewModal from '../components/editor/ProductPreviewModal';
+import { ClockIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
 import { useProductStore } from '../store/productStore';
 import { useCartStore } from '../store/cartStore'; 
 import useAuthStore from '../store/authStore';
+import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
+import { withTieredPricingFields } from '../utils/cartItem';
+import { prepareFrameImageSrc, punchDropzoneHoles } from '../utils/frameImageProcessing';
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -61,16 +82,19 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const location = useLocation();
 
     // שליפת המוצר הנבחר מה-Store של המוצרים
-    const { selectedProduct, setSelectedProduct } = useProductStore();
+    const { selectedProduct, setSelectedProduct, orderQuantity } = useProductStore();
     const onSelectProduct = setSelectedProduct;
     
     // שליפת פונקציית ההוספה לסל מה-Store של העגלה
     const addToCart = useCartStore((state) => state.addToCart);
     const userId = useAuthStore((state) => state.userId);
 
+    const [activeFrameAspectRatio, setActiveFrameAspectRatio] = useState(null);
+    const [orientationFlipped, setOrientationFlipped] = useState(false);
+
     const canvasDimensions = useMemo(
-        () => getCanvasDimensions(selectedProduct),
-        [selectedProduct]
+        () => getCanvasDimensions(selectedProduct, activeFrameAspectRatio, orientationFlipped),
+        [selectedProduct, activeFrameAspectRatio, orientationFlipped]
     );
     const printSizeLabel = formatPrintSizeLabel(
         canvasDimensions.widthCm,
@@ -83,7 +107,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     // --- ניהול סטייט מקומי וטיוטות ---
     const [elements, setElements] = useState(() =>
-        normalizeEditorElements(null, getCanvasDimensions(null))
+        normalizeEditorElements(null, getCanvasDimensions(null)),
     );
 
     const [canvasBackground, setCanvasBackground] = useState({ type: 'color', value: '#FFFFFF' });
@@ -115,6 +139,89 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${draftProductKey}`,
     }), [draftProductKey]);
 
+    const activeGlobalFrame = useMemo(
+        () => getActiveGlobalFrame(elements),
+        [elements],
+    );
+
+    const activeGlobalFrameId = useMemo(
+        () => activeGlobalFrame?.frameId || null,
+        [activeGlobalFrame],
+    );
+
+    useEffect(() => {
+        const frame = elements.find(isGlobalFrame);
+        if (!frame) return undefined;
+
+        // כבר מעובד עם חורים / data URL – לא לדרוס
+        if (frame.holesPunched === 'v2') return undefined;
+        if (frame.src?.startsWith('data:') && !isMultiDropzoneFrame(frame)) return undefined;
+
+        let cancelled = false;
+        const source = frame.originalSrc || frame.src;
+
+        (async () => {
+            try {
+                const processed = await prepareFrameImageSrc(source);
+                const nextSrc = isMultiDropzoneFrame(frame)
+                    ? await punchDropzoneHoles(processed, frame.dropzones)
+                    : processed;
+                if (cancelled || !nextSrc || nextSrc === frame.src) {
+                    // גם אם ה-src זהה, לסמן שעודכן לחורים v2
+                    if (!cancelled && isMultiDropzoneFrame(frame) && frame.holesPunched !== 'v2') {
+                        setElements((prev) => enforceLayerOrder(
+                            prev.map((el) => (
+                                isGlobalFrame(el) ? { ...el, holesPunched: 'v2' } : el
+                            )),
+                        ));
+                    }
+                    return;
+                }
+                setElements((prev) => enforceLayerOrder(
+                    prev.map((el) => (
+                        isGlobalFrame(el)
+                            ? {
+                                ...el,
+                                src: nextSrc,
+                                originalSrc: el.originalSrc || source,
+                                holesPunched: isMultiDropzoneFrame(el) ? 'v2' : false,
+                            }
+                            : el
+                    )),
+                ));
+            } catch (err) {
+                console.warn('Frame image prepare failed', err);
+            }
+        })();
+
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeGlobalFrameId, activeGlobalFrame?.dropzones?.length]);
+
+    useEffect(() => {
+        setOrientationFlipped(false);
+    }, [selectedProduct?._id, selectedProduct?.id]);
+
+    useEffect(() => {
+        let changed = false;
+        const fixed = elements.map((el) => {
+            if (el.type !== 'image') return el;
+            const fitted = fitImageElementBounds(el);
+            if (fitted !== el) changed = true;
+            return fitted;
+        });
+        if (!changed) return;
+        setElements(enforceLayerOrder(fixed));
+    }, [elements]);
+
+    useEffect(() => {
+        const fromElements = extractFrameAspectRatio(elements);
+        if (fromElements && fromElements !== activeFrameAspectRatio) {
+            setActiveFrameAspectRatio(fromElements);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     useEffect(() => {
         const normalized = normalizeEditorElements(elements, canvasDimensions);
         if (JSON.stringify(normalized) !== JSON.stringify(elements)) {
@@ -139,7 +246,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
     useEffect(() => {
-        const storageKey = getCanvasStorageKey(selectedProduct, canvasDimensions);
+        const storageKey = getCanvasStorageKey(
+            selectedProduct,
+            canvasDimensions,
+            activeFrameAspectRatio,
+            orientationFlipped,
+        );
         const savedKey = localStorage.getItem(draftStorage.canvasKey);
 
         if (canvasAppliedKeyRef.current === storageKey) {
@@ -156,10 +268,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         let nextElements;
 
         if (savedKey === storageKey && savedElementsRaw) {
-            nextElements = normalizeEditorElements(
+            nextElements = enforceLayerOrder(normalizeEditorElements(
                 safeJsonParse(savedElementsRaw, [createDefaultTextElement(canvasDimensions)]),
                 canvasDimensions,
-            );
+            ));
+            const savedAspect = extractFrameAspectRatio(nextElements);
+            if (savedAspect) setActiveFrameAspectRatio(savedAspect);
         } else {
             nextElements = [createDefaultTextElement(canvasDimensions)];
         }
@@ -194,6 +308,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         canvasDimensions.height,
         canvasDimensions.widthCm,
         canvasDimensions.heightCm,
+        activeFrameAspectRatio,
+        orientationFlipped,
         draftStorage,
     ]);
 
@@ -252,8 +368,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [history, historyIndex]);
 
     const updateElementsWithHistory = useCallback((newElements) => {
-        setElements(newElements);
-        addToHistory(newElements);
+        const layered = enforceLayerOrder(newElements);
+        setElements(layered);
+        addToHistory(layered);
     }, [addToHistory]);
 
     // פונקציית שמירת פרויקט לבסיס הנתונים
@@ -266,7 +383,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             previewDataUrl = await toPng(node, {
                 quality: 0.5,
                 pixelRatio: 0.5,
-                filter: (node) => !node.classList?.contains('canvas-grid-overlay'),
+                filter: (node) =>
+                    !node.classList?.contains('canvas-grid-overlay')
+                    && !node.classList?.contains('canvas-safe-zone-overlay'),
                 backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
                 cacheBust: true,
             });
@@ -286,6 +405,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 height: canvasDimensions.height,
                 widthCm: canvasDimensions.widthCm,
                 heightCm: canvasDimensions.heightCm,
+                orientationFlipped,
             },
             preview: previewOverride || previewDataUrl || previewImage,
         };
@@ -296,7 +416,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     };
 
     /** צילום משטח העיצוב – בלי מוקאפ AI (מציג בדיוק מה שעיצבת) */
-    const captureCanvasImage = useCallback(async (pixelRatio = 2) => {
+    const captureCanvasImage = useCallback(async (pixelRatioOverride) => {
         const node = document.getElementById('canvas-container');
         if (!node) return null;
 
@@ -307,11 +427,15 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
         await new Promise((resolve) => setTimeout(resolve, 300));
 
+        const pixelRatio = pixelRatioOverride ?? getPrintExportPixelRatio(canvasDimensions);
+
         try {
             return await toPng(node, {
                 quality: 1,
                 pixelRatio,
-                filter: (n) => !n.classList?.contains('canvas-grid-overlay'),
+                filter: (n) =>
+                    !n.classList?.contains('canvas-grid-overlay')
+                    && !n.classList?.contains('canvas-safe-zone-overlay'),
                 backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
                 style: { transform: 'scale(1)', outline: 'none', outlineOffset: 0 },
                 cacheBust: true,
@@ -321,7 +445,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 setZoom(previousZoom);
             }
         }
-    }, [canvasBackground, zoom]);
+    }, [canvasBackground, zoom, canvasDimensions]);
 
     // --- 1. כפתור "אישור והזמנה" הראשי מתוך מסך התצוגה המקדימה ---
     const handleConfirmAndOrder = useCallback(async () => {
@@ -350,10 +474,15 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     
                     // חילוץ חכם של המחיר: מנקה הכל חוץ ממספרים ונקודה (למשל מנקה סימני ₪ או רווחים)
                     if (selectedProduct.price !== undefined && selectedProduct.price !== null) {
-                        const rawPrice = String(selectedProduct.price).replace(/[^\d.]/g, '');
-                        const parsedPrice = parseFloat(rawPrice);
-                        if (!isNaN(parsedPrice) && parsedPrice > 0) {
-                            productPrice = parsedPrice; // המחיר המדויק מהאובייקט!
+                        const tieredPrice = getUnitPriceForQuantity(selectedProduct, orderQuantity || 1);
+                        if (tieredPrice > 0) {
+                            productPrice = tieredPrice;
+                        } else {
+                            const rawPrice = String(selectedProduct.price).replace(/[^\d.]/g, '');
+                            const parsedPrice = parseFloat(rawPrice);
+                            if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                                productPrice = parsedPrice;
+                            }
                         }
                     }
                 } else if (typeof selectedProduct === 'string') {
@@ -362,13 +491,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             }
 
             // ד. בניית אובייקט עגלה תקין לחלוטין עם המחיר והשם המקוריים
-            const cartItem = {
+            const cartItem = withTieredPricingFields({
                 id: `cart_${Date.now()}`,
                 productId: productOriginalId,
                 name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`, 
                 price: productPrice,            
                 image: cartThumb || savedProject.preview || selectedProduct?.image,
-                quantity: 1,
+                quantity: orderQuantity || 1,
                 customDesign: {
                     projectId: savedProject._id,
                     projectName: savedProject.name,
@@ -380,7 +509,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         height: canvasDimensions.heightCm,
                     },
                 }
-            };
+            }, typeof selectedProduct === 'object' ? selectedProduct : null);
 
             // ה. הזרקה לסל הקניות (תמונה ממוזערת/URL קל לתצוגה בעגלה)
             await addToCart([cartItem]);
@@ -398,7 +527,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions]);
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions, orderQuantity]);
 
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
@@ -439,7 +568,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             }
 
-            const cartItem = {
+            const cartItem = withTieredPricingFields({
                 id: `cart_${Date.now()}`,
                 productId: productOriginalId,
                 name: productName.includes('עיצוב אישי') ? productName : `${productName} בעיצוב אישי`,
@@ -452,7 +581,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     elements: proj.elements,
                     canvasBackground: proj.canvasBackground
                 }
-            };
+            }, typeof proj.selectedProduct === 'object' ? proj.selectedProduct : null);
 
             await addToCart([cartItem]);
             
@@ -477,10 +606,21 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const handleLoadProjectFromDB = useCallback((project) => {
         try {
             const productForDims = project.selectedProduct || selectedProduct;
-            const dims = getCanvasDimensions(productForDims);
-            let loadedElements = (project.elements && project.elements.length > 0)
+            const savedW = project.canvasSize?.widthCm;
+            const savedH = project.canvasSize?.heightCm;
+            const nativeW = Number(productForDims?.printWidth) || 12;
+            const nativeH = Number(productForDims?.printHeight) || 18;
+            const loadedOrientationFlipped = project.canvasSize?.orientationFlipped ?? (
+                Boolean(savedW && savedH && savedW === nativeH && savedH === nativeW && savedW !== nativeW)
+            );
+            const dims = getCanvasDimensions(productForDims, null, loadedOrientationFlipped);
+            let loadedElements = enforceLayerOrder((project.elements && project.elements.length > 0)
                 ? project.elements
-                : [createDefaultTextElement(dims)];
+                : [createDefaultTextElement(dims)]);
+
+            const loadedAspect = extractFrameAspectRatio(loadedElements);
+            if (loadedAspect) setActiveFrameAspectRatio(loadedAspect);
+            setOrientationFlipped(loadedOrientationFlipped);
 
             if (project.canvasSize?.width && project.canvasSize?.height) {
                 loadedElements = scaleElementsToCanvas(
@@ -491,6 +631,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     dims.height,
                 );
             }
+
+            loadedElements = loadedElements.map((el) => (
+                isGlobalFrame(el)
+                    ? { ...el, width: dims.width, height: dims.height, top: 0, left: 0 }
+                    : el
+            ));
 
             setElements(loadedElements);
             setCanvasBackground(project.canvasBackground || { type: 'color', value: '#FFFFFF' });
@@ -507,7 +653,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setHistoryIndex(0);
             setSelectedElementId(null);
             const loadedProduct = project.selectedProduct || selectedProduct;
-            const loadedDims = getCanvasDimensions(loadedProduct);
+            const loadedDims = getCanvasDimensions(loadedProduct, loadedAspect, loadedOrientationFlipped);
             const loadedDraftKey = resolveDraftProductKey(loadedProduct, loadedProduct?._id || loadedProduct?.id || productId);
             const loadedDraftStorage = {
                 canvasKey: `${CANVAS_KEY_STORAGE_PREFIX}_${loadedDraftKey}`,
@@ -516,11 +662,19 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${loadedDraftKey}`,
             };
 
-            safeStorageSetItem(loadedDraftStorage.canvasKey, getCanvasStorageKey(loadedProduct, loadedDims));
+            safeStorageSetItem(
+                loadedDraftStorage.canvasKey,
+                getCanvasStorageKey(loadedProduct, loadedDims, loadedAspect, loadedOrientationFlipped),
+            );
             safeStorageSetItem(loadedDraftStorage.elements, JSON.stringify(loadedElements));
             safeStorageSetItem(loadedDraftStorage.background, JSON.stringify(project.canvasBackground || { type: 'color', value: '#FFFFFF' }));
             safeStorageSetItem(loadedDraftStorage.projectName, project.name || 'הפרויקט שלי');
-            canvasAppliedKeyRef.current = getCanvasStorageKey(loadedProduct, loadedDims);
+            canvasAppliedKeyRef.current = getCanvasStorageKey(
+                loadedProduct,
+                loadedDims,
+                loadedAspect,
+                loadedOrientationFlipped,
+            );
             lastCanvasPxRef.current = { width: dims.width, height: dims.height };
 
             setShowLoadModal(false);
@@ -540,36 +694,209 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [currentProjectId, userId]);
 
-    const addTextElement = useCallback(() => {
-        const config = { content: 'טקסט ניתן לעריכה', fontSize: 32, bold: false };
+    const applyGlobalFrame = useCallback(async (frame) => {
+        const newAspectRatio = frame.aspectRatio;
+        const dims = canvasDimensions;
 
-        const newElement = {
-            id: `text_${Date.now()}`,
-            type: 'text',
-            content: config.content,
-            fontFamily: 'Arial',
-            fontSize: config.fontSize,
-            color: '#333333',
-            bold: config.bold,
-            italic: false,
-            underline: false,
-            textAlign: 'center',
-            direction: 'rtl',
-            ...centerPosition(280, 64, canvasDimensions.width, canvasDimensions.height),
-            width: 280,
-            height: 64,
-            backgroundColor: 'transparent',
-            borderColor: '#000000',
-            borderWidth: 0,
-            textShadowEnabled: false,
-            textShadowColor: '#000000',
-            textShadowBlur: 2,
-            textShadowOffsetX: 2,
-            textShadowOffsetY: 2,
+        let dropzones = Array.isArray(frame.dropzones) ? frame.dropzones : [];
+        let layoutType = frame.layoutType === 'multi_dropzone' ? 'multi_dropzone' : 'single_overlay';
+
+        // אם אין חלונות מוגדרים – מנסים לזהות ריבועים ריקים בתמונה (כמו בתבניות קולאז׳)
+        if (dropzones.length === 0) {
+            try {
+                const detected = await detectEmptyPhotoSlots(frame.imageUrl || frame.thumbnailUrl);
+                if (detected.length >= 2) {
+                    dropzones = detected;
+                    layoutType = 'multi_dropzone';
+                }
+            } catch (err) {
+                console.warn('Auto slot detection failed', err);
+            }
+        }
+
+        const isMulti = layoutType === 'multi_dropzone' && dropzones.length > 0;
+
+        let updatedElements = isMulti
+            ? removeDropzoneImages(removeGlobalFrames(elements))
+            : stripLegacyDropzoneFields(removeDropzoneImages(removeGlobalFrames(elements)));
+
+        const processedSrc = await prepareFrameImageSrc(frame.imageUrl);
+        const frameSrc = isMulti
+            ? await punchDropzoneHoles(processedSrc, dropzones)
+            : processedSrc;
+
+        const frameElement = {
+            id: `globalFrame_${frame._id}`,
+            type: 'globalFrame',
+            frameId: frame._id,
+            src: frameSrc,
+            originalSrc: frame.imageUrl,
+            title: frame.title,
+            aspectRatio: frame.aspectRatio,
+            layoutType: isMulti ? 'multi_dropzone' : 'single_overlay',
+            dropzones: isMulti ? dropzones : [],
+            holesPunched: isMulti ? 'v2' : false,
+            width: dims.width,
+            height: dims.height,
+            top: 0,
+            left: 0,
             opacity: 1,
             rotation: 0,
+            locked: false,
         };
-        const newElements = [...elements, newElement];
+
+        const layered = enforceLayerOrder([...updatedElements, frameElement]);
+        const storageKey = getCanvasStorageKey(
+            selectedProduct,
+            dims,
+            newAspectRatio,
+            orientationFlipped,
+        );
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = { width: dims.width, height: dims.height };
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+
+        updateElementsWithHistory(layered);
+        setSelectedElementId(frameElement.id);
+        setActiveFrameAspectRatio(newAspectRatio);
+    }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
+
+    const detectSlotsOnActiveFrame = useCallback(async () => {
+        const frame = getActiveGlobalFrame(elements);
+        if (!frame) {
+            alert('יש לבחור מסגרת קודם');
+            return;
+        }
+
+        const source = frame.originalSrc || frame.src;
+        if (!source) return;
+
+        try {
+            const detected = await detectEmptyPhotoSlots(source);
+            if (!detected.length) {
+                alert('לא נמצאו ריבועים ריקים במסגרת');
+                return;
+            }
+
+            const prepared = await prepareFrameImageSrc(source);
+            const punchedSrc = await punchDropzoneHoles(prepared, detected);
+
+            const withoutOldSlots = removeDropzoneImages(elements);
+            const updated = withoutOldSlots.map((el) => (
+                isGlobalFrame(el)
+                    ? {
+                        ...el,
+                        src: punchedSrc,
+                        originalSrc: el.originalSrc || source,
+                        layoutType: 'multi_dropzone',
+                        dropzones: detected,
+                        holesPunched: 'v2',
+                    }
+                    : el
+            ));
+
+            updateElementsWithHistory(enforceLayerOrder(updated));
+            setSelectedElementId(null);
+        } catch (err) {
+            console.error(err);
+            alert('שגיאה בזיהוי חלונות מהמסגרת');
+        }
+    }, [elements, updateElementsWithHistory]);
+
+    const removeGlobalFrame = useCallback(() => {
+        if (!elements.some(isGlobalFrame)) return;
+
+        const dims = canvasDimensions;
+        const updatedElements = stripLegacyDropzoneFields(
+            removeDropzoneImages(removeGlobalFrames(elements)),
+        );
+        const layered = enforceLayerOrder(updatedElements);
+        const storageKey = getCanvasStorageKey(selectedProduct, dims, null, orientationFlipped);
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = { width: dims.width, height: dims.height };
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+
+        updateElementsWithHistory(layered);
+        setSelectedElementId(null);
+        setActiveFrameAspectRatio(null);
+    }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
+
+    const handleToggleOrientation = useCallback(() => {
+        if (!selectedProduct?.allowOrientationToggle) return;
+
+        const prevDims = canvasDimensions;
+        const nextFlipped = !orientationFlipped;
+        const newDims = getCanvasDimensions(selectedProduct, activeFrameAspectRatio, nextFlipped);
+
+        let updatedElements = scaleElementsToCanvas(
+            elements,
+            prevDims.width,
+            prevDims.height,
+            newDims.width,
+            newDims.height,
+        );
+
+        updatedElements = updatedElements.map((el) => (
+            isGlobalFrame(el)
+                ? { ...el, width: newDims.width, height: newDims.height, top: 0, left: 0 }
+                : el
+        ));
+
+        // התאמה מחדש של תמונות חלונות הקולאז׳ לגודל החדש
+        const frame = updatedElements.find(isGlobalFrame);
+        if (frame && isMultiDropzoneFrame(frame)) {
+            const resolved = resolveDropzones(
+                frame.dropzones,
+                frame.width,
+                frame.height,
+                frame.left ?? 0,
+                frame.top ?? 0,
+            );
+            updatedElements = updatedElements.map((el) => {
+                if (!isDropzoneImage(el)) return el;
+                const zone = resolved.find((z) => z.id === el.dropzoneId);
+                if (!zone) return el;
+                const fitted = fitImageToDropzone(el.naturalWidth, el.naturalHeight, zone);
+                return { ...el, ...fitted };
+            });
+        }
+
+        const layered = enforceLayerOrder(updatedElements);
+        const storageKey = getCanvasStorageKey(
+            selectedProduct,
+            newDims,
+            activeFrameAspectRatio,
+            nextFlipped,
+        );
+
+        canvasAppliedKeyRef.current = storageKey;
+        lastCanvasPxRef.current = { width: newDims.width, height: newDims.height };
+        safeStorageSetItem(draftStorage.canvasKey, storageKey);
+        safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+
+        setOrientationFlipped(nextFlipped);
+        updateElementsWithHistory(layered);
+        setSelectedElementId(null);
+    }, [
+        selectedProduct,
+        canvasDimensions,
+        orientationFlipped,
+        activeFrameAspectRatio,
+        elements,
+        updateElementsWithHistory,
+        draftStorage,
+    ]);
+
+    const addTextElement = useCallback(() => {
+        const newElement = {
+            ...createDefaultTextElement(canvasDimensions),
+            id: `text_${Date.now()}`,
+        };
+        const newElements = enforceLayerOrder([...elements, newElement]);
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
@@ -601,11 +928,66 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             sepia: 0,
             blur: 0,
         };
-        const newElements = [...elements, newElement];
+        const newElements = enforceLayerOrder(insertBelowGlobalFrame(elements, newElement));
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
+
+    const addImageToDropzone = useCallback((dropzoneId, src, naturalWidth, naturalHeight) => {
+        const frame = getActiveGlobalFrame(elements);
+        if (!frame || !isMultiDropzoneFrame(frame) || !dropzoneId) return;
+
+        const resolved = resolveDropzones(
+            frame.dropzones,
+            frame.width || canvasDimensions.width,
+            frame.height || canvasDimensions.height,
+            frame.left ?? 0,
+            frame.top ?? 0,
+        );
+        const zone = resolved.find((z) => z.id === dropzoneId);
+        if (!zone) return;
+
+        const fitted = fitImageToDropzone(naturalWidth, naturalHeight, zone);
+        const newElement = {
+            id: `image_dz_${dropzoneId}_${Date.now()}`,
+            type: 'image',
+            dropzoneId,
+            src,
+            width: fitted.width,
+            height: fitted.height,
+            top: fitted.top,
+            left: fitted.left,
+            opacity: 1,
+            rotation: 0,
+            naturalWidth,
+            naturalHeight,
+            scaleX: 1,
+            scaleY: 1,
+            brightness: 100,
+            contrast: 100,
+            grayscale: 0,
+            sepia: 0,
+            blur: 0,
+            locked: false,
+        };
+
+        const newElements = enforceLayerOrder(replaceDropzoneImage(elements, dropzoneId, newElement));
+        updateElementsWithHistory(newElements);
+        setSelectedElementId(newElement.id);
+        setUploadedImages((prev) => (prev.includes(src) ? prev : [...prev, src]));
+    }, [elements, updateElementsWithHistory, canvasDimensions]);
+
+    const clearDropzoneImage = useCallback((dropzoneId) => {
+        if (!dropzoneId) return;
+        const existing = getDropzoneImageForSlot(elements, dropzoneId);
+        if (!existing) return;
+        const newElements = enforceLayerOrder(
+            elements.filter((el) => !(isDropzoneImage(el) && el.dropzoneId === dropzoneId)),
+        );
+        updateElementsWithHistory(newElements);
+        if (selectedElementId === existing.id) setSelectedElementId(null);
+    }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const addShapeElement = useCallback((svgContent) => {
         const width = 100;
@@ -631,32 +1013,86 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             scaleX: 1,
             scaleY: 1,
         };
-        const newElements = [...elements, newElement];
+        const newElements = enforceLayerOrder(insertBelowGlobalFrame(elements, newElement));
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
 
     const updateElement = useCallback((id, newProps) => {
-        setElements(prev =>
-            prev.map(el => {
-                if (el.id === id) {
-                    return { ...el, ...newProps };
-                }
-                return el;
-            }),
-        );
+        setElements((prev) => {
+            const target = prev.find((el) => el.id === id);
+            if (!target) return prev;
+
+            // הזזת/שינוי גודל מסגרת – חלונות הקולאז׳ זזים יחד איתה
+            if (
+                isGlobalFrame(target)
+                && (newProps.left !== undefined
+                    || newProps.top !== undefined
+                    || newProps.width !== undefined
+                    || newProps.height !== undefined)
+            ) {
+                const nextFrame = { ...target, ...newProps };
+                const dx = (nextFrame.left ?? 0) - (target.left ?? 0);
+                const dy = (nextFrame.top ?? 0) - (target.top ?? 0);
+                const sizeChanged = (
+                    (newProps.width !== undefined && newProps.width !== target.width)
+                    || (newProps.height !== undefined && newProps.height !== target.height)
+                );
+
+                return prev.map((el) => {
+                    if (el.id === id) return nextFrame;
+                    if (!isDropzoneImage(el)) return el;
+
+                    if (sizeChanged && isMultiDropzoneFrame(nextFrame)) {
+                        const zones = resolveDropzones(
+                            nextFrame.dropzones,
+                            nextFrame.width,
+                            nextFrame.height,
+                            nextFrame.left ?? 0,
+                            nextFrame.top ?? 0,
+                        );
+                        const zone = zones.find((z) => z.id === el.dropzoneId);
+                        if (!zone) return el;
+                        return { ...el, ...fitImageToDropzone(el.naturalWidth, el.naturalHeight, zone) };
+                    }
+
+                    if (dx || dy) {
+                        return { ...el, left: (el.left ?? 0) + dx, top: (el.top ?? 0) + dy };
+                    }
+                    return el;
+                });
+            }
+
+            return prev.map((el) => (el.id === id ? { ...el, ...newProps } : el));
+        });
     }, []);
 
     const deleteElement = useCallback(() => {
         if (!selectedElementId) return;
+        const target = elements.find((el) => el.id === selectedElementId);
+        if (!target) return;
+
+        if (isGlobalFrame(target)) {
+            removeGlobalFrame();
+            return;
+        }
+
         const newElements = elements.filter(el => el.id !== selectedElementId);
         updateElementsWithHistory(newElements);
         setSelectedElementId(null);
-    }, [elements, selectedElementId, updateElementsWithHistory]);
+    }, [elements, selectedElementId, updateElementsWithHistory, removeGlobalFrame]);
+
+    const selectGlobalFrame = useCallback(() => {
+        const frame = getActiveGlobalFrame(elements);
+        if (!frame) return;
+        setSelectedElementId(frame.id);
+    }, [elements]);
 
     const duplicateElementWithState = useCallback(() => {
         const elementToDuplicate = elements.find(el => el.id === selectedElementId);
-        if (!elementToDuplicate || elementToDuplicate.locked) return;
+        if (!elementToDuplicate || elementToDuplicate.locked || isGlobalFrame(elementToDuplicate)) return;
+        // תמונות קולאז׳ – לא משכפלים (חלון אחד לתמונה)
+        if (isDropzoneImage(elementToDuplicate)) return;
 
         const newElement = {
             ...elementToDuplicate,
@@ -681,24 +1117,49 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const handleBringToFront = useCallback(() => {
         if (!selectedElementId) return;
-        const index = elements.findIndex(el => el.id === selectedElementId);
-        if (index === -1 || index === elements.length - 1) return;
+        const el = elements.find((item) => item.id === selectedElementId);
+        if (!el || isGlobalFrame(el)) return;
 
         const newElements = [...elements];
+        const index = newElements.findIndex((item) => item.id === selectedElementId);
+        if (index === -1) return;
+
         const [removed] = newElements.splice(index, 1);
-        newElements.push(removed);
-        updateElementsWithHistory(newElements);
+
+        if (el.type === 'text') {
+            newElements.push(removed);
+        } else {
+            const frameIdx = newElements.findIndex(isGlobalFrame);
+            if (frameIdx === -1) {
+                newElements.push(removed);
+            } else {
+                newElements.splice(frameIdx, 0, removed);
+            }
+        }
+
+        updateElementsWithHistory(enforceLayerOrder(newElements));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const handleSendToBack = useCallback(() => {
         if (!selectedElementId) return;
-        const index = elements.findIndex(el => el.id === selectedElementId);
-        if (index === -1 || index === 0) return;
+        const el = elements.find((item) => item.id === selectedElementId);
+        if (!el || isGlobalFrame(el)) return;
 
         const newElements = [...elements];
+        const index = newElements.findIndex((item) => item.id === selectedElementId);
+        if (index === -1) return;
+
         const [removed] = newElements.splice(index, 1);
-        newElements.unshift(removed);
-        updateElementsWithHistory(newElements);
+
+        if (el.type === 'text') {
+            const frameIdx = newElements.findIndex(isGlobalFrame);
+            const insertAt = frameIdx === -1 ? 0 : frameIdx + 1;
+            newElements.splice(insertAt, 0, removed);
+        } else {
+            newElements.unshift(removed);
+        }
+
+        updateElementsWithHistory(enforceLayerOrder(newElements));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const deleteUploadedImage = useCallback((srcToDelete) => {
@@ -769,7 +1230,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setPreviewImage(null);
 
         try {
-            const dataUrl = await captureCanvasImage(2);
+            const dataUrl = await captureCanvasImage();
             if (!dataUrl) {
                 alert('לא נמצא משטח העיצוב. נסה לרענן את הדף.');
                 return;
@@ -785,7 +1246,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     }, [captureCanvasImage]);
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 overflow-visible" style={{ direction: 'rtl' }}>
+        <div className="flex flex-col flex-1 min-h-0 h-full overflow-hidden" style={{ direction: 'rtl' }}>
             <EditorHeader
                 onExit={onNavigateToHome}
                 projectName={projectName}
@@ -802,36 +1263,22 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 printSizeLabel={printSizeLabel}
             />
 
-            <ContextualToolbar
-                selectedElement={selectedElement}
-                onUpdateElement={(props) => selectedElement && updateElement(selectedElement.id, props)}
-                onCrop={() => selectedElement && setCroppingElementId(selectedElement.id)}
-                onDuplicate={duplicateElementWithState}
-                onDelete={deleteElement}
-                onBringToFront={handleBringToFront}
-                onSendToBack={handleSendToBack}
-            />
-
-            <div className="flex-1 flex flex-row overflow-hidden">
-                <EditorSidebar
-                    addTextElement={addTextElement}
-                    addImageElement={addImageElement}
-                    addShapeElement={addShapeElement}
-                    uploadedImages={uploadedImages}
-                    deleteUploadedImage={deleteUploadedImage}
-                    selectedElement={selectedElement}
-                    onUpdateElement={(props) => {
-                        if (selectedElement) {
-                            updateElement(selectedElement.id, props);
-                        }
-                    }}
-                    canvasBackground={canvasBackground}
-                    setCanvasBackground={setCanvasBackground}
-                    uploadedBackgrounds={uploadedBackgrounds}
-                    addUploadedBackground={addUploadedBackground}
-                    deleteUploadedBackground={deleteUploadedBackground}
-                />
-                <Canvas
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+                <div className="order-1 md:order-2 flex-1 min-h-0 min-w-0 relative overflow-hidden flex flex-col">
+                    {selectedElement && (
+                        <div className="absolute top-0 left-0 right-0 z-40 overflow-x-auto">
+                            <ContextualToolbar
+                                selectedElement={selectedElement}
+                                onUpdateElement={(props) => selectedElement && updateElement(selectedElement.id, props)}
+                                onCrop={() => selectedElement && setCroppingElementId(selectedElement.id)}
+                                onDuplicate={duplicateElementWithState}
+                                onDelete={deleteElement}
+                                onBringToFront={handleBringToFront}
+                                onSendToBack={handleSendToBack}
+                            />
+                        </div>
+                    )}
+                    <Canvas
                     elements={elements}
                     selectedElementId={selectedElementId}
                     setSelectedElementId={setSelectedElementId}
@@ -848,7 +1295,42 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     zoom={zoom}
                     canvasWidth={canvasDimensions.width}
                     canvasHeight={canvasDimensions.height}
+                    printWidthCm={canvasDimensions.widthCm}
+                    printHeightCm={canvasDimensions.heightCm}
+                    showOrientationToggle={Boolean(selectedProduct?.allowOrientationToggle)}
+                    onToggleOrientation={handleToggleOrientation}
+                    onAddImageToDropzone={addImageToDropzone}
                 />
+                </div>
+                <div className="order-2 md:order-1 shrink-0 md:h-full md:flex md:flex-col">
+                    <EditorSidebar
+                        addTextElement={addTextElement}
+                        addImageElement={addImageElement}
+                        addShapeElement={addShapeElement}
+                        onApplyGlobalFrame={applyGlobalFrame}
+                        onRemoveGlobalFrame={removeGlobalFrame}
+                        onSelectGlobalFrame={selectGlobalFrame}
+                        onDetectFrameSlots={detectSlotsOnActiveFrame}
+                        activeGlobalFrameId={activeGlobalFrameId}
+                        activeGlobalFrame={activeGlobalFrame}
+                        elements={elements}
+                        onAddImageToDropzone={addImageToDropzone}
+                        onClearDropzoneImage={clearDropzoneImage}
+                        uploadedImages={uploadedImages}
+                        deleteUploadedImage={deleteUploadedImage}
+                        selectedElement={selectedElement}
+                        onUpdateElement={(props) => {
+                            if (selectedElement) {
+                                updateElement(selectedElement.id, props);
+                            }
+                        }}
+                        canvasBackground={canvasBackground}
+                        setCanvasBackground={setCanvasBackground}
+                        uploadedBackgrounds={uploadedBackgrounds}
+                        addUploadedBackground={addUploadedBackground}
+                        deleteUploadedBackground={deleteUploadedBackground}
+                    />
+                </div>
             </div>
             <EditorFooter
                 showGrid={showGrid}
@@ -939,88 +1421,18 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 </div>
             )}
 
-            {/* Preview Modal – z גבוה מה-EditorHeader (60) כדי שלא ייחפוף מעל התמונה */}
-            {showPreviewModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-                    <div
-                        className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh]"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {isSaving && (
-                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm">
-                                <svg className="animate-spin h-12 w-12 text-red-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <p className="text-lg font-bold text-gray-800">מעבד הזמנה...</p>
-                                <p className="text-sm text-gray-500 mt-1">נא להמתין</p>
-                            </div>
-                        )}
-                        <div className="shrink-0 p-3 border-b flex justify-between items-center bg-gray-50 gap-2">
-                            <h3 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2 min-w-0">
-                                <SparklesIcon className="w-5 h-5 text-red-400 shrink-0" />
-                                <span className="truncate">
-                                    תצוגה מקדימה: {selectedProduct?.name || (typeof selectedProduct === 'string' ? selectedProduct : 'העיצוב שלך')}
-                                </span>
-                            </h3>
-                            <button
-                                onClick={() => setShowPreviewModal(false)}
-                                disabled={isSaving}
-                                className="p-2 hover:bg-gray-200 rounded-full transition-colors shrink-0 disabled:opacity-40 disabled:pointer-events-none"
-                            >
-                                <XIcon className="w-5 h-5 text-gray-500" />
-                            </button>
-                        </div>
-                        <div className="flex-1 min-h-0 p-4 overflow-auto bg-gray-100 flex flex-col items-center justify-center gap-3">
-                            <p className="text-sm text-gray-600 text-center">
-                                כך ייראה הקובץ להדפסה
-                                {printSizeLabel && (
-                                    <span className="text-[#f2665e] font-semibold"> · {printSizeLabel}</span>
-                                )}
-                            </p>
-                            {previewImage ? (
-                                <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 max-w-full">
-                                    <img
-                                        src={previewImage}
-                                        alt="תצוגת העיצוב להדפסה"
-                                        className="max-w-full max-h-[55vh] w-auto h-auto object-contain block mx-auto"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="text-center text-gray-500 py-8">
-                                    <p>טוען תצוגה מקדימה...</p>
-                                </div>
-                            )}
-                        </div>
-                        <div className="shrink-0 p-3 border-t bg-white flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowPreviewModal(false)}
-                                disabled={isSaving}
-                                className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                חזור לעריכה
-                            </button>
-                            <button 
-                                onClick={handleConfirmAndOrder}
-                                disabled={isSaving}
-                                className="px-6 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-bold shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 min-w-[9.5rem] justify-center"
-                            >
-                                {isSaving ? (
-                                    <>
-                                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        מעבד...
-                                    </>
-                                ) : (
-                                    'אישור והזמנה'
-                                )}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ProductPreviewModal
+                isOpen={showPreviewModal}
+                onClose={() => setShowPreviewModal(false)}
+                previewImage={previewImage}
+                productNameHe={
+                    selectedProduct?.name
+                    || (typeof selectedProduct === 'string' ? selectedProduct : null)
+                }
+                printSizeLabel={printSizeLabel}
+                isSaving={isSaving}
+                onConfirm={handleConfirmAndOrder}
+            />
 
             {/* Loading Overlay */}
             {(isPreviewLoading || isSaving) && !showPreviewModal && (

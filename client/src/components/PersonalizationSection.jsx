@@ -26,7 +26,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                 setCategories(["הכל", ...uniqueCategories]);
             } catch (error) {
                 console.error("Failed to load products", error);
-                setLoadError('לא ניתן לטעון מוצרים. ודא שהשרת (פורט 5000) פועל.');
+                setLoadError('לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.');
             } finally {
                 setLoading(false);
             }
@@ -95,7 +95,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                 {loadError && (
                     <div className="py-12 px-4 text-center">
                         <p className="text-red-600 font-medium mb-2">{loadError}</p>
-                        <p className="text-gray-500 text-sm">הרץ בטרמינל: <code className="bg-gray-100 px-2 py-1 rounded">cd FlashShop/Server &amp;&amp; npm run dev</code></p>
+                        <p className="text-gray-500 text-sm">אם הבעיה נמשכת, בדקי שהשרת בענן פעיל ושאין חסימת רשת לכתובת Render.</p>
                     </div>
                 )}
 

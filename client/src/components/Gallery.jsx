@@ -4,7 +4,7 @@ import PhotoPricingInfo from './PhotoPricingInfo';
 
 const Gallery = ({
     images,
-    onQuantityChange,
+    onSetQuantity,
     onRemove,
     onClearAll,
     onImageSelect,
@@ -43,7 +43,7 @@ const Gallery = ({
                                 <ImageCard
                                     key={image.id}
                                     image={image}
-                                    onQuantityChange={onQuantityChange}
+                                    onSetQuantity={onSetQuantity}
                                     onRemove={onRemove}
                                     onImageSelect={onImageSelect}
                                     onSizeChange={onSizeChange}

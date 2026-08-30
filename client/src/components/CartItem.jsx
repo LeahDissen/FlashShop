@@ -1,16 +1,23 @@
-export default function CartItem({ item, onRemove, onQuantityChange }) {
-  const itemKey = item.id || item._id;
+import QuantityInput from './QuantityInput';
+
+export default function CartItem({ item, onRemove, onSetQuantity }) {
+  const itemKey = item.id;
   const lineTotal = item.price * item.quantity;
   const isDesignerService = item.customization?.type === 'designer-service';
 
+  if (!itemKey) {
+    return null;
+  }
+
   return (
-    <div className="grid grid-cols-12 px-6 py-3 border-b border-gray-200 last:border-b-0 items-center hover:bg-gray-50/80">
-      <div className="col-span-6">
+    <div className="flex flex-col gap-3 px-3 sm:px-6 py-4 border-b border-gray-200 last:border-b-0 hover:bg-gray-50/80 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2">
+      {/* פריט */}
+      <div className="sm:col-span-6">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => onRemove(itemKey)}
-            className="text-[#f2665e] hover:text-[#d95248] text-lg font-bold shrink-0"
+            className="text-[#f2665e] hover:text-[#d95248] text-xl font-bold shrink-0 leading-none w-8 h-8 flex items-center justify-center"
             aria-label="הסר פריט"
           >
             ×
@@ -29,8 +36,8 @@ export default function CartItem({ item, onRemove, onQuantityChange }) {
               עיצוב אישי
             </div>
           )}
-          <div className="min-w-0">
-            <span className="font-medium text-gray-800 block">{item.name}</span>
+          <div className="min-w-0 flex-1">
+            <span className="font-medium text-gray-800 block truncate">{item.name}</span>
             {isDesignerService && (
               <span className="text-xs text-gray-500 block">עיצוב מותאם אישית על ידי גרפיקאית</span>
             )}
@@ -40,32 +47,21 @@ export default function CartItem({ item, onRemove, onQuantityChange }) {
           </div>
         </div>
       </div>
-      <div className="col-span-3 flex justify-center">
-        <div className="inline-flex items-center border border-gray-300 rounded overflow-hidden bg-white">
-          <button
-            type="button"
-            onClick={() => onQuantityChange(itemKey, -1)}
-            disabled={item.quantity <= 1}
-            className="px-2.5 py-1 text-gray-700 hover:bg-gray-100 disabled:opacity-40"
-            aria-label="הפחת כמות"
-          >
-            −
-          </button>
-          <span className="px-3 py-1 border-x border-gray-300 font-medium min-w-[2rem] text-center">
-            {item.quantity}
-          </span>
-          <button
-            type="button"
-            onClick={() => onQuantityChange(itemKey, 1)}
-            className="px-2.5 py-1 text-gray-700 hover:bg-gray-100"
-            aria-label="הוסף כמות"
-          >
-            +
-          </button>
+
+      {/* כמות + מחיר במובייל בשורה אחת; בדסקטופ בעמודות נפרדות */}
+      <div className="flex items-center justify-between gap-3 sm:contents px-1">
+        <div className="flex items-center gap-2 sm:col-span-3 sm:flex sm:justify-center">
+          <span className="text-xs text-gray-500 sm:hidden">כמות</span>
+          <QuantityInput
+            quantity={item.quantity}
+            onQuantityChange={(qty) => onSetQuantity(itemKey, qty)}
+            variant="cart"
+          />
         </div>
-      </div>
-      <div className="col-span-3 text-center font-semibold text-gray-800 whitespace-nowrap">
-        {lineTotal.toFixed(2)} ₪
+        <div className="font-semibold text-gray-800 whitespace-nowrap sm:col-span-3 sm:text-center">
+          <span className="text-xs text-gray-500 font-normal ml-1 sm:hidden">מחיר </span>
+          {lineTotal.toFixed(2)} ₪
+        </div>
       </div>
     </div>
   );

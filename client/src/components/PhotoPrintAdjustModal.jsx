@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import 'react-easy-crop/react-easy-crop.css';
 import {
@@ -9,13 +9,27 @@ import {
     getImageDimensions,
     resolvePrintDimensions,
 } from '../utils/printSizes';
-import { getCroppedImageBlob } from '../utils/cropImage';
+import { getPrintCropBlob } from '../utils/cropImage';
 
 const DEFAULT_EASY_CROP = {
     crop: { x: 0, y: 0 },
     zoom: 1,
     croppedAreaPixels: null,
 };
+
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
+const DEFAULT_BACKGROUND = '#FFFFFF';
+
+const BACKGROUND_PRESETS = [
+    '#FFFFFF',
+    '#000000',
+    '#F3F4F6',
+    '#FEF3C7',
+    '#DBEAFE',
+    '#FCE7F3',
+    '#D1FAE5',
+];
 
 const PhotoPrintAdjustModal = ({
     image,
@@ -26,11 +40,17 @@ const PhotoPrintAdjustModal = ({
     const [orientation, setOrientation] = useState(image?.orientation ?? 'landscape');
     const [crop, setCrop] = useState(image?.cropState?.crop ?? DEFAULT_EASY_CROP.crop);
     const [zoom, setZoom] = useState(image?.cropState?.zoom ?? 1);
+    const [backgroundColor, setBackgroundColor] = useState(
+        image?.cropState?.backgroundColor ?? DEFAULT_BACKGROUND,
+    );
     const [croppedAreaPixels, setCroppedAreaPixels] = useState(
         image?.cropState?.croppedAreaPixels ?? null,
     );
+    const [mediaSize, setMediaSize] = useState(null);
+    const [cropSize, setCropSize] = useState(null);
     const [dims, setDims] = useState({ w: 0, h: 0 });
     const [saveError, setSaveError] = useState('');
+    const colorInputRef = useRef(null);
 
     const imageSrc = image?.originalSrc || image?.src;
     const print = resolvePrintDimensions(image?.size, orientation);
@@ -42,6 +62,7 @@ const PhotoPrintAdjustModal = ({
             orientation: image?.orientation ?? 'landscape',
             crop: image?.cropState?.crop ?? DEFAULT_EASY_CROP.crop,
             zoom: image?.cropState?.zoom ?? 1,
+            backgroundColor: image?.cropState?.backgroundColor ?? DEFAULT_BACKGROUND,
         }),
         [image?.id, image?.size],
     );
@@ -50,7 +71,10 @@ const PhotoPrintAdjustModal = ({
         setOrientation(initialState.orientation);
         setCrop(initialState.crop);
         setZoom(initialState.zoom);
+        setBackgroundColor(initialState.backgroundColor);
         setCroppedAreaPixels(image?.cropState?.croppedAreaPixels ?? null);
+        setMediaSize(null);
+        setCropSize(null);
         setSaveError('');
     }, [image?.id, image?.size, image?.cropState, initialState]);
 
@@ -80,25 +104,31 @@ const PhotoPrintAdjustModal = ({
         setOrientation(initialState.orientation);
         setCrop({ x: 0, y: 0 });
         setZoom(1);
+        setBackgroundColor(DEFAULT_BACKGROUND);
         setCroppedAreaPixels(null);
         setSaveError('');
     };
 
     const handleSave = async () => {
-        if (!croppedAreaPixels) {
+        if (!croppedAreaPixels || !mediaSize || !cropSize) {
             setSaveError('יש להמתין לטעינת התמונה לפני שמירה');
             return;
         }
 
         setSaveError('');
         try {
-            const croppedBlob = await getCroppedImageBlob(
+            const croppedBlob = await getPrintCropBlob({
                 imageSrc,
-                croppedAreaPixels,
-                image?.file ?? null,
-            );
+                crop,
+                zoom,
+                mediaSize,
+                cropSize,
+                aspect,
+                backgroundColor,
+                file: image?.file ?? null,
+            });
 
-            const cropState = { crop, zoom, croppedAreaPixels };
+            const cropState = { crop, zoom, croppedAreaPixels, backgroundColor };
 
             await onSave(image.id, {
                 crop: { ...DEFAULT_CROP },
@@ -182,42 +212,52 @@ const PhotoPrintAdjustModal = ({
                     )}
                 </div>
 
-                <div className="relative mx-5 bg-gray-900 rounded-xl overflow-hidden" style={{ height: 'min(52vh, 480px)' }}>
+                <div
+                    className="relative mx-5 rounded-xl overflow-hidden"
+                    style={{ height: 'min(52vh, 480px)', backgroundColor }}
+                >
                     {imageSrc ? (
                         <Cropper
                             image={imageSrc}
                             crop={crop}
                             zoom={zoom}
                             aspect={aspect}
+                            minZoom={MIN_ZOOM}
+                            maxZoom={MAX_ZOOM}
                             onCropChange={setCrop}
                             onZoomChange={setZoom}
                             onCropComplete={onCropComplete}
+                            onMediaLoaded={setMediaSize}
+                            onCropSizeChange={setCropSize}
                             zoomWithScroll
                             restrictPosition={false}
                             objectFit="contain"
+                            style={{
+                                containerStyle: { backgroundColor },
+                            }}
                             classes={{
                                 containerClassName: 'rounded-xl',
                                 cropAreaClassName: 'border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]',
                             }}
                         />
                     ) : (
-                        <div className="flex items-center justify-center h-full text-white text-sm">
+                        <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                             טוען תמונה...
                         </div>
                     )}
                 </div>
 
                 <p className="px-5 pt-3 text-xs text-gray-500">
-                    גררו את התמונה, השתמשו בגלגלת העכבר או בסליידר לזום — התצוגה משקפת את ההדפסה הסופית.
+                    גררו את התמונה, השתמשו בגלגלת העכבר או בסליידר לזום — ניתן גם להקטין ולהשאיר רקע. התצוגה משקפת את ההדפסה הסופית.
                 </p>
 
-                <div className="px-5 py-3">
+                <div className="px-5 py-3 space-y-4">
                     <label className="block text-sm font-medium text-gray-700">
                         זום: {Math.round(zoom * 100)}%
                         <input
                             type="range"
-                            min={1}
-                            max={3}
+                            min={MIN_ZOOM}
+                            max={MAX_ZOOM}
                             step={0.05}
                             value={zoom}
                             onChange={(e) => setZoom(Number(e.target.value))}
@@ -225,6 +265,56 @@ const PhotoPrintAdjustModal = ({
                             className="w-full mt-1 accent-[#f2665e]"
                         />
                     </label>
+
+                    <div>
+                        <span className="block text-sm font-medium text-gray-700 mb-2">צבע רקע</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {BACKGROUND_PRESETS.map((color) => (
+                                <button
+                                    key={color}
+                                    type="button"
+                                    onClick={() => setBackgroundColor(color)}
+                                    disabled={isSaving}
+                                    className={`w-8 h-8 rounded-md border border-gray-200 transition-all ${
+                                        backgroundColor === color
+                                            ? 'ring-2 ring-[#f2665e] ring-offset-1'
+                                            : 'hover:scale-105'
+                                    }`}
+                                    style={{ backgroundColor: color }}
+                                    aria-label={`רקע ${color}`}
+                                    aria-pressed={backgroundColor === color}
+                                />
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => colorInputRef.current?.click()}
+                                disabled={isSaving}
+                                className={`w-8 h-8 rounded-md border border-gray-200 flex items-center justify-center ${
+                                    !BACKGROUND_PRESETS.includes(backgroundColor)
+                                        ? 'ring-2 ring-[#f2665e] ring-offset-1'
+                                        : ''
+                                }`}
+                                aria-label="בחר צבע מותאם"
+                            >
+                                {!BACKGROUND_PRESETS.includes(backgroundColor) ? (
+                                    <span
+                                        className="w-full h-full rounded-md"
+                                        style={{ backgroundColor }}
+                                    />
+                                ) : (
+                                    <span className="w-full h-full rounded-md bg-gradient-to-br from-red-500 via-yellow-300 to-blue-500" />
+                                )}
+                            </button>
+                            <input
+                                ref={colorInputRef}
+                                type="color"
+                                value={backgroundColor}
+                                onChange={(e) => setBackgroundColor(e.target.value)}
+                                disabled={isSaving}
+                                className="sr-only"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {saveError && (

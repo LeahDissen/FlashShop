@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
 import useAuthStore from './authStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
-import { normalizeCartItem } from '../utils/cartItem';
+import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem } from '../utils/cartItem';
 
 const compactCartItem = (item) => {
   const compactCustomDesign = item?.customDesign
@@ -39,7 +39,7 @@ export const useCartStore = create(
       loadCart: async (userId) => {
           const dbItems = await fetchCartFromDB(userId);
           if (dbItems && dbItems.length > 0) {
-              set({ cartItems: dbItems.map((item) => compactCartItem(normalizeCartItem(item))) });
+              set({ cartItems: assignCartLineIds(dbItems.map((item) => normalizeCartItem(item))) });
           }
       },
 
@@ -50,7 +50,7 @@ export const useCartStore = create(
       addToCart: async (newItems) => {
           const preparedItems = await prepareCartItems(newItems);
           set((state) => {
-              const updatedCart = [...state.cartItems, ...preparedItems];
+              const updatedCart = assignCartLineIds([...state.cartItems, ...preparedItems]);
               const userId = useAuthStore.getState().userId;
               if (userId) {
                   saveCartToDB(userId, updatedCart);
@@ -61,8 +61,10 @@ export const useCartStore = create(
       },
 
       removeFromCart: (itemId) => {
+          if (!itemId) return;
+
           set((state) => {
-              const updatedCart = state.cartItems.filter((item) => item.id !== itemId && item._id !== itemId);
+              const updatedCart = state.cartItems.filter((item) => item.id !== itemId);
               const userId = useAuthStore.getState().userId;
               if (userId) {
                   saveCartToDB(userId, updatedCart);
@@ -73,15 +75,35 @@ export const useCartStore = create(
       },
 
       updateItemQuantity: (itemId, delta) => {
+          if (!itemId) return;
+
           set((state) => {
               const updatedCart = state.cartItems
                   .map((item) => {
-                      if (item.id !== itemId && item._id !== itemId) return item;
+                      if (item.id !== itemId) return item;
                       const newQty = item.quantity + delta;
                       if (newQty < 1) return null;
-                      return { ...item, quantity: newQty };
+                      return applyQuantityToCartItem(item, newQty);
                   })
                   .filter(Boolean);
+
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
+
+              return { cartItems: updatedCart };
+          });
+      },
+
+      setItemQuantity: (itemId, quantity) => {
+          if (!itemId) return;
+          const qty = Math.min(9999, Math.max(1, Math.floor(Number(quantity)) || 1));
+
+          set((state) => {
+              const updatedCart = state.cartItems.map((item) =>
+                  item.id === itemId ? applyQuantityToCartItem(item, qty) : item,
+              );
 
               const userId = useAuthStore.getState().userId;
               if (userId) {
@@ -103,8 +125,13 @@ export const useCartStore = create(
     {
       name: 'cart-storage',
       partialize: (state) => ({
-        cartItems: state.cartItems.map((item) => compactCartItem(normalizeCartItem(item))),
+        cartItems: assignCartLineIds(state.cartItems).map((item) => compactCartItem(item)),
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.cartItems?.length) {
+          state.cartItems = assignCartLineIds(state.cartItems);
+        }
+      },
     }
   )
 );

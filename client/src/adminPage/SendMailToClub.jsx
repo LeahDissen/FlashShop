@@ -39,6 +39,12 @@ export default function SendMailToClub() {
         setFormData(prev => ({ ...prev, image: e.target.files[0] }));
     };
 
+    const recipientLabels = {
+        all: "לכל חברי המועדון",
+        new_members: "למצטרפים החודש",
+        birthday: "לחוגגי יום הולדת החודש",
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.subject || !formData.message) {
@@ -183,7 +189,7 @@ export default function SendMailToClub() {
                     >
                         {loading ? "שולח..." : (
                             <>
-                                <span>שלח הודעה לכולם</span>
+                                <span>שלח הודעה {recipientLabels[formData.recipientType] || ""}</span>
                                 <FaPaperPlane />
                             </>
                         )}

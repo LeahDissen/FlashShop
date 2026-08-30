@@ -1,5 +1,6 @@
 import axios from "axios";
-const API_URL = `${import.meta.env.VITE_MONGO_API}/contact`;
+import { MONGO_API } from "../config/api";
+const API_URL = `${MONGO_API}/contact`;
 
 export const sendMessageRequest = async (msgData) => {
     const response = await axios.post(API_URL, msgData);

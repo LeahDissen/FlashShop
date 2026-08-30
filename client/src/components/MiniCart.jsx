@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore';
-import { XIcon } from './icons'; 
+import { XIcon } from './icons';
+import QuantityInput from './QuantityInput';
 
 export default function MiniCart({ onClose }) {
     const navigate = useNavigate();
     const cartItems = useCartStore((state) => state.cartItems);
     const removeFromCart = useCartStore((state) => state.removeFromCart);
-    const updateItemQuantity = useCartStore((state) => state.updateItemQuantity);
+    const setItemQuantity = useCartStore((state) => state.setItemQuantity);
     const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -47,34 +48,12 @@ export default function MiniCart({ onClose }) {
                                     {item.name}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <div className="inline-flex items-center border border-gray-200 rounded-md overflow-hidden bg-white text-xs">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                updateItemQuantity(item.id, -1);
-                                            }}
-                                            disabled={item.quantity <= 1}
-                                            className="px-1.5 py-0.5 hover:text-[#f2665e] disabled:opacity-40"
-                                            aria-label="הפחת כמות"
-                                        >
-                                            −
-                                        </button>
-                                        <span className="px-1.5 font-semibold text-gray-800 border-x border-gray-200">
-                                            {item.quantity}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                updateItemQuantity(item.id, 1);
-                                            }}
-                                            className="px-1.5 py-0.5 hover:text-[#f2665e]"
-                                            aria-label="הוסף כמות"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
+                                    <QuantityInput
+                                        quantity={item.quantity}
+                                        onQuantityChange={(qty) => setItemQuantity(item.id, qty)}
+                                        variant="compact"
+                                        stopPropagation
+                                    />
                                     {item.size && <span className="text-xs text-gray-500">{item.size}</span>}
                                 </div>
                             </div>
