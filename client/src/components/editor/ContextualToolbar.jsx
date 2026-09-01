@@ -6,6 +6,7 @@ import {
     ItalicIcon, NoColorIcon, PlusIcon, 
     SendBackwardIcon, SunIcon, TrashIcon, UnderlineIcon 
 } from '../icons';
+import { DEFAULT_EDITOR_SETTINGS } from '../../constants/editorSettingsDefaults';
 
 const NumericStepper = ({ value, onChange, min = 0, max = 200, step = 1, label }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -115,11 +116,14 @@ const ContextualToolbar = ({
     onDuplicate,
     onDelete,
     onBringToFront,
-    onSendToBack
+    onSendToBack,
+    textOptions = DEFAULT_EDITOR_SETTINGS.textToolbar
 }) => {
     const [showColorPicker, setShowColorPicker] = useState(false);
+    const [showTextColorPicker, setShowTextColorPicker] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const colorPickerRef = useRef(null);
+    const textColorPickerRef = useRef(null);
     const filtersRef = useRef(null);
 
     useEffect(() => {
@@ -127,18 +131,21 @@ const ContextualToolbar = ({
             if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
                 setShowColorPicker(false);
             }
+            if (textColorPickerRef.current && !textColorPickerRef.current.contains(event.target)) {
+                setShowTextColorPicker(false);
+            }
             if (filtersRef.current && !filtersRef.current.contains(event.target)) {
                 setShowFilters(false);
             }
         };
 
-        if (showColorPicker || showFilters) {
+        if (showColorPicker || showTextColorPicker || showFilters) {
             document.addEventListener('mousedown', handleClickOutside);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [showColorPicker, showFilters]);
+    }, [showColorPicker, showTextColorPicker, showFilters]);
 
     if (!selectedElement) {
         return null;
@@ -157,6 +164,16 @@ const ContextualToolbar = ({
     };
 
     const currentFill = selectedElement.fill;
+
+    const fonts = textOptions?.fonts?.length
+        ? textOptions.fonts
+        : DEFAULT_EDITOR_SETTINGS.textToolbar.fonts;
+    const textColorPresets = textOptions?.colorPresets?.length
+        ? textOptions.colorPresets
+        : DEFAULT_EDITOR_SETTINGS.textToolbar.colorPresets;
+    const minFontSize = Number(textOptions?.minFontSize) || DEFAULT_EDITOR_SETTINGS.textToolbar.minFontSize;
+    const maxFontSize = Number(textOptions?.maxFontSize) || DEFAULT_EDITOR_SETTINGS.textToolbar.maxFontSize;
+    const isCaption = selectedElement.role === 'caption';
 
     return (
         <div className="contextual-toolbar h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center px-2 sm:px-4 gap-1 sm:gap-2 shadow-sm relative z-40 shrink-0 overflow-x-auto overflow-y-visible scrollbar-thin">
@@ -181,6 +198,12 @@ const ContextualToolbar = ({
 
             {selectedElement.type === 'text' && (
                 <>
+                    {isCaption && (
+                        <span className="shrink-0 text-xs font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">
+                            כתובית
+                        </span>
+                    )}
+
                     {/* Font Family */}
                     <div className="relative" data-tooltip="גופן" data-tooltip-pos="bottom">
                         <select 
@@ -188,16 +211,11 @@ const ContextualToolbar = ({
                             onChange={(e) => handleTextChange('fontFamily', e.target.value)}
                             className="h-9 pl-2 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white text-gray-700 min-w-[140px]"
                         >
-                            <option value="Arial">Arial</option>
-                            <option value="Times New Roman">Times New Roman</option>
-                            <option value="Courier New">Courier New</option>
-                            <option value="Verdana">Verdana</option>
-                            <option value="Georgia">Georgia</option>
-                            <option value="Tahoma">Tahoma</option>
-                            <option value="Trebuchet MS">Trebuchet MS</option>
-                            <option value="Impact">Impact</option>
-                            <option value="Varela Round">Varela Round</option>
-                            <option value="Rubik">Rubik</option>
+                            {fonts.map((font) => (
+                                <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                                    {font.label}
+                                </option>
+                            ))}
                         </select>
                     </div>
 
@@ -206,24 +224,69 @@ const ContextualToolbar = ({
                         <NumericStepper 
                             value={selectedElement.fontSize} 
                             onChange={(val) => handleTextChange('fontSize', val)} 
-                            min={8} 
-                            max={200} 
+                            min={minFontSize} 
+                            max={maxFontSize} 
                         />
                     </div>
 
                     <Divider />
 
-                    {/* Color Picker */}
-                     <div className="relative flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 cursor-pointer hover:bg-gray-50 shadow-sm" data-tooltip="צבע טקסט" data-tooltip-pos="bottom">
-                        <div className="w-6 h-6 rounded-full border border-gray-200 shadow-sm overflow-hidden relative">
-                             <div className="w-full h-full" style={{ backgroundColor: selectedElement.color }}></div>
-                             <input 
-                                type="color" 
-                                value={selectedElement.color} 
-                                onChange={(e) => handleTextChange('color', e.target.value)}
-                                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    {/* Text Color Picker */}
+                    <div className="relative shrink-0" ref={textColorPickerRef}>
+                        <button
+                            type="button"
+                            onClick={() => setShowTextColorPicker(!showTextColorPicker)}
+                            className={`relative flex items-center justify-center w-9 h-9 rounded-lg border cursor-pointer shadow-sm transition-colors ${
+                                showTextColorPicker ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:bg-gray-50'
+                            }`}
+                            data-tooltip="צבע טקסט"
+                            data-tooltip-pos="bottom"
+                        >
+                            <span
+                                className="w-6 h-6 rounded-full border border-gray-200 shadow-sm"
+                                style={{ backgroundColor: selectedElement.color }}
                             />
-                        </div>
+                        </button>
+
+                        {showTextColorPicker && (
+                            <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-72" dir="rtl">
+                                <div className="text-right font-bold text-gray-800 mb-3">צבע הטקסט</div>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div
+                                        className="w-12 h-12 rounded-lg shadow-sm border border-gray-200"
+                                        style={{ backgroundColor: selectedElement.color }}
+                                    />
+                                    <div className="w-12 h-12 rounded-lg overflow-hidden relative cursor-pointer group border border-gray-200 hover:border-red-400 transition-colors">
+                                        <div className="w-full h-full bg-gradient-to-br from-red-500 via-yellow-400 to-purple-600 flex items-center justify-center">
+                                            <PlusIcon className="w-6 h-6 text-white drop-shadow-md" />
+                                        </div>
+                                        <input
+                                            type="color"
+                                            value={selectedElement.color}
+                                            onChange={(e) => handleTextChange('color', e.target.value)}
+                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                                            aria-label="צבע מותאם אישית"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="text-right text-sm font-semibold text-gray-600 mb-2">צבעים</div>
+                                <div className="grid grid-cols-6 gap-2">
+                                    {textColorPresets.map((color) => (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            onClick={() => handleTextChange('color', color)}
+                                            className={`w-8 h-8 rounded-md border border-gray-200 hover:scale-110 transition-transform ${
+                                                selectedElement.color === color ? 'ring-2 ring-red-400 ring-offset-2' : ''
+                                            }`}
+                                            style={{ backgroundColor: color }}
+                                            aria-label={`בחר צבע ${color}`}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <Divider />

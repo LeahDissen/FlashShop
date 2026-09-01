@@ -154,7 +154,8 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         );
     };
 
-    const handleSaveCrop = async (id, { crop, cropState, orientation, croppedBlob, fileName }) => {
+    const handleSaveCrop = async (id, payload) => {
+        const { crop, cropState, orientation, croppedBlob, fileName } = payload;
         setIsCropSaving(true);
         setIsUploading(true);
         setUploadStatus('שומר תמונה חתוכה...');
@@ -173,6 +174,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                             crop,
                             cropState,
                             orientation: orientation ?? img.orientation,
+                            frameSelection: payload.frameSelection ?? null,
+                            frameOverlaySrc: payload.frameOverlaySrc || '',
+                            captions: Array.isArray(payload.captions) ? payload.captions : [],
                         }
                         : img,
                 ),
@@ -222,6 +226,18 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                 image: img.src,
                 crop: img.crop,
                 orientation: img.orientation ?? 'landscape',
+                customDesign: {
+                    printSizeCm: size,
+                    frameSelection: img.frameSelection || undefined,
+                    captions: Array.isArray(img.captions) && img.captions.length
+                        ? img.captions.map((caption) => ({
+                            content: caption.content,
+                            fontFamily: caption.fontFamily,
+                            fontSize: caption.fontSize,
+                            color: caption.color,
+                        }))
+                        : undefined,
+                },
             };
         });
 

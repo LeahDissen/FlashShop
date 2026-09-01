@@ -74,11 +74,32 @@ export const applyQuantityToCartItem = (item, quantity) => {
     };
 };
 
+/** שומר בחירת מסגרת וכתוביות עם הפריט בעגלה ובהזמנה */
+export const compactCustomDesignForCart = (customDesign) => {
+    if (!customDesign || typeof customDesign !== 'object') return undefined;
+
+    const compact = {
+        projectId: customDesign.projectId,
+        projectName: customDesign.projectName,
+        canvasSize: customDesign.canvasSize,
+        printSizeCm: customDesign.printSizeCm,
+        frameSelection: customDesign.frameSelection || undefined,
+        captions: Array.isArray(customDesign.captions) && customDesign.captions.length
+            ? customDesign.captions
+            : undefined,
+        designFile: customDesign.designFile,
+    };
+
+    const hasValue = Object.values(compact).some((value) => value != null);
+    return hasValue ? compact : undefined;
+};
+
 export const toCheckoutItem = (item) => {
     const normalized = normalizeCartItem(item);
     return {
         id: normalized.id,
         productId: normalized.productId,
+        itemType: normalized.itemType,
         name: normalized.name,
         size: normalized.size,
         quantity: normalized.quantity,

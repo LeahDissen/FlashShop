@@ -3,17 +3,10 @@ import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
 import useAuthStore from './authStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
-import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem } from '../utils/cartItem';
+import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart } from '../utils/cartItem';
 
 const compactCartItem = (item) => {
-  const compactCustomDesign = item?.customDesign
-    ? {
-        projectId: item.customDesign.projectId,
-        projectName: item.customDesign.projectName,
-        canvasSize: item.customDesign.canvasSize,
-        printSizeCm: item.customDesign.printSizeCm,
-      }
-    : undefined;
+  const compactCustomDesign = compactCustomDesignForCart(item?.customDesign);
 
   return {
     ...item,

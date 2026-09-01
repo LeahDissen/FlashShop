@@ -49,6 +49,79 @@ function getImageRectInCropFrame(crop, zoom, mediaSize, cropSize) {
 /**
  * יוצר Blob באיכות גבוהה — תואם לתצוגת react-easy-crop (כולל זום החוצה ורקע)
  */
+function wrapFillText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = String(text).split(/\s+/).filter(Boolean);
+    if (words.length === 0) return;
+
+    const lines = [];
+    let current = words[0];
+    for (let i = 1; i < words.length; i += 1) {
+        const next = `${current} ${words[i]}`;
+        if (ctx.measureText(next).width <= maxWidth) {
+            current = next;
+        } else {
+            lines.push(current);
+            current = words[i];
+        }
+    }
+    lines.push(current);
+
+    const startY = y - (lines.length - 1) * lineHeight;
+    lines.forEach((line, index) => {
+        ctx.fillText(line, x, startY + index * lineHeight);
+    });
+}
+
+/** מצייר מסגרת קבועה וכתוביות מעל תמונת ההדפסה */
+export async function drawPrintOverlays(ctx, {
+    width,
+    height,
+    frameSrc,
+    captions = [],
+    previewCropWidth,
+}) {
+    if (frameSrc) {
+        try {
+            const frame = await createImage(frameSrc);
+            ctx.drawImage(frame, 0, 0, width, height);
+        } catch (err) {
+            console.warn('Frame overlay failed', err);
+        }
+    }
+
+    const list = Array.isArray(captions) ? captions : [];
+    if (list.length === 0) return;
+
+    const scale = previewCropWidth > 0 ? width / previewCropWidth : 1;
+    list.forEach((caption) => {
+        const content = String(caption?.content ?? '').trim();
+        if (!content) return;
+
+        const fontSize = Math.max(8, (Number(caption.fontSize) || 24) * scale);
+        const xRatio = Number.isFinite(Number(caption.x)) ? Number(caption.x) : 0.5;
+        const yRatio = Number.isFinite(Number(caption.y)) ? Number(caption.y) : 0.92;
+
+        ctx.save();
+        ctx.direction = 'rtl';
+        ctx.font = `${fontSize}px "${caption.fontFamily || 'Rubik'}", Rubik, sans-serif`;
+        ctx.fillStyle = caption.color || '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.shadowColor = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur = 4 * scale;
+        ctx.shadowOffsetY = Math.max(1, scale);
+        wrapFillText(
+            ctx,
+            content,
+            width * xRatio,
+            height * yRatio,
+            width * 0.9,
+            fontSize * 1.25,
+        );
+        ctx.restore();
+    });
+}
+
 export async function getPrintCropBlob({
     imageSrc,
     crop,
@@ -58,6 +131,8 @@ export async function getPrintCropBlob({
     aspect,
     backgroundColor = '#FFFFFF',
     file = null,
+    frameSrc = null,
+    captions = [],
 }) {
     if (!mediaSize?.width || !cropSize?.width || !aspect) {
         throw new Error('Missing crop layout data');
@@ -96,6 +171,14 @@ export async function getPrintCropBlob({
         rect.height * scaleY,
     );
     ctx.restore();
+
+    await drawPrintOverlays(ctx, {
+        width: outputWidth,
+        height: outputHeight,
+        frameSrc,
+        captions,
+        previewCropWidth: cropSize.width,
+    });
 
     const { mimeType, quality } = resolveOutputFormat(file);
 
