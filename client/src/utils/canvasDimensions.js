@@ -164,6 +164,46 @@ export function createDefaultTextElement(dims) {
     };
 }
 
+/**
+ * כתובית לתמונה – תיבת טקסט ברוחב האזור הבטוח, ממוקמת בתחתית המשטח.
+ * ברירות המחדל (גופן, גודל, צבע, טקסט) מגיעות מהגדרות שהמנהלת עורכת.
+ */
+export function createCaptionTextElement(dims, captionDefaults = {}) {
+    const safe = getSafeInnerSizePx(dims);
+    const marginX = Math.round((dims.width - safe.width) / 2);
+    const marginY = Math.round((dims.height - safe.height) / 2);
+
+    const width = safe.width;
+    const fontSize = Math.max(
+        10,
+        Math.min(
+            Number(captionDefaults.fontSize) || 24,
+            Math.round((Number(captionDefaults.fontSize) || 24) * (width / DEFAULT_TEXT_WIDTH)) || 24,
+        ),
+    );
+    const height = Math.max(24, Math.round(fontSize * 1.6));
+
+    return {
+        ...createDefaultTextElement(dims),
+        id: `caption_${Date.now()}`,
+        role: 'caption',
+        content: captionDefaults.placeholder || 'כתובית לתמונה',
+        fontFamily: captionDefaults.fontFamily || 'Rubik',
+        color: captionDefaults.color || '#FFFFFF',
+        fontSize,
+        width,
+        height,
+        left: marginX,
+        top: Math.max(marginY, dims.height - marginY - height),
+        textAlign: 'center',
+        textShadowEnabled: true,
+        textShadowColor: '#000000',
+        textShadowBlur: 4,
+        textShadowOffsetX: 1,
+        textShadowOffsetY: 1,
+    };
+}
+
 const DEFAULT_TEXT_CONTENT = 'טקסט ניתן לעריכה';
 
 /** מנקה טיוטות שבורות ומחזיר תיבת טקסט אחת במרכז */
@@ -173,10 +213,12 @@ export function normalizeEditorElements(elements, dims) {
     }
 
     const nonText = elements.filter((el) => el.type !== 'text');
-    let textElements = elements.filter((el) => el.type === 'text');
+    // כתוביות הן חלק מהעיצוב הסופי ולכן לא מתאחדות לתיבת טקסט אחת
+    const captions = elements.filter((el) => el.type === 'text' && el.role === 'caption');
+    let textElements = elements.filter((el) => el.type === 'text' && el.role !== 'caption');
 
     if (textElements.length === 0) {
-        return [createDefaultTextElement(dims), ...nonText];
+        return [createDefaultTextElement(dims), ...nonText, ...captions];
     }
 
     if (textElements.length > 1) {
@@ -214,7 +256,7 @@ export function normalizeEditorElements(elements, dims) {
         locked: false,
     };
 
-    return [normalizedText, ...nonText];
+    return [normalizedText, ...nonText, ...captions];
 }
 
 /** מתאים את מידות תיבת התמונה ליחס הגובה-רוחב המקורי (object-fit: contain) */
