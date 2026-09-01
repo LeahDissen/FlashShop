@@ -12,6 +12,7 @@ import {
     normalizeEditorElements,
     getPrintExportPixelRatio,
     fitImageElementBounds,
+    createCaptionTextElement,
 } from '../utils/canvasDimensions';
 import {
     enforceLayerOrder,
@@ -28,12 +29,23 @@ import {
 } from '../utils/editorLayering';
 import { fitImageToDropzone, isMultiDropzoneFrame, resolveDropzones } from '../utils/dropzoneUtils';
 import { detectEmptyPhotoSlots } from '../utils/detectEmptyPhotoSlots';
+import {
+    getCanvasOrientation,
+    getFrameOrientation,
+    getOrientation,
+    getTargetOrientation,
+    orientationsConflict,
+    rotateImageElement90,
+} from '../utils/orientationMatching';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import EditorFooter from '../components/editor/EditorFooter';
 import EditorHeader from '../components/editor/EditorHeader';
 import EditorSidebar from '../components/editor/EditorSidebar.jsx';
+import OrientationMismatchNotice from '../components/editor/OrientationMismatchNotice';
 import ProductPreviewModal from '../components/editor/ProductPreviewModal';
+import { useEditorSettings } from '../hooks/useEditorSettings';
+import { uploadFinalDesign } from '../api/designUploads';
 import { ClockIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
 import { useProductStore } from '../store/productStore';
@@ -47,6 +59,7 @@ const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
 const ACTIVE_BG_STORAGE_PREFIX = 'active_editor_bg';
 const ACTIVE_NAME_STORAGE_PREFIX = 'active_editor_name';
+const ACTIVE_FRAME_SELECTION_STORAGE_PREFIX = 'active_editor_frame_selection';
 
 const safeJsonParse = (raw, fallback) => {
     if (!raw) return fallback;
@@ -89,8 +102,14 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const addToCart = useCartStore((state) => state.addToCart);
     const userId = useAuthStore((state) => state.userId);
 
+    const { settings: editorSettings } = useEditorSettings();
+
     const [activeFrameAspectRatio, setActiveFrameAspectRatio] = useState(null);
     const [orientationFlipped, setOrientationFlipped] = useState(false);
+    /** בחירת המסגרת של הלקוח (מידה, כיוון, מסגרת) – נשמרת עם ההזמנה */
+    const [frameSelection, setFrameSelection] = useState(null);
+    /** התראה על אי-התאמת כיוון בין התמונה למסגרת */
+    const [orientationNotice, setOrientationNotice] = useState(null);
 
     const canvasDimensions = useMemo(
         () => getCanvasDimensions(selectedProduct, activeFrameAspectRatio, orientationFlipped),
@@ -137,6 +156,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         elements: `${ACTIVE_ELEMENTS_STORAGE_PREFIX}_${draftProductKey}`,
         background: `${ACTIVE_BG_STORAGE_PREFIX}_${draftProductKey}`,
         projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${draftProductKey}`,
+        frameSelection: `${ACTIVE_FRAME_SELECTION_STORAGE_PREFIX}_${draftProductKey}`,
     }), [draftProductKey]);
 
     const activeGlobalFrame = useMemo(
@@ -237,12 +257,17 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         const savedElements = safeStorageSetItem(draftStorage.elements, JSON.stringify(elements));
         safeStorageSetItem(draftStorage.background, JSON.stringify(canvasBackground));
         safeStorageSetItem(draftStorage.projectName, projectName);
+        if (frameSelection) {
+            safeStorageSetItem(draftStorage.frameSelection, JSON.stringify(frameSelection));
+        } else {
+            localStorage.removeItem(draftStorage.frameSelection);
+        }
 
         if (!savedElements && !storageWarningShownRef.current) {
             storageWarningShownRef.current = true;
             alert('נפח האחסון המקומי מלא. השינויים ימשיכו לעבוד, אבל לא יישמרו מקומית עד לניקוי אחסון בדפדפן.');
         }
-    }, [elements, canvasBackground, projectName, draftStorage]);
+    }, [elements, canvasBackground, projectName, frameSelection, draftStorage]);
 
     // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
     useEffect(() => {
@@ -274,8 +299,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             ));
             const savedAspect = extractFrameAspectRatio(nextElements);
             if (savedAspect) setActiveFrameAspectRatio(savedAspect);
+            setFrameSelection(
+                safeJsonParse(localStorage.getItem(draftStorage.frameSelection), null),
+            );
         } else {
             nextElements = [createDefaultTextElement(canvasDimensions)];
+            setFrameSelection(null);
         }
 
         setElements(nextElements);
@@ -340,6 +369,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         localStorage.removeItem(draftStorage.background);
         localStorage.removeItem(draftStorage.projectName);
         localStorage.removeItem(draftStorage.canvasKey);
+        localStorage.removeItem(draftStorage.frameSelection);
     };
 
     const addToHistory = useCallback((newElements) => {
@@ -400,6 +430,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             uploadedImages,
             uploadedBackgrounds,
             selectedProduct,
+            frameSelection,
             canvasSize: {
                 width: canvasDimensions.width,
                 height: canvasDimensions.height,
@@ -447,15 +478,47 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [canvasBackground, zoom, canvasDimensions]);
 
+    /** 1.3 – רשימת הכתוביות שנשמרת עם ההזמנה לצורך ההפקה */
+    const collectCaptions = useCallback(() => (
+        elements
+            .filter((el) => el.type === 'text' && el.content?.trim())
+            .map((el) => ({
+                content: el.content,
+                fontFamily: el.fontFamily,
+                fontSize: el.fontSize,
+                color: el.color,
+                isCaption: el.role === 'caption',
+            }))
+    ), [elements]);
+
+    /**
+     * 1.4 – שמירת התמונה הסופית בענן. הקובץ מועבר לתיקיית ההזמנה בשרת
+     * ברגע שההזמנה נוצרת. אם Drive לא מוגדר, ההזמנה נמשכת רגיל.
+     */
+    const uploadFinalDesignToDrive = useCallback(async (printImage) => {
+        if (!printImage) return null;
+        try {
+            const result = await uploadFinalDesign({ image: printImage, projectName });
+            return result?.file || null;
+        } catch (error) {
+            console.warn('Drive upload skipped', error);
+            return null;
+        }
+    }, [projectName]);
+
     // --- 1. כפתור "אישור והזמנה" הראשי מתוך מסך התצוגה המקדימה ---
     const handleConfirmAndOrder = useCallback(async () => {
         setIsSaving(true);
         try {
+            // תמונת הדפסה ברזולוציה מלאה – נשמרת בענן בתיקיית ההזמנה
+            const printImage = previewImage || (await captureCanvasImage());
             // תמונה קטנה לתצוגה בעגלה / שמירה מקומית (לא תמונת הדפסה ענקית)
-            const cartThumb = previewImage || (await captureCanvasImage(2));
-            if (cartThumb) {
-                setPreviewImage(cartThumb);
+            const cartThumb = await captureCanvasImage(2);
+            if (printImage) {
+                setPreviewImage(printImage);
             }
+
+            const designFile = await uploadFinalDesignToDrive(printImage);
 
             // א. שמירת הפרויקט לקבלת מזהה ייחודי
             const savedProject = await saveProjectToDB(cartThumb || undefined);
@@ -504,6 +567,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     elements: savedProject.elements,
                     canvasBackground: savedProject.canvasBackground,
                     canvasSize: savedProject.canvasSize,
+                    frameSelection,
+                    captions: collectCaptions(),
+                    designFile,
                     printSizeCm: {
                         width: canvasDimensions.widthCm,
                         height: canvasDimensions.heightCm,
@@ -527,7 +593,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions, orderQuantity]);
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions, orderQuantity, frameSelection, collectCaptions, uploadFinalDesignToDrive]);
 
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
@@ -644,6 +710,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setUploadedBackgrounds(project.uploadedBackgrounds || []);
             setProjectName(project.name || 'הפרויקט שלי');
             setCurrentProjectId(project._id);
+            setFrameSelection(project.frameSelection || null);
+            setOrientationNotice(null);
 
             if (onSelectProduct) {
                 onSelectProduct(project.selectedProduct || null);
@@ -660,6 +728,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 elements: `${ACTIVE_ELEMENTS_STORAGE_PREFIX}_${loadedDraftKey}`,
                 background: `${ACTIVE_BG_STORAGE_PREFIX}_${loadedDraftKey}`,
                 projectName: `${ACTIVE_NAME_STORAGE_PREFIX}_${loadedDraftKey}`,
+                frameSelection: `${ACTIVE_FRAME_SELECTION_STORAGE_PREFIX}_${loadedDraftKey}`,
             };
 
             safeStorageSetItem(
@@ -669,6 +738,14 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             safeStorageSetItem(loadedDraftStorage.elements, JSON.stringify(loadedElements));
             safeStorageSetItem(loadedDraftStorage.background, JSON.stringify(project.canvasBackground || { type: 'color', value: '#FFFFFF' }));
             safeStorageSetItem(loadedDraftStorage.projectName, project.name || 'הפרויקט שלי');
+            if (project.frameSelection) {
+                safeStorageSetItem(
+                    loadedDraftStorage.frameSelection,
+                    JSON.stringify(project.frameSelection),
+                );
+            } else {
+                localStorage.removeItem(loadedDraftStorage.frameSelection);
+            }
             canvasAppliedKeyRef.current = getCanvasStorageKey(
                 loadedProduct,
                 loadedDims,
@@ -694,7 +771,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [currentProjectId, userId]);
 
-    const applyGlobalFrame = useCallback(async (frame) => {
+    const applyGlobalFrame = useCallback(async (frame, printSize = null, requestedOrientation = null) => {
         const newAspectRatio = frame.aspectRatio;
         const dims = canvasDimensions;
 
@@ -725,6 +802,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             ? await punchDropzoneHoles(processedSrc, dropzones)
             : processedSrc;
 
+        // מסגרת קבועה: שכבת Overlay שנפרסת על כל המשטח ואינה ניתנת להזזה על ידי הלקוח
+        const isFixedOverlay = frame.isFixedOverlay !== false;
+
         const frameElement = {
             id: `globalFrame_${frame._id}`,
             type: 'globalFrame',
@@ -733,6 +813,9 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             originalSrc: frame.imageUrl,
             title: frame.title,
             aspectRatio: frame.aspectRatio,
+            frameOrientation: getFrameOrientation(frame),
+            printSizeKey: frame.printSizeKey || printSize?.key || '',
+            isFixedOverlay,
             layoutType: isMulti ? 'multi_dropzone' : 'single_overlay',
             dropzones: isMulti ? dropzones : [],
             holesPunched: isMulti ? 'v2' : false,
@@ -742,7 +825,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             left: 0,
             opacity: 1,
             rotation: 0,
-            locked: false,
+            locked: isFixedOverlay,
         };
 
         const layered = enforceLayerOrder([...updatedElements, frameElement]);
@@ -753,15 +836,43 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             orientationFlipped,
         );
 
+        const selection = {
+            frameId: frame._id,
+            frameTitle: frame.title,
+            frameImageUrl: frame.imageUrl,
+            frameCategory: frame.category,
+            aspectRatio: frame.aspectRatio,
+            printSizeKey: frame.printSizeKey || printSize?.key || '',
+            printSizeLabel: printSize?.label || printSizeLabel,
+            frameOrientation: getFrameOrientation(frame) || requestedOrientation || null,
+            requestedOrientation: requestedOrientation || null,
+            canvasOrientation: getCanvasOrientation(dims),
+            orientationFlipped,
+            layoutType: frameElement.layoutType,
+            isFixedOverlay,
+            selectedAt: new Date().toISOString(),
+        };
+
         canvasAppliedKeyRef.current = storageKey;
         lastCanvasPxRef.current = { width: dims.width, height: dims.height };
         safeStorageSetItem(draftStorage.canvasKey, storageKey);
         safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+        safeStorageSetItem(draftStorage.frameSelection, JSON.stringify(selection));
 
         updateElementsWithHistory(layered);
-        setSelectedElementId(frameElement.id);
+        setSelectedElementId(isFixedOverlay ? null : frameElement.id);
         setActiveFrameAspectRatio(newAspectRatio);
-    }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
+        setFrameSelection(selection);
+        setOrientationNotice(null);
+    }, [
+        elements,
+        selectedProduct,
+        canvasDimensions,
+        orientationFlipped,
+        printSizeLabel,
+        updateElementsWithHistory,
+        draftStorage,
+    ]);
 
     const detectSlotsOnActiveFrame = useCallback(async () => {
         const frame = getActiveGlobalFrame(elements);
@@ -819,10 +930,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         lastCanvasPxRef.current = { width: dims.width, height: dims.height };
         safeStorageSetItem(draftStorage.canvasKey, storageKey);
         safeStorageSetItem(draftStorage.elements, JSON.stringify(layered));
+        localStorage.removeItem(draftStorage.frameSelection);
 
         updateElementsWithHistory(layered);
         setSelectedElementId(null);
         setActiveFrameAspectRatio(null);
+        setFrameSelection(null);
+        setOrientationNotice(null);
     }, [elements, selectedProduct, canvasDimensions, orientationFlipped, updateElementsWithHistory, draftStorage]);
 
     const handleToggleOrientation = useCallback(() => {
@@ -901,6 +1015,62 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
 
+    /** 1.3 – כתובית לתמונה עם ברירות מחדל שהמנהלת מגדירה */
+    const addCaptionElement = useCallback(() => {
+        const newElement = createCaptionTextElement(
+            canvasDimensions,
+            editorSettings.captionDefaults,
+        );
+        const newElements = enforceLayerOrder([...elements, newElement]);
+        updateElementsWithHistory(newElements);
+        setSelectedElementId(newElement.id);
+    }, [elements, updateElementsWithHistory, canvasDimensions, editorSettings.captionDefaults]);
+
+    /** 1.2 – סיבוב התמונה ב-90° כדי להתאים אותה לכיוון המסגרת */
+    const handleRotateToMatchOrientation = useCallback(() => {
+        if (!orientationNotice?.elementId) return;
+
+        const target = elements.find((el) => el.id === orientationNotice.elementId);
+        if (!target) {
+            setOrientationNotice(null);
+            return;
+        }
+
+        const rotated = rotateImageElement90(
+            target,
+            canvasDimensions.width,
+            canvasDimensions.height,
+        );
+
+        updateElementsWithHistory(
+            elements.map((el) => (el.id === rotated.id ? rotated : el)),
+        );
+        setSelectedElementId(rotated.id);
+        setFrameSelection((prev) => (prev ? { ...prev, rotationApplied: true } : prev));
+        setOrientationNotice(null);
+    }, [orientationNotice, elements, canvasDimensions, updateElementsWithHistory]);
+
+    const dismissOrientationNotice = useCallback(() => {
+        setFrameSelection((prev) => (prev ? { ...prev, rotationApplied: false } : prev));
+        setOrientationNotice(null);
+    }, []);
+
+    /** 1.2 – זיהוי אוטומטי של אי-התאמת כיוון בין התמונה למסגרת/משטח */
+    const detectOrientationMismatch = useCallback((elementId, naturalWidth, naturalHeight) => {
+        const imageOrientation = getOrientation(naturalWidth, naturalHeight);
+        const targetOrientation = getTargetOrientation(
+            getActiveGlobalFrame(elements),
+            canvasDimensions,
+        );
+
+        if (!orientationsConflict(imageOrientation, targetOrientation)) {
+            setOrientationNotice(null);
+            return;
+        }
+
+        setOrientationNotice({ elementId, imageOrientation, targetOrientation });
+    }, [elements, canvasDimensions]);
+
     const addImageElement = useCallback((src, width, height, naturalWidth, naturalHeight) => {
         const { left, top } = centerPosition(
             width,
@@ -932,7 +1102,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
-    }, [elements, updateElementsWithHistory, canvasDimensions]);
+        detectOrientationMismatch(newElement.id, naturalWidth, naturalHeight);
+    }, [elements, updateElementsWithHistory, canvasDimensions, detectOrientationMismatch]);
 
     const addImageToDropzone = useCallback((dropzoneId, src, naturalWidth, naturalHeight) => {
         const frame = getActiveGlobalFrame(elements);
@@ -1275,6 +1446,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                                 onDelete={deleteElement}
                                 onBringToFront={handleBringToFront}
                                 onSendToBack={handleSendToBack}
+                                textOptions={editorSettings.textToolbar}
                             />
                         </div>
                     )}
@@ -1301,10 +1473,18 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     onToggleOrientation={handleToggleOrientation}
                     onAddImageToDropzone={addImageToDropzone}
                 />
+                    <OrientationMismatchNotice
+                        notice={orientationNotice}
+                        prompt={editorSettings.orientationPrompt}
+                        orientationLabels={editorSettings.orientationLabels}
+                        onRotate={handleRotateToMatchOrientation}
+                        onDismiss={dismissOrientationNotice}
+                    />
                 </div>
                 <div className="order-2 md:order-1 shrink-0 md:h-full md:flex md:flex-col">
                     <EditorSidebar
                         addTextElement={addTextElement}
+                        addCaptionElement={addCaptionElement}
                         addImageElement={addImageElement}
                         addShapeElement={addShapeElement}
                         onApplyGlobalFrame={applyGlobalFrame}
@@ -1329,6 +1509,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         uploadedBackgrounds={uploadedBackgrounds}
                         addUploadedBackground={addUploadedBackground}
                         deleteUploadedBackground={deleteUploadedBackground}
+                        editorSettings={editorSettings}
                     />
                 </div>
             </div>
