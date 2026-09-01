@@ -30,3 +30,8 @@ export const getOrderById = async (orderId) => {
     const response = await axios.get(`${API_URL}/${orderId}`);
     return response.data;
 }
+
+export const syncOrderDrive = async (orderId) => {
+    const response = await axios.post(`${API_URL}/${orderId}/drive`);
+    return response.data;
+}

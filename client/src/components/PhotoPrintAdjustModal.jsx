@@ -1,31 +1,272 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Cropper from 'react-easy-crop';
-import 'react-easy-crop/react-easy-crop.css';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDesignFrames } from '../api/designFrames';
 import { DEFAULT_EDITOR_SETTINGS } from '../constants/editorSettingsDefaults';
 import { useEditorSettings } from '../hooks/useEditorSettings';
 import { getFrameOrientation } from '../utils/orientationMatching';
 import { prepareFrameImageSrc } from '../utils/frameImageProcessing';
-import { getPrintCropBlob } from '../utils/cropImage';
+import { detectTextDirection, getPrintCropBlob } from '../utils/cropImage';
 import {
     DEFAULT_CROP,
+    DEFAULT_PHOTO_PRINT_SIZE,
     getCompactPrintSizeLabel,
     getCropWarning,
     getDefaultOrientation,
     getImageDimensions,
+    mergePhotoPricesWithCatalog,
     resolvePrintDimensions,
 } from '../utils/printSizes';
 import FrameSizeFolders from './editor/FrameSizeFolders.jsx';
 
-const DEFAULT_EASY_CROP = {
-    crop: { x: 0, y: 0 },
-    zoom: 1,
-    croppedAreaPixels: null,
+const DEFAULT_BACKGROUND = '#FFFFFF';
+const MIN_IMAGE_SIZE = 0.12;
+const HANDLE_ORDS = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+
+const isPlacement = (value) => (
+    value
+    && Number(value.w) > 0
+    && Number(value.h) > 0
+);
+
+const containPlacement = (imageAspect, frameAspect) => {
+    if (!imageAspect || !frameAspect) return { x: 0, y: 0, w: 1, h: 1 };
+    if (imageAspect > frameAspect) {
+        const h = frameAspect / imageAspect;
+        return { x: 0, y: (1 - h) / 2, w: 1, h };
+    }
+    const w = imageAspect / frameAspect;
+    return { x: (1 - w) / 2, y: 0, w, h: 1 };
 };
 
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 3;
-const DEFAULT_BACKGROUND = '#FFFFFF';
+const scalePlacement = (box, factor, minSize = MIN_IMAGE_SIZE) => {
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    const nextFactor = box.w * factor < minSize ? minSize / box.w : factor;
+    const w = box.w * nextFactor;
+    const h = box.h * nextFactor;
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+};
+
+const HANDLE_STYLE = {
+    nw: { left: 0, top: 0, cursor: 'nwse-resize' },
+    n: { left: '50%', top: 0, cursor: 'ns-resize' },
+    ne: { left: '100%', top: 0, cursor: 'nesw-resize' },
+    e: { left: '100%', top: '50%', cursor: 'ew-resize' },
+    se: { left: '100%', top: '100%', cursor: 'nwse-resize' },
+    s: { left: '50%', top: '100%', cursor: 'ns-resize' },
+    sw: { left: 0, top: '100%', cursor: 'nesw-resize' },
+    w: { left: 0, top: '50%', cursor: 'ew-resize' },
+};
+
+const resizePlacement = (start, ord, dx, dy, imageAspect, frameW, frameH) => {
+    const ratio = imageAspect;
+    let { x, y, w, h } = start;
+    const px = { x: x * frameW, y: y * frameH, w: w * frameW, h: h * frameH };
+    const minW = MIN_IMAGE_SIZE * Math.min(frameW, frameH);
+
+    const applySize = (nextW, anchorX, anchorY) => {
+        const width = Math.max(minW, nextW);
+        const height = width / ratio;
+        const next = { w: width, h: height, x: px.x, y: px.y };
+        if (anchorX === 'right') next.x = px.x + px.w - width;
+        if (anchorX === 'center') next.x = px.x + px.w / 2 - width / 2;
+        if (anchorY === 'bottom') next.y = px.y + px.h - height;
+        if (anchorY === 'center') next.y = px.y + px.h / 2 - height / 2;
+        return next;
+    };
+
+    let nextPx = px;
+    if (ord === 'se') nextPx = applySize(px.w + dx, 'left', 'top');
+    else if (ord === 'nw') nextPx = applySize(px.w - dx, 'right', 'bottom');
+    else if (ord === 'ne') nextPx = applySize(px.w + dx, 'left', 'bottom');
+    else if (ord === 'sw') nextPx = applySize(px.w - dx, 'right', 'top');
+    else if (ord === 'e') nextPx = applySize(px.w + dx, 'left', 'center');
+    else if (ord === 'w') nextPx = applySize(px.w - dx, 'right', 'center');
+    else if (ord === 's') nextPx = applySize((px.h + dy) * ratio, 'center', 'top');
+    else if (ord === 'n') nextPx = applySize((px.h - dy) * ratio, 'center', 'bottom');
+
+    return {
+        x: nextPx.x / frameW,
+        y: nextPx.y / frameH,
+        w: nextPx.w / frameW,
+        h: nextPx.h / frameH,
+    };
+};
+
+const PrintImageEditor = ({
+    imageSrc,
+    aspect,
+    placement,
+    onChange,
+    backgroundColor,
+    disabled,
+    children,
+    onFrameSize,
+}) => {
+    const stageRef = useRef(null);
+    const dragRef = useRef(null);
+    const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+
+    useEffect(() => {
+        const stage = stageRef.current;
+        if (!stage) return undefined;
+
+        const update = () => {
+            const maxW = Math.max(80, stage.clientWidth - 16);
+            const maxH = Math.max(80, stage.clientHeight - 16);
+            let width = maxW;
+            let height = width / aspect;
+            if (height > maxH) {
+                height = maxH;
+                width = height * aspect;
+            }
+            const next = { width, height };
+            setFrameSize(next);
+            onFrameSize?.(next);
+        };
+
+        update();
+        const observer = new ResizeObserver(update);
+        observer.observe(stage);
+        return () => observer.disconnect();
+    }, [aspect, onFrameSize]);
+
+    useEffect(() => {
+        const stage = stageRef.current;
+        if (!stage) return undefined;
+        const onWheel = (event) => {
+            if (disabled || !placement) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const factor = event.deltaY > 0 ? 0.94 : 1.06;
+            onChange(scalePlacement(placement, factor));
+        };
+        stage.addEventListener('wheel', onWheel, { passive: false });
+        return () => stage.removeEventListener('wheel', onWheel);
+    }, [disabled, placement, onChange]);
+
+    const stop = (event) => event.stopPropagation();
+
+    const handlePointerDown = (event, ord = null) => {
+        if (disabled || !placement) return;
+        stop(event);
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        dragRef.current = {
+            pointerId: event.pointerId,
+            ord,
+            startX: event.clientX,
+            startY: event.clientY,
+            box: { ...placement },
+        };
+    };
+
+    const handlePointerMove = (event) => {
+        const drag = dragRef.current;
+        if (!drag || event.pointerId !== drag.pointerId || !frameSize.width) return;
+        stop(event);
+        const dx = event.clientX - drag.startX;
+        const dy = event.clientY - drag.startY;
+        if (drag.ord) {
+            onChange(resizePlacement(
+                drag.box,
+                drag.ord,
+                dx,
+                dy,
+                (drag.box.w * frameSize.width) / (drag.box.h * frameSize.height),
+                frameSize.width,
+                frameSize.height,
+            ));
+            return;
+        }
+        onChange({
+            ...drag.box,
+            x: drag.box.x + dx / frameSize.width,
+            y: drag.box.y + dy / frameSize.height,
+        });
+    };
+
+    const handlePointerUp = (event) => {
+        if (dragRef.current?.pointerId !== event.pointerId) return;
+        dragRef.current = null;
+    };
+
+    return (
+        <div
+            ref={stageRef}
+            className="relative w-full h-full flex items-center justify-center"
+        >
+            <div
+                className="relative overflow-visible"
+                style={{
+                    width: frameSize.width,
+                    height: frameSize.height,
+                    backgroundColor,
+                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)',
+                }}
+            >
+                <div className="absolute inset-0 overflow-hidden">
+                    {placement && (
+                        <img
+                            src={imageSrc}
+                            alt=""
+                            draggable={false}
+                            className={`absolute max-w-none select-none ${disabled ? '' : 'cursor-move'}`}
+                            style={{
+                                left: `${placement.x * 100}%`,
+                                top: `${placement.y * 100}%`,
+                                width: `${placement.w * 100}%`,
+                                height: `${placement.h * 100}%`,
+                            }}
+                            onPointerDown={(event) => handlePointerDown(event, null)}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={handlePointerUp}
+                            onPointerCancel={handlePointerUp}
+                        />
+                    )}
+                </div>
+
+                <div className="absolute inset-0 pointer-events-none border-2 border-white/90">
+                    <div className="absolute inset-0 opacity-40">
+                        <div className="absolute top-1/3 right-0 left-0 border-t border-white" />
+                        <div className="absolute top-2/3 right-0 left-0 border-t border-white" />
+                        <div className="absolute left-1/3 top-0 bottom-0 border-l border-white" />
+                        <div className="absolute left-2/3 top-0 bottom-0 border-l border-white" />
+                    </div>
+                </div>
+
+                {placement && !disabled && (
+                    <div
+                        className="absolute pointer-events-none"
+                        style={{
+                            left: `${placement.x * 100}%`,
+                            top: `${placement.y * 100}%`,
+                            width: `${placement.w * 100}%`,
+                            height: `${placement.h * 100}%`,
+                        }}
+                    >
+                        {HANDLE_ORDS.map((ord) => (
+                            <button
+                                key={ord}
+                                type="button"
+                                aria-label={`שנה גודל ${ord}`}
+                                className="absolute z-20 w-3 h-3 bg-white border border-gray-700 rounded-[2px] p-0 pointer-events-auto"
+                                style={{
+                                    ...HANDLE_STYLE[ord],
+                                    transform: 'translate(-50%, -50%)',
+                                }}
+                                onPointerDown={(event) => handlePointerDown(event, ord)}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerCancel={handlePointerUp}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {children}
+            </div>
+        </div>
+    );
+};
 
 const BACKGROUND_PRESETS = [
     '#FFFFFF',
@@ -36,6 +277,9 @@ const BACKGROUND_PRESETS = [
     '#FCE7F3',
     '#D1FAE5',
 ];
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
 
 const buildFrameSelection = (frame, printSize, requestedOrientation) => ({
     frameId: frame._id,
@@ -53,13 +297,138 @@ const buildFrameSelection = (frame, printSize, requestedOrientation) => ({
 
 const createCaption = (captionDefaults = {}) => ({
     id: `caption_${Date.now()}`,
-    content: captionDefaults.placeholder || 'כתובית לתמונה',
+    content: '',
     fontFamily: captionDefaults.fontFamily || 'Rubik',
     fontSize: Number(captionDefaults.fontSize) || 24,
     color: captionDefaults.color || '#FFFFFF',
     x: 0.5,
     y: 0.92,
 });
+
+const DraggableCaption = ({
+    caption,
+    selected,
+    editing,
+    cropSize,
+    disabled,
+    placeholder,
+    onSelect,
+    onChange,
+    onStartEdit,
+    onEndEdit,
+}) => {
+    const editorRef = useRef(null);
+    const dragRef = useRef(null);
+    const dir = detectTextDirection(caption.content);
+
+    useEffect(() => {
+        const node = editorRef.current;
+        if (!node || document.activeElement === node) return;
+        const next = caption.content || '';
+        if (node.innerText !== next) node.innerText = next;
+    }, [caption.content, caption.fontFamily, caption.fontSize, caption.color, editing, placeholder]);
+
+    useEffect(() => {
+        if (!editing || !editorRef.current) return;
+        const node = editorRef.current;
+        node.focus();
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        range.collapse(caption.content ? false : true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        // Focus once when edit mode starts.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editing]);
+
+    const stopCropper = (event) => {
+        event.stopPropagation();
+    };
+
+    const handlePointerDown = (event) => {
+        if (disabled) return;
+        stopCropper(event);
+        onSelect();
+        if (editing && event.target === editorRef.current) return;
+
+        dragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            origX: Number.isFinite(Number(caption.x)) ? Number(caption.x) : 0.5,
+            origY: Number.isFinite(Number(caption.y)) ? Number(caption.y) : 0.92,
+            moved: false,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const handlePointerMove = (event) => {
+        const drag = dragRef.current;
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        stopCropper(event);
+        const dx = event.clientX - drag.startX;
+        const dy = event.clientY - drag.startY;
+        if (!drag.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+        drag.moved = true;
+        if (editing) onEndEdit();
+        if (!cropSize?.width || !cropSize?.height) return;
+        onChange({
+            x: clamp(drag.origX + dx / cropSize.width, 0.04, 0.96),
+            y: clamp(drag.origY + dy / cropSize.height, 0.08, 0.98),
+        });
+    };
+
+    const handlePointerUp = (event) => {
+        const drag = dragRef.current;
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        stopCropper(event);
+        dragRef.current = null;
+        if (!drag.moved) onStartEdit();
+    };
+
+    return (
+        <div
+            className={`absolute z-30 max-w-[90%] px-1 pointer-events-auto ${
+                selected ? 'ring-1 ring-white/90 rounded-sm' : ''
+            } ${editing ? 'cursor-text' : 'cursor-grab active:cursor-grabbing'}`}
+            style={{
+                left: `${(caption.x ?? 0.5) * 100}%`,
+                top: `${(caption.y ?? 0.92) * 100}%`,
+                transform: 'translate(-50%, -100%)',
+                touchAction: 'none',
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onWheel={stopCropper}
+            onTouchStart={stopCropper}
+        >
+            <div
+                ref={editorRef}
+                role="textbox"
+                aria-multiline="true"
+                aria-label="כתובית"
+                contentEditable={!disabled && editing}
+                suppressContentEditableWarning
+                dir={dir}
+                className="min-w-[3rem] outline-none whitespace-pre-wrap text-center bg-transparent empty:before:content-[attr(data-placeholder)] empty:before:opacity-50"
+                data-placeholder={placeholder || 'כתובית לתמונה'}
+                style={{
+                    color: caption.color,
+                    fontFamily: caption.fontFamily,
+                    fontSize: `${caption.fontSize}px`,
+                    textShadow: '0 1px 4px rgba(0,0,0,0.65)',
+                    caretColor: caption.color,
+                    unicodeBidi: 'plaintext',
+                }}
+                onInput={(event) => onChange({ content: event.currentTarget.innerText })}
+                onBlur={onEndEdit}
+            />
+        </div>
+    );
+};
 
 const PhotoCaptionToolbar = ({
     caption,
@@ -78,6 +447,7 @@ const PhotoCaptionToolbar = ({
         : DEFAULT_EDITOR_SETTINGS.textToolbar.colorPresets;
     const minFontSize = Number(textOptions?.minFontSize) || 8;
     const maxFontSize = Number(textOptions?.maxFontSize) || 200;
+    const dir = detectTextDirection(caption.content);
 
     return (
         <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-3">
@@ -98,8 +468,15 @@ const PhotoCaptionToolbar = ({
                 value={caption.content}
                 onChange={(e) => onChange({ content: e.target.value })}
                 disabled={disabled}
+                dir={dir}
                 rows={2}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-right resize-none focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400"
+                placeholder="כתובית לתמונה"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400"
+                style={{
+                    fontFamily: caption.fontFamily,
+                    color: caption.color,
+                    backgroundColor: '#111827',
+                }}
             />
             <div className="flex flex-wrap items-center gap-2">
                 <select
@@ -159,22 +536,22 @@ const PhotoPrintAdjustModal = ({
     onSave,
     onClose,
     isSaving = false,
+    availableSizes = [],
 }) => {
     const { settings: editorSettings } = useEditorSettings();
     const [orientation, setOrientation] = useState(image?.orientation ?? 'landscape');
-    const [crop, setCrop] = useState(image?.cropState?.crop ?? DEFAULT_EASY_CROP.crop);
-    const [zoom, setZoom] = useState(image?.cropState?.zoom ?? 1);
+    const [printSize, setPrintSize] = useState(image?.size ?? DEFAULT_PHOTO_PRINT_SIZE);
+    const [placement, setPlacement] = useState(
+        isPlacement(image?.cropState?.placement) ? image.cropState.placement : null,
+    );
     const [backgroundColor, setBackgroundColor] = useState(
         image?.cropState?.backgroundColor ?? DEFAULT_BACKGROUND,
     );
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState(
-        image?.cropState?.croppedAreaPixels ?? null,
-    );
-    const [mediaSize, setMediaSize] = useState(null);
-    const [cropSize, setCropSize] = useState(null);
     const [dims, setDims] = useState({ w: 0, h: 0 });
     const [saveError, setSaveError] = useState('');
+    const [frameSize, setFrameSize] = useState(null);
     const colorInputRef = useRef(null);
+    const captionToolbarRef = useRef(null);
 
     const [showFramePanel, setShowFramePanel] = useState(false);
     const [frames, setFrames] = useState([]);
@@ -183,41 +560,55 @@ const PhotoPrintAdjustModal = ({
     const [frameOverlaySrc, setFrameOverlaySrc] = useState(image?.frameOverlaySrc || image?.frameSelection?.frameImageUrl || '');
     const [captions, setCaptions] = useState(Array.isArray(image?.captions) ? image.captions : []);
     const [selectedCaptionId, setSelectedCaptionId] = useState(image?.captions?.[0]?.id ?? null);
+    const [editingCaptionId, setEditingCaptionId] = useState(null);
 
     const imageSrc = image?.originalSrc || image?.src;
-    const print = resolvePrintDimensions(image?.size, orientation);
-    const sizeLabel = getCompactPrintSizeLabel(image?.size, orientation);
+    const print = resolvePrintDimensions(printSize, orientation);
     const aspect = print.aspect;
+    const sizeLabel = getCompactPrintSizeLabel(printSize, orientation);
     const selectedCaption = captions.find((caption) => caption.id === selectedCaptionId) || null;
+    const cropSize = frameSize;
+    const imageAspect = dims.w && dims.h ? dims.w / dims.h : null;
+
+    const sizeOptions = useMemo(() => {
+        if (Array.isArray(availableSizes) && availableSizes.length > 0) {
+            return availableSizes.map((entry) => ({
+                value: entry.size,
+                label: entry.label,
+            }));
+        }
+        return mergePhotoPricesWithCatalog([]).map((entry) => ({
+            value: entry.size,
+            label: entry.label,
+        }));
+    }, [availableSizes]);
 
     const initialState = useMemo(
         () => ({
             orientation: image?.orientation ?? 'landscape',
-            crop: image?.cropState?.crop ?? DEFAULT_EASY_CROP.crop,
-            zoom: image?.cropState?.zoom ?? 1,
+            printSize: image?.size ?? DEFAULT_PHOTO_PRINT_SIZE,
+            placement: isPlacement(image?.cropState?.placement) ? image.cropState.placement : null,
             backgroundColor: image?.cropState?.backgroundColor ?? DEFAULT_BACKGROUND,
             frameSelection: image?.frameSelection ?? null,
             frameOverlaySrc: image?.frameOverlaySrc || image?.frameSelection?.frameImageUrl || '',
             captions: Array.isArray(image?.captions) ? image.captions : [],
         }),
-        [image?.id, image?.size],
+        [image?.id],
     );
 
     useEffect(() => {
         setOrientation(initialState.orientation);
-        setCrop(initialState.crop);
-        setZoom(initialState.zoom);
+        setPrintSize(initialState.printSize);
+        setPlacement(initialState.placement);
         setBackgroundColor(initialState.backgroundColor);
-        setCroppedAreaPixels(image?.cropState?.croppedAreaPixels ?? null);
-        setMediaSize(null);
-        setCropSize(null);
         setSaveError('');
         setFrameSelection(initialState.frameSelection);
         setFrameOverlaySrc(initialState.frameOverlaySrc);
         setCaptions(initialState.captions);
         setSelectedCaptionId(initialState.captions[0]?.id ?? null);
+        setEditingCaptionId(null);
         setShowFramePanel(false);
-    }, [image?.id, image?.size, image?.cropState, initialState]);
+    }, [image?.id, image?.cropState, initialState]);
 
     useEffect(() => {
         if (!imageSrc) return;
@@ -249,20 +640,42 @@ const PhotoPrintAdjustModal = ({
 
     const warning = getCropWarning(dims.w, dims.h, print.aspect);
 
-    const onCropComplete = useCallback((_croppedArea, pixels) => {
-        setCroppedAreaPixels(pixels);
-    }, []);
+    useEffect(() => {
+        if (!imageAspect) return;
+        setPlacement((current) => {
+            if (isPlacement(current)) return current;
+            return containPlacement(imageAspect, aspect);
+        });
+    }, [imageAspect, aspect]);
+
+    const prevAspectRef = useRef(aspect);
+
+    useEffect(() => {
+        if (prevAspectRef.current === aspect) return;
+        const previousAspect = prevAspectRef.current;
+        prevAspectRef.current = aspect;
+        if (!imageAspect) return;
+        setPlacement((current) => {
+            const nextCover = containPlacement(imageAspect, aspect);
+            if (!isPlacement(current)) return nextCover;
+            const prevCover = containPlacement(imageAspect, previousAspect);
+            const scale = prevCover.w ? current.w / prevCover.w : 1;
+            return scalePlacement(nextCover, scale);
+        });
+    }, [aspect, imageAspect]);
 
     const handleOrientationChange = (next) => {
         setOrientation(next);
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
     };
 
-    const handleApplyFrame = async (frame, printSize, requestedOrientation) => {
+    const handlePrintSizeChange = (nextSize) => {
+        setPrintSize(nextSize);
+    };
+
+    const handleApplyFrame = async (frame, framePrintSize, requestedOrientation) => {
         const processed = await prepareFrameImageSrc(frame.imageUrl);
         setFrameOverlaySrc(processed);
-        setFrameSelection(buildFrameSelection(frame, printSize, requestedOrientation));
+        setFrameSelection(buildFrameSelection(frame, framePrintSize, requestedOrientation));
         if (requestedOrientation && requestedOrientation !== orientation) {
             handleOrientationChange(requestedOrientation);
         }
@@ -277,35 +690,44 @@ const PhotoPrintAdjustModal = ({
         const caption = createCaption(editorSettings.captionDefaults);
         setCaptions((prev) => [...prev, caption]);
         setSelectedCaptionId(caption.id);
+        setEditingCaptionId(caption.id);
+        window.setTimeout(() => {
+            captionToolbarRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end',
+            });
+        }, 50);
     };
 
-    const handleUpdateCaption = (patch) => {
-        if (!selectedCaptionId) return;
+    const handleUpdateCaption = (id, patch) => {
         setCaptions((prev) => prev.map((caption) => (
-            caption.id === selectedCaptionId ? { ...caption, ...patch } : caption
+            caption.id === id ? { ...caption, ...patch } : caption
         )));
     };
 
     const handleRemoveCaption = () => {
         setCaptions((prev) => prev.filter((caption) => caption.id !== selectedCaptionId));
         setSelectedCaptionId(null);
+        setEditingCaptionId(null);
     };
 
     const handleReset = () => {
         setOrientation(initialState.orientation);
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
+        setPrintSize(initialState.printSize);
+        setPlacement(imageAspect
+            ? containPlacement(imageAspect, resolvePrintDimensions(initialState.printSize, initialState.orientation).aspect)
+            : null);
         setBackgroundColor(DEFAULT_BACKGROUND);
-        setCroppedAreaPixels(null);
         setSaveError('');
         setFrameSelection(null);
         setFrameOverlaySrc('');
         setCaptions([]);
         setSelectedCaptionId(null);
+        setEditingCaptionId(null);
     };
 
     const handleSave = async () => {
-        if (!croppedAreaPixels || !mediaSize || !cropSize) {
+        if (!isPlacement(placement) || !imageSrc) {
             setSaveError('יש להמתין לטעינת התמונה לפני שמירה');
             return;
         }
@@ -314,23 +736,22 @@ const PhotoPrintAdjustModal = ({
         try {
             const croppedBlob = await getPrintCropBlob({
                 imageSrc,
-                crop,
-                zoom,
-                mediaSize,
-                cropSize,
+                placement,
                 aspect,
                 backgroundColor,
                 file: image?.file ?? null,
                 frameSrc: frameOverlaySrc || null,
                 captions,
+                previewCropWidth: frameSize?.width,
             });
 
-            const cropState = { crop, zoom, croppedAreaPixels, backgroundColor };
+            const cropState = { placement, backgroundColor };
 
             await onSave(image.id, {
                 crop: { ...DEFAULT_CROP },
                 cropState,
                 orientation,
+                size: printSize,
                 croppedBlob,
                 fileName: image?.alt || image?.file?.name || 'photo.jpg',
                 frameSelection,
@@ -383,6 +804,22 @@ const PhotoPrintAdjustModal = ({
                     <div className={`flex flex-col ${showFramePanel ? 'lg:flex-row' : ''}`}>
                         <div className="flex-1 min-w-0">
                             <div className="px-5 py-3 space-y-3">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    גודל הדפסה
+                                    <select
+                                        value={printSize}
+                                        onChange={(e) => handlePrintSizeChange(e.target.value)}
+                                        disabled={isSaving}
+                                        className="mt-1 w-full h-10 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-800"
+                                    >
+                                        {sizeOptions.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         type="button"
@@ -442,78 +879,52 @@ const PhotoPrintAdjustModal = ({
 
                             <div
                                 className="relative mx-5 rounded-xl overflow-hidden"
-                                style={{ height: 'min(52vh, 480px)', backgroundColor }}
+                                style={{ height: 'min(52vh, 480px)', backgroundColor: '#111827' }}
                             >
                                 {imageSrc ? (
-                                    <>
-                                        <Cropper
-                                            image={imageSrc}
-                                            crop={crop}
-                                            zoom={zoom}
-                                            aspect={aspect}
-                                            minZoom={MIN_ZOOM}
-                                            maxZoom={MAX_ZOOM}
-                                            onCropChange={setCrop}
-                                            onZoomChange={setZoom}
-                                            onCropComplete={onCropComplete}
-                                            onMediaLoaded={setMediaSize}
-                                            onCropSizeChange={setCropSize}
-                                            zoomWithScroll
-                                            restrictPosition={false}
-                                            objectFit="contain"
-                                            style={{
-                                                containerStyle: { backgroundColor },
-                                            }}
-                                            classes={{
-                                                containerClassName: 'rounded-xl',
-                                                cropAreaClassName: 'border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]',
-                                            }}
-                                        />
-                                        {cropSize && (frameOverlaySrc || captions.length > 0) && (
-                                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                                                <div
-                                                    className="relative overflow-hidden"
-                                                    style={{ width: cropSize.width, height: cropSize.height }}
-                                                >
-                                                    {frameOverlaySrc && (
-                                                        <img
-                                                            src={frameOverlaySrc}
-                                                            alt=""
-                                                            className="absolute inset-0 w-full h-full object-fill"
-                                                        />
-                                                    )}
-                                                    {captions.map((caption) => (
-                                                        <button
-                                                            key={caption.id}
-                                                            type="button"
-                                                            className={`absolute max-w-[90%] px-1 pointer-events-auto ${
-                                                                selectedCaptionId === caption.id
-                                                                    ? 'ring-1 ring-white/80'
-                                                                    : ''
-                                                            }`}
-                                                            style={{
-                                                                left: `${(caption.x ?? 0.5) * 100}%`,
-                                                                top: `${(caption.y ?? 0.92) * 100}%`,
-                                                                transform: 'translate(-50%, -100%)',
-                                                                color: caption.color,
-                                                                fontFamily: caption.fontFamily,
-                                                                fontSize: `${caption.fontSize}px`,
-                                                                textShadow: '0 1px 4px rgba(0,0,0,0.65)',
-                                                                whiteSpace: 'pre-wrap',
-                                                                textAlign: 'center',
-                                                            }}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedCaptionId(caption.id);
-                                                            }}
-                                                        >
-                                                            {caption.content}
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                    <PrintImageEditor
+                                        imageSrc={imageSrc}
+                                        aspect={aspect}
+                                        placement={placement}
+                                        onChange={setPlacement}
+                                        backgroundColor={backgroundColor}
+                                        disabled={isSaving}
+                                        onFrameSize={setFrameSize}
+                                    >
+                                        {(frameOverlaySrc || captions.length > 0) && (
+                                            <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                                                {frameOverlaySrc && (
+                                                    <img
+                                                        src={frameOverlaySrc}
+                                                        alt=""
+                                                        className="absolute inset-0 w-full h-full object-fill pointer-events-none"
+                                                    />
+                                                )}
+                                                {cropSize && captions.map((caption) => (
+                                                    <DraggableCaption
+                                                        key={caption.id}
+                                                        caption={caption}
+                                                        selected={selectedCaptionId === caption.id}
+                                                        editing={editingCaptionId === caption.id}
+                                                        cropSize={cropSize}
+                                                        disabled={isSaving}
+                                                        placeholder={editorSettings.captionDefaults?.placeholder}
+                                                        onSelect={() => setSelectedCaptionId(caption.id)}
+                                                        onChange={(patch) => handleUpdateCaption(caption.id, patch)}
+                                                        onStartEdit={() => {
+                                                            setSelectedCaptionId(caption.id);
+                                                            setEditingCaptionId(caption.id);
+                                                        }}
+                                                        onEndEdit={() => {
+                                                            setEditingCaptionId((current) => (
+                                                                current === caption.id ? null : current
+                                                            ));
+                                                        }}
+                                                    />
+                                                ))}
                                             </div>
                                         )}
-                                    </>
+                                    </PrintImageEditor>
                                 ) : (
                                     <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                                         טוען תמונה...
@@ -522,24 +933,10 @@ const PhotoPrintAdjustModal = ({
                             </div>
 
                             <p className="px-5 pt-3 text-xs text-gray-500">
-                                גררו את התמונה, השתמשו בגלגלת העכבר או בסליידר לזום — ניתן גם להקטין ולהשאיר רקע. התצוגה משקפת את ההדפסה הסופית.
+                                גררו את התמונה להזזה, ואת הידיות בפינות להגדלה או הקטנה. אפשר להקטין את התמונה כדי לחשוף את צבע הרקע בתוך מסגרת ההדפסה. המסגרת הקבועה מראה בדיוק מה ייכנס להדפסה.
                             </p>
 
                             <div className="px-5 py-3 space-y-4">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    זום: {Math.round(zoom * 100)}%
-                                    <input
-                                        type="range"
-                                        min={MIN_ZOOM}
-                                        max={MAX_ZOOM}
-                                        step={0.05}
-                                        value={zoom}
-                                        onChange={(e) => setZoom(Number(e.target.value))}
-                                        disabled={isSaving}
-                                        className="w-full mt-1 accent-[#f2665e]"
-                                    />
-                                </label>
-
                                 <div>
                                     <span className="block text-sm font-medium text-gray-700 mb-2">צבע רקע</span>
                                     <div className="flex flex-wrap items-center gap-2">
@@ -591,13 +988,15 @@ const PhotoPrintAdjustModal = ({
                                 </div>
 
                                 {selectedCaption && (
-                                    <PhotoCaptionToolbar
-                                        caption={selectedCaption}
-                                        textOptions={editorSettings.textToolbar}
-                                        onChange={handleUpdateCaption}
-                                        onRemove={handleRemoveCaption}
-                                        disabled={isSaving}
-                                    />
+                                    <div ref={captionToolbarRef}>
+                                        <PhotoCaptionToolbar
+                                            caption={selectedCaption}
+                                            textOptions={editorSettings.textToolbar}
+                                            onChange={(patch) => handleUpdateCaption(selectedCaption.id, patch)}
+                                            onRemove={handleRemoveCaption}
+                                            disabled={isSaving}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>

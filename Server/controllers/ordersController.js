@@ -5,7 +5,7 @@ const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
-const { isDriveConfigured, moveDesignsToOrderFolder } = require("../services/googleDriveService");
+const { isDriveConfigured, moveDesignsToOrderFolder, uploadRemoteImageToStaging } = require("../services/googleDriveService");
 const { loadEditorSettings } = require("./editorSettingsController");
 
 const isValidObjectId = (id) =>
@@ -42,6 +42,20 @@ const maybeStoreImage = (img) => {
     if (typeof img !== "string" || !img) return undefined;
     if (img.startsWith("data:") && img.length > MAX_STORED_IMAGE_LENGTH) return undefined;
     return img;
+};
+
+const sanitizeDriveFileName = (value, fallback) => {
+    const cleaned = String(value || "")
+        .replace(/[\\/:*?"<>|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    return cleaned.slice(0, 120) || fallback;
+};
+
+const extensionFromImageUrl = (url) => {
+    const match = String(url || "").toLowerCase().match(/\.(jpe?g|png|webp|gif)(?:\?|$)/);
+    if (!match) return "jpg";
+    return match[1] === "jpeg" ? "jpg" : match[1];
 };
 
 const compactDriveFile = (file) => {
@@ -220,6 +234,52 @@ async function markCouponAsUsed(couponCode, userId) {
 const shortOrderLabel = (id) => String(id).slice(-8).toUpperCase();
 
 /**
+ * מעלה תמונות פיתוח ל-Drive לפני סידור תיקיית ההזמנה.
+ * מוצרים רגילים נשארים בניהול הזמנות בלבד.
+ */
+async function uploadPhotoPrintsToDrive(order) {
+    if (!isDriveConfigured()) return;
+
+    let changed = false;
+    for (let itemIndex = 0; itemIndex < order.items.length; itemIndex += 1) {
+        const item = order.items[itemIndex];
+        if (!isPhotoPrintItem(item)) continue;
+        if (item.customDesign?.designFile?.id) continue;
+
+        const imageUrl = String(item.image || "");
+        if (!imageUrl.startsWith("http")) continue;
+
+        const originalName = String(item.name || "")
+            .replace(/^פיתוח תמונה\s*/i, "")
+            .replace(/[()]/g, "")
+            .trim();
+        const sizePart = item.size ? `${item.size} ` : "";
+        const ext = extensionFromImageUrl(imageUrl);
+        const fileName = sanitizeDriveFileName(
+            `פיתוח ${sizePart}${originalName || itemIndex + 1}.${ext}`,
+            `photo-print-${itemIndex + 1}.${ext}`,
+        );
+
+        try {
+            const uploaded = await uploadRemoteImageToStaging({ imageUrl, fileName });
+            if (!uploaded?.id) continue;
+            item.customDesign = {
+                ...(item.customDesign || {}),
+                designFile: compactDriveFile(uploaded),
+            };
+            changed = true;
+        } catch (err) {
+            console.warn(`Drive: failed to upload photo print ${itemIndex} for order ${order._id}`, err.message);
+        }
+    }
+
+    if (changed) {
+        order.markModified("items");
+        await order.save();
+    }
+}
+
+/**
  * מסדר את קבצי העיצוב של ההזמנה בתיקיית Google Drive ייחודית ושומר את הקישור.
  * כישלון כאן לא מפיל את ההזמנה – היא נשמרת גם בלי Drive.
  */
@@ -373,6 +433,38 @@ exports.updateOrderStatus = async (req, res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({ msg: "שגיאה בעדכון סטטוס ההזמנה" });
+    }
+};
+
+exports.syncOrderDrive = async (req, res) => {
+    try {
+        if (req.tokenData.role !== "admin") {
+            return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
+        }
+        if (!isDriveConfigured()) {
+            return res.status(503).json({
+                msg: "Google Drive אינו מוגדר בשרת. יש להגדיר GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY ו-GOOGLE_DRIVE_ROOT_FOLDER_ID.",
+            });
+        }
+
+        const order = await OrderModel.findById(req.params.id);
+        if (!order) {
+            return res.status(404).json({ msg: "ההזמנה לא נמצאה" });
+        }
+
+        await uploadPhotoPrintsToDrive(order);
+        await attachDriveFolderToOrder(order);
+
+        const fresh = await OrderModel.findById(order._id).populate("user_id", "name email createdAt");
+        if (!fresh?.drive?.folderUrl) {
+            return res.status(500).json({
+                msg: "ההעלאה ל-Drive לא הושלמה. בדקו שהתמונות זמינות ושיש לחשבון השירות הרשאה לתיקייה.",
+            });
+        }
+        res.json(fresh);
+    } catch (err) {
+        console.error("Drive sync failed:", err);
+        res.status(500).json({ msg: "שגיאה בשליחה ל-Google Drive" });
     }
 };
 
@@ -532,8 +624,13 @@ exports.createOrder = async (req, res) => {
 
         const saved = await newOrder.save();
 
+        await uploadPhotoPrintsToDrive(saved);
         // ארגון קבצי העיצוב בתיקיית Drive לפי הזמנה (לא חוסם במקרה של כשל)
         await attachDriveFolderToOrder(saved);
+
+        if (saved.items.some(isPhotoPrintItem) && !isDriveConfigured()) {
+            console.warn("Drive: photo prints were not uploaded because Google Drive is not configured");
+        }
 
         // מימוש הקופון במידה וקיים
         if (couponCode) {

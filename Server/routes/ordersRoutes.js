@@ -9,5 +9,6 @@ router.get("/user/:userId", auth, orderController.getOrdersByUserId);
 router.get("/:id", auth, orderController.getOrderById);
 router.get("/", authAdmin, orderController.getOrders);
 router.put("/:id/status", authAdmin, orderController.updateOrderStatus);
+router.post("/:id/drive", authAdmin, orderController.syncOrderDrive);
 
 module.exports = router;
