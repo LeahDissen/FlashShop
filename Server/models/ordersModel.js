@@ -9,11 +9,22 @@ let orderSchema = new mongoose.Schema({
         size: String,
         quantity: Number,
         price: Number,
-        image: String
+        image: String,
+        itemType: String,
+        customDesign: { type: mongoose.Schema.Types.Mixed },
+        customization: { type: mongoose.Schema.Types.Mixed },
     }],
     subtotal: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     coupon_code: { type: String },
+    /** תיקיית Google Drive שנוצרה להזמנה עם קבצי העיצוב הסופיים */
+    drive: {
+        folderId: { type: String },
+        folderName: { type: String },
+        folderUrl: { type: String },
+        fileCount: { type: Number },
+        uploadedAt: { type: Date },
+    },
     total_price: Number,
     status: {
         type: String,

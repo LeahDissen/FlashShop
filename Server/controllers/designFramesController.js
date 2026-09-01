@@ -26,6 +26,22 @@ const normalizeDropzones = (dropzones) => {
         .filter((zone) => zone.id);
 };
 
+const ORIENTATIONS = ["landscape", "portrait", "any"];
+
+/** מסיק כיוון מסגרת מיחס הגובה-רוחב כשהמנהלת לא בחרה ידנית */
+const orientationFromAspectRatio = (aspectRatio) => {
+    const [width, height] = String(aspectRatio || "").split(":").map(Number);
+    if (!(width > 0) || !(height > 0)) return "any";
+    if (width > height) return "landscape";
+    if (height > width) return "portrait";
+    return "any";
+};
+
+const resolveOrientation = (requested, aspectRatio) => {
+    if (ORIENTATIONS.includes(requested)) return requested;
+    return orientationFromAspectRatio(aspectRatio);
+};
+
 const resolveLayoutFields = (body = {}) => {
     const layoutType = body.layoutType === "multi_dropzone" ? "multi_dropzone" : "single_overlay";
     const dropzones = layoutType === "multi_dropzone" ? normalizeDropzones(body.dropzones) : [];
@@ -41,6 +57,16 @@ exports.getAllDesignFrames = async (req, res) => {
     try {
         const includeInactive = req.query.includeInactive === "true";
         const filter = includeInactive ? {} : { isActive: true };
+
+        // סינון אופציונלי לפי תיקיית מידה וכיוון (משמש את בורר המסגרות בעורך)
+        const printSizeKey = req.query.printSizeKey?.trim();
+        if (printSizeKey) {
+            filter.printSizeKey = printSizeKey;
+        }
+        if (ORIENTATIONS.includes(req.query.orientation)) {
+            filter.orientation = { $in: [req.query.orientation, "any"] };
+        }
+
         const frames = await DesignFrameModel.find(filter).sort({ sortOrder: 1, createdAt: -1 });
         res.json(frames);
     } catch (err) {
@@ -58,6 +84,9 @@ exports.addDesignFrame = async (req, res) => {
         const aspectRatio = req.body?.aspectRatio?.trim();
         const isActive = req.body?.isActive !== false;
         const sortOrder = Number(req.body?.sortOrder) || 0;
+        const printSizeKey = req.body?.printSizeKey?.trim() || "";
+        const orientation = resolveOrientation(req.body?.orientation, aspectRatio);
+        const isFixedOverlay = req.body?.isFixedOverlay !== false;
 
         if (!title) {
             return res.status(400).json({ msg: "יש להזין שם למסגרת" });
@@ -80,6 +109,9 @@ exports.addDesignFrame = async (req, res) => {
             thumbnailUrl,
             category,
             aspectRatio,
+            printSizeKey,
+            orientation,
+            isFixedOverlay,
             layoutType: layout.layoutType,
             dropzones: layout.dropzones,
             isActive,
@@ -104,6 +136,14 @@ exports.updateDesignFrame = async (req, res) => {
         if (req.body?.aspectRatio !== undefined) updates.aspectRatio = req.body.aspectRatio.trim();
         if (req.body?.isActive !== undefined) updates.isActive = Boolean(req.body.isActive);
         if (req.body?.sortOrder !== undefined) updates.sortOrder = Number(req.body.sortOrder) || 0;
+        if (req.body?.printSizeKey !== undefined) updates.printSizeKey = req.body.printSizeKey.trim();
+        if (req.body?.isFixedOverlay !== undefined) updates.isFixedOverlay = Boolean(req.body.isFixedOverlay);
+        if (req.body?.orientation !== undefined) {
+            updates.orientation = resolveOrientation(
+                req.body.orientation,
+                updates.aspectRatio ?? req.body?.aspectRatio,
+            );
+        }
 
         if (req.body?.layoutType !== undefined || req.body?.dropzones !== undefined) {
             const layout = resolveLayoutFields({
