@@ -141,9 +141,10 @@ export function getImageDimensions(src) {
     });
 }
 
-/** תווית קומפקטית על כרטיס התמונה — ס"מ + כיוון בלבד */
+/** תווית קומפקטית על כרטיס התמונה — מידות בס"מ בלבד */
 export function getCompactPrintSizeLabel(sizeStr, orientation = 'landscape') {
-    return resolvePrintDimensions(sizeStr, orientation).label;
+    const print = resolvePrintDimensions(sizeStr, orientation);
+    return `${print.width}×${print.height} ס"מ`;
 }
 
 export function getPrintSizeLabel(sizeStr, _availableSizes = [], orientation = 'portrait') {
@@ -209,5 +210,5 @@ export function getCropWarning(imageWidth, imageHeight, printAspect) {
         return 'תמונה רחבה עלולה להיחתך — ניתן להתאים בזום.';
     }
 
-    return 'יחס התמונה שונה מגודל ההדפסה — ניתן להתאים בזום ולהזיז את התמונה.';
+    return 'יחס התמונה שונה מגודל ההדפסה — ניתן להקטין, להגדיל ולהזיז את התמונה בתוך המסגרת.';
 }

@@ -155,7 +155,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     };
 
     const handleSaveCrop = async (id, payload) => {
-        const { crop, cropState, orientation, croppedBlob, fileName } = payload;
+        const { crop, cropState, orientation, croppedBlob, fileName, size } = payload;
         setIsCropSaving(true);
         setIsUploading(true);
         setUploadStatus('שומר תמונה חתוכה...');
@@ -173,6 +173,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                             originalSrc: img.originalSrc || img.src,
                             crop,
                             cropState,
+                            size: size || img.size,
                             orientation: orientation ?? img.orientation,
                             frameSelection: payload.frameSelection ?? null,
                             frameOverlaySrc: payload.frameOverlaySrc || '',
@@ -333,6 +334,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                     onSave={handleSaveCrop}
                     onClose={() => setAdjustImageId(null)}
                     isSaving={isCropSaving}
+                    availableSizes={priceList}
                 />
             )}
 
