@@ -108,19 +108,24 @@ const maybeShareFile = async (drive, fileId) => {
     }
 };
 
-/** מעלה תמונת data-URL לתיקיית ההמתנה, לפני שההזמנה נוצרה */
-const uploadDesignToStaging = async ({ dataUrl, fileName }) => {
-    const drive = getDriveClient();
-    if (!drive) return null;
+const guessImageMime = (url, contentType) => {
+    const header = String(contentType || "").split(";")[0].trim().toLowerCase();
+    if (header.startsWith("image/")) return header;
+    const lower = String(url || "").toLowerCase();
+    if (lower.includes(".png")) return "image/png";
+    if (lower.includes(".webp")) return "image/webp";
+    if (lower.includes(".gif")) return "image/gif";
+    return "image/jpeg";
+};
 
-    const parsed = parseDataUrl(dataUrl);
-    if (!parsed) throw new Error("קובץ העיצוב אינו בפורמט data-URL תקין");
+const uploadBufferToStaging = async ({ buffer, mimeType, fileName }) => {
+    const drive = getDriveClient();
+    if (!drive || !buffer?.length) return null;
 
     const staging = await ensureFolder(drive, STAGING_FOLDER_NAME, config.GOOGLE_DRIVE_ROOT_FOLDER_ID);
-
     const { data } = await drive.files.create({
         requestBody: { name: fileName, parents: [staging.id] },
-        media: { mimeType: parsed.mimeType, body: Readable.from(parsed.buffer) },
+        media: { mimeType: mimeType || "image/jpeg", body: Readable.from(buffer) },
         fields: "id, name, webViewLink, size",
         supportsAllDrives: true,
     });
@@ -131,8 +136,42 @@ const uploadDesignToStaging = async ({ dataUrl, fileName }) => {
         id: data.id,
         name: data.name,
         url: data.webViewLink,
-        size: Number(data.size) || parsed.buffer.length,
+        size: Number(data.size) || buffer.length,
     };
+};
+
+/** מעלה תמונת data-URL לתיקיית ההמתנה, לפני שההזמנה נוצרה */
+const uploadDesignToStaging = async ({ dataUrl, fileName }) => {
+    const parsed = parseDataUrl(dataUrl);
+    if (!parsed) throw new Error("קובץ העיצוב אינו בפורמט data-URL תקין");
+    return uploadBufferToStaging({
+        buffer: parsed.buffer,
+        mimeType: parsed.mimeType,
+        fileName,
+    });
+};
+
+/** מעלה תמונה מכתובת (למשל Cloudinary) לתיקיית ההמתנה ב-Drive */
+const uploadRemoteImageToStaging = async ({ imageUrl, fileName }) => {
+    const drive = getDriveClient();
+    if (!drive || !imageUrl) return null;
+
+    const axios = require("axios");
+    const response = await axios.get(imageUrl, {
+        responseType: "arraybuffer",
+        timeout: 60000,
+        maxContentLength: 30 * 1024 * 1024,
+        validateStatus: (status) => status >= 200 && status < 300,
+    });
+
+    const buffer = Buffer.from(response.data);
+    if (!buffer.length) throw new Error("התמונה שהתקבלה ריקה");
+
+    return uploadBufferToStaging({
+        buffer,
+        mimeType: guessImageMime(imageUrl, response.headers["content-type"]),
+        fileName,
+    });
 };
 
 const renderFolderName = (template, { orderId, date }) => (
@@ -199,5 +238,6 @@ const moveDesignsToOrderFolder = async ({ orderId, orderLabel, files, folderTemp
 module.exports = {
     isDriveConfigured,
     uploadDesignToStaging,
+    uploadRemoteImageToStaging,
     moveDesignsToOrderFolder,
 };
