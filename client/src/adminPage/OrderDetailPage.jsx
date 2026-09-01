@@ -20,7 +20,7 @@ import {
 } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
-import { getOrderById, updateOrderStatus } from "../api/orders";
+import { getOrderById, syncOrderDrive, updateOrderStatus } from "../api/orders";
 import { useEditorSettings } from "../hooks/useEditorSettings";
 import {
     STATUS_ACTIVE,
@@ -307,6 +307,8 @@ export default function OrderDetailPage() {
     const [error, setError] = useState("");
     const [showStatusEdit, setShowStatusEdit] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [syncingDrive, setSyncingDrive] = useState(false);
+    const [driveError, setDriveError] = useState("");
 
     useEffect(() => {
         const load = async () => {
@@ -348,6 +350,20 @@ export default function OrderDetailPage() {
         }
     };
 
+    const handleSyncDrive = async () => {
+        if (!order) return;
+        setSyncingDrive(true);
+        setDriveError("");
+        try {
+            const updated = await syncOrderDrive(order._id);
+            setOrder(updated);
+        } catch (err) {
+            setDriveError(err.response?.data?.msg || "שגיאה בשליחה ל-Google Drive");
+        } finally {
+            setSyncingDrive(false);
+        }
+    };
+
     if (loading) {
         return <div className="min-h-screen bg-gray-50 p-10 text-center text-gray-500">טוען פרטי הזמנה...</div>;
     }
@@ -365,6 +381,11 @@ export default function OrderDetailPage() {
             </div>
         );
     }
+
+    const hasPhotoPrints = order.items.some(
+        (item) => item.itemType === "photo-print" || String(item.name || "").startsWith("פיתוח תמונה"),
+    );
+    const showDriveCard = hasPhotoPrints || Boolean(order.drive?.folderUrl);
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans" dir="rtl">
@@ -468,6 +489,59 @@ export default function OrderDetailPage() {
                             </div>
                         )}
                     </section>
+
+                    {showDriveCard && (
+                        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                            <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                                <FaGoogleDrive className="text-[#f2665e]" />
+                                Google Drive
+                            </h2>
+                            {order.drive?.folderUrl ? (
+                                <>
+                                    <p className="text-sm text-gray-500 mb-4">
+                                        {order.drive.folderName || "תיקיית ההזמנה"}
+                                        {order.drive.fileCount ? ` · ${order.drive.fileCount} קבצים` : ""}
+                                    </p>
+                                    <a
+                                        href={order.drive.folderUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] flex items-center justify-center gap-2 no-underline"
+                                    >
+                                        <FaExternalLinkAlt size={12} />
+                                        פתיחת התיקייה ב-Google Drive
+                                    </a>
+                                    <button
+                                        type="button"
+                                        onClick={() => copyText(order.drive.folderUrl)}
+                                        className="mt-2 w-full py-2 text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center gap-2"
+                                    >
+                                        <FaCopy size={11} />
+                                        העתקת הקישור
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-gray-500 mb-4">
+                                        תמונות הפיתוח עדיין לא הועלו ל-Drive. לחצו כדי לשלוח אותן עכשיו.
+                                    </p>
+                                    {driveError && (
+                                        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">
+                                            {driveError}
+                                        </p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleSyncDrive}
+                                        disabled={syncingDrive}
+                                        className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] disabled:opacity-50"
+                                    >
+                                        {syncingDrive ? "שולח ל-Drive..." : "שליחה ל-Google Drive"}
+                                    </button>
+                                </>
+                            )}
+                        </section>
+                    )}
 
                     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
