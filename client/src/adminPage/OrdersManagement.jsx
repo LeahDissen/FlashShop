@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
-import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEnvelope, FaEye, FaSearch, FaShippingFast, FaTimes, FaTimesCircle, FaUser } from "react-icons/fa";
+import { useState, useEffect, useMemo } from "react";
+import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEnvelope, FaEye, FaSearch, FaShippingFast, FaTimes, FaTimesCircle, FaTrash, FaUser } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { getOrders, updateOrderStatus } from "../api/orders";
+import { deleteOrders, getOrders, updateOrderStatus } from "../api/orders";
 
 const STATUS_OPTIONS = [
     { value: "processing", label: "בטיפול", icon: FaClock, color: "yellow" },
     { value: "shipped", label: "נשלח", icon: FaShippingFast, color: "blue" },
-    { value: "delivered", label: "סופק", icon: FaCheckCircle, color: "green" },
+    { value: "delivered", label: "ההזמנה מוכנה", icon: FaCheckCircle, color: "green" },
     { value: "cancelled", label: "בוטל", icon: FaTimesCircle, color: "red" },
 ];
 
@@ -25,14 +25,20 @@ const STATUS_ACTIVE = {
     cancelled: "ring-2 ring-red-400 bg-red-100 border-red-300",
 };
 
+const PAGE_SIZE = 10;
+
 export default function OrdersManagement() {
     const [orders, setOrders] = useState([]);
-    const [filterStatus, setFilterStatus] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("processing");
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [statusEditOrder, setStatusEditOrder] = useState(null);
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         const loadOrders = async () => {
@@ -74,14 +80,81 @@ export default function OrdersManagement() {
 
     const shortOrderId = (id) => String(id).slice(-8).toUpperCase();
 
-    const filteredOrders = orders.filter(order => {
-        const matchesStatus = filterStatus === "all" || order.status === filterStatus;
+    const filteredOrders = useMemo(() => {
         const term = searchTerm.toLowerCase();
-        const matchesSearch =
-            order._id.toLowerCase().includes(term) ||
-            getCustomerName(order).toLowerCase().includes(term);
-        return matchesStatus && matchesSearch;
-    });
+        return orders
+            .filter((order) => {
+                const matchesStatus = filterStatus === "all" || order.status === filterStatus;
+                const matchesSearch =
+                    order._id.toLowerCase().includes(term) ||
+                    getCustomerName(order).toLowerCase().includes(term);
+                return matchesStatus && matchesSearch;
+            })
+            .sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
+    }, [orders, filterStatus, searchTerm]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    const pagedOrders = filteredOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+    const pageIds = pagedOrders.map((order) => order._id);
+    const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+    const somePageSelected = pageIds.some((id) => selectedIds.includes(id));
+
+    useEffect(() => {
+        setCurrentPage(1);
+        setSelectedIds([]);
+    }, [filterStatus, searchTerm]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
+
+    const toggleSelect = (orderId) => {
+        setSelectedIds((prev) =>
+            prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+        );
+    };
+
+    const toggleSelectPage = () => {
+        if (allPageSelected) {
+            setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+            return;
+        }
+        setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedIds.length === 0) return;
+        setDeleting(true);
+        try {
+            await deleteOrders(selectedIds);
+            setOrders((prev) => prev.filter((order) => !selectedIds.includes(order._id)));
+            setSelectedIds([]);
+            setShowDeleteConfirm(false);
+            if (selectedOrder && selectedIds.includes(selectedOrder._id)) {
+                setSelectedOrder(null);
+            }
+        } catch (error) {
+            console.error("Failed to delete orders:", error);
+            alert(error.response?.data?.msg || "שגיאה במחיקת ההזמנות");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const getPageNumbers = () => {
+        const pages = [];
+        const windowSize = 5;
+        let start = Math.max(1, safePage - 2);
+        let end = Math.min(totalPages, start + windowSize - 1);
+        start = Math.max(1, end - windowSize + 1);
+        for (let page = start; page <= end; page += 1) {
+            pages.push(page);
+        }
+        return pages;
+    };
 
     const stats = {
         total: orders.length,
@@ -94,7 +167,7 @@ export default function OrdersManagement() {
             case 'processing': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> בטיפול</span>;
             case 'pending': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
             case 'shipped': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 w-fit"><FaShippingFast /> נשלח</span>;
-            case 'delivered': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1 w-fit"><FaCheckCircle /> סופק</span>;
+            case 'delivered': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1 w-fit"><FaCheckCircle /> ההזמנה מוכנה</span>;
             case 'cancelled': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 flex items-center gap-1 w-fit"><FaTimesCircle /> בוטל</span>;
             default: return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">לא ידוע</span>;
         }
@@ -160,7 +233,7 @@ export default function OrdersManagement() {
                     />
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar">
+                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar items-center">
                     {['all', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
                         <button
                             key={status}
@@ -173,9 +246,19 @@ export default function OrdersManagement() {
                             {status === 'all' ? 'הכל' :
                                 status === 'processing' ? 'בטיפול' :
                                     status === 'shipped' ? 'נשלח' :
-                                        status === 'delivered' ? 'סופק' : 'בוטל'}
+                                        status === 'delivered' ? 'ההזמנה מוכנה' : 'בוטל'}
                         </button>
                     ))}
+                    {selectedIds.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-2"
+                        >
+                            <FaTrash size={12} />
+                            מחיקת {selectedIds.length} שנבחרו
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -195,6 +278,17 @@ export default function OrdersManagement() {
                         <table className="w-full text-right">
                             <thead className="bg-gray-50 text-gray-600 text-sm uppercase font-semibold border-b border-gray-200">
                                 <tr>
+                                    <th className="p-5 w-12">
+                                        <input
+                                            type="checkbox"
+                                            checked={allPageSelected}
+                                            ref={(el) => {
+                                                if (el) el.indeterminate = somePageSelected && !allPageSelected;
+                                            }}
+                                            onChange={toggleSelectPage}
+                                            aria-label="בחירת כל ההזמנות בעמוד"
+                                        />
+                                    </th>
                                     <th className="p-5">הזמנה</th>
                                     <th className="p-5">לקוח</th>
                                     <th className="p-5">פריטים</th>
@@ -205,8 +299,17 @@ export default function OrdersManagement() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {filteredOrders.map((order) => (
+                                {pagedOrders.map((order) => (
                                     <tr key={order._id} className="hover:bg-gray-50/50 transition-colors group">
+                                        <td className="p-5">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedIds.includes(order._id)}
+                                                onChange={() => toggleSelect(order._id)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                aria-label={`בחירת הזמנה ${shortOrderId(order._id)}`}
+                                            />
+                                        </td>
                                         <td className="p-5">
                                             <span className="font-mono text-sm font-bold text-gray-700" title={order._id}>
                                                 #{shortOrderId(order._id)}
@@ -261,14 +364,43 @@ export default function OrdersManagement() {
                     </div>
                 )}
 
-                <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-sm text-gray-500">
-                    <span>מציג {filteredOrders.length} מתוך {orders.length} הזמנות</span>
-                    <div className="flex gap-1">
-                        <button className="px-3 py-1 rounded bg-white border hover:bg-gray-100" disabled>&lt;</button>
-                        <button className="px-3 py-1 rounded bg-[#f2665e] text-white shadow">1</button>
-                        <button className="px-3 py-1 rounded bg-white border hover:bg-gray-100">2</button>
-                        <button className="px-3 py-1 rounded bg-white border hover:bg-gray-100">3</button>
-                        <button className="px-3 py-1 rounded bg-white border hover:bg-gray-100">&gt;</button>
+                <div className="p-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500">
+                    <span>
+                        מציג {pagedOrders.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}
+                        –{(safePage - 1) * PAGE_SIZE + pagedOrders.length}
+                        {" "}מתוך {filteredOrders.length} הזמנות
+                    </span>
+                    <div className="flex gap-1 items-center">
+                        <button
+                            type="button"
+                            className="px-3 py-1 rounded bg-white border hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white"
+                            disabled={safePage <= 1}
+                            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                        >
+                            &lt;
+                        </button>
+                        {getPageNumbers().map((page) => (
+                            <button
+                                key={page}
+                                type="button"
+                                onClick={() => setCurrentPage(page)}
+                                className={`px-3 py-1 rounded border ${
+                                    page === safePage
+                                        ? "bg-[#f2665e] text-white shadow border-[#f2665e]"
+                                        : "bg-white hover:bg-gray-100"
+                                }`}
+                            >
+                                {page}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            className="px-3 py-1 rounded bg-white border hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white"
+                            disabled={safePage >= totalPages}
+                            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                        >
+                            &gt;
+                        </button>
                     </div>
                 </div>
             </div>
@@ -419,6 +551,41 @@ export default function OrdersManagement() {
                         {updatingStatus && (
                             <p className="text-center text-sm text-gray-400 pb-4">מעדכן...</p>
                         )}
+                    </div>
+                </div>
+            )}
+            {showDeleteConfirm && (
+                <div
+                    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    onClick={() => !deleting && setShowDeleteConfirm(false)}
+                >
+                    <div
+                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-lg font-bold text-gray-800 mb-2">אישור מחיקה</h2>
+                        <p className="text-gray-600 text-sm leading-relaxed">
+                            האם אתה בטוח שברצונך למחוק {selectedIds.length} הזמנות שנבחרו? פעולה זו אינה הפיכה
+                        </p>
+                        <div className="mt-6 flex gap-3 justify-end">
+                            <button
+                                type="button"
+                                disabled={deleting}
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                ביטול
+                            </button>
+                            <button
+                                type="button"
+                                disabled={deleting}
+                                onClick={handleDeleteSelected}
+                                className="px-4 py-2 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                <FaTrash size={12} />
+                                {deleting ? "מוחק..." : "מחק הזמנות"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

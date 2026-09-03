@@ -228,6 +228,38 @@ exports.updateOrderStatus = async (req, res) => {
     }
 };
 
+// מחיקת הזמנות שנבחרו (אדמין בלבד — רק מזהים שנשלחו, לא מחיקה גורפת)
+exports.deleteOrders = async (req, res) => {
+    try {
+        if (req.tokenData.role !== "admin") {
+            return res.status(403).json({ msg: "אין הרשאה למחוק הזמנות" });
+        }
+
+        const ids = req.body?.ids;
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ msg: "יש לבחור לפחות הזמנה אחת למחיקה" });
+        }
+        if (ids.length > 50) {
+            return res.status(400).json({ msg: "לא ניתן למחוק יותר מ-50 הזמנות בפעם אחת" });
+        }
+
+        const validIds = [...new Set(ids.map(String))].filter(isValidObjectId);
+        if (validIds.length === 0) {
+            return res.status(400).json({ msg: "מזהה הזמנה אינו תקין" });
+        }
+
+        const result = await OrderModel.deleteMany({
+            _id: { $in: validIds },
+            status: { $ne: "pending" },
+        });
+
+        res.json({ deletedCount: result.deletedCount });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "שגיאה במחיקת ההזמנות" });
+    }
+};
+
 // יצירת הזמנה חדשה וסגירת עגלת הקניות (מאובטח לחלוטין מפני זיוף מחירים)
 exports.createOrder = async (req, res) => {
     try {
