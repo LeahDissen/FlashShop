@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { getDesignFrames } from '../../api/designFrames';
-import { getFrameCategories } from '../../api/frameCategories';
-import { getDropzoneImageForSlot } from '../../utils/editorLayering';
-import { isMultiDropzoneFrame } from '../../utils/dropzoneUtils';
-import { BackgroundIcon, ChevronLeftIcon, GridIcon, ImageIcon, NoColorIcon, PlusIcon, TextIcon, XIcon } from '../icons';
+import { useRef, useState } from 'react';
+import { BackgroundIcon, ChevronLeftIcon, GridIcon, ImageIcon, TextIcon, XIcon } from '../icons';
+import { DEFAULT_EDITOR_SETTINGS } from '../../constants/editorSettingsDefaults';
 
 const SidebarTab = ({ icon, label, isActive, onClick, compact = false }) => {
     return (
@@ -22,24 +19,6 @@ const SidebarTab = ({ icon, label, isActive, onClick, compact = false }) => {
     );
 };
 
-/** קישור שמפנה ללקוח למסגרות שנמצאות בתוך טאב אלמנטים */
-const FramesShortcut = ({ onGoToFrames }) => (
-    <div className="mb-5 rounded-xl border border-red-100 bg-red-50/70 px-3 py-3 text-right">
-        <p className="text-sm text-gray-700 mb-2">
-            מחפשים מסגרות? הן נמצאות בתוך{' '}
-            <span className="font-bold text-gray-900">אלמנטים</span>
-        </p>
-        <button
-            type="button"
-            onClick={onGoToFrames}
-            className="inline-flex items-center gap-1 text-sm font-bold text-red-600 hover:text-red-700 underline-offset-2 hover:underline transition-colors"
-        >
-            <span>למסגרות עיצוב</span>
-            <ChevronLeftIcon className="w-3.5 h-3.5" />
-        </button>
-    </div>
-);
-
 const ColorSwatch = ({ color, onClick, isSelected }) => (
     <button
         onClick={onClick}
@@ -49,7 +28,7 @@ const ColorSwatch = ({ color, onClick, isSelected }) => (
     ></button>
 );
 
-const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgrounds, addUploadedBackground, deleteUploadedBackground, onGoToFrames }) => {
+const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgrounds, addUploadedBackground, deleteUploadedBackground }) => {
     const fileInputRef = useRef(null);
     const colorInputRef = useRef(null);
 
@@ -104,7 +83,6 @@ const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgr
     return (
         <div className="p-4 text-right">
             <h3 className="font-semibold text-gray-800 mb-4">רקע</h3>
-            {onGoToFrames && <FramesShortcut onGoToFrames={onGoToFrames} />}
             <button
                 onClick={handleUploadClick}
                 className="w-full flex items-center justify-center p-3 mb-6 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
@@ -324,97 +302,10 @@ const ElementSection = ({ title, items, onAdd, onShowAll }) => {
 const ElementsPanel = ({
     addImageElement,
     addShapeElement,
-    onApplyGlobalFrame,
-    onRemoveGlobalFrame,
-    onSelectGlobalFrame,
-    onDetectFrameSlots,
-    activeGlobalFrameId,
-    activeGlobalFrame,
-    elements,
-    onAddImageToDropzone,
-    onClearDropzoneImage,
 }) => {
     const [expandedCategory, setExpandedCategory] = useState(null);
-    const [globalFrames, setGlobalFrames] = useState([]);
-    const [frameCategories, setFrameCategories] = useState([]);
-    const [framesLoading, setFramesLoading] = useState(true);
-    const [frameCategoryFilter, setFrameCategoryFilter] = useState('הכל');
-    const slotFileInputRef = useRef(null);
-    const pendingSlotIdRef = useRef(null);
-
-    const isCollage = isMultiDropzoneFrame(activeGlobalFrame);
-
-    const openSlotUpload = (dropzoneId) => {
-        pendingSlotIdRef.current = dropzoneId;
-        slotFileInputRef.current?.click();
-    };
-
-    const handleSlotFileChange = (event) => {
-        const file = event.target.files?.[0];
-        const dropzoneId = pendingSlotIdRef.current;
-        pendingSlotIdRef.current = null;
-        if (event.target) event.target.value = '';
-        if (!file || !dropzoneId || !onAddImageToDropzone) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const result = e.target?.result;
-            if (!result) return;
-            const img = new Image();
-            img.onload = () => {
-                onAddImageToDropzone(dropzoneId, result, img.naturalWidth, img.naturalHeight);
-            };
-            img.src = result;
-        };
-        reader.readAsDataURL(file);
-    };
-
-    useEffect(() => {
-        let cancelled = false;
-        setFramesLoading(true);
-        Promise.all([getDesignFrames(), getFrameCategories()])
-            .then(([framesData, categoriesData]) => {
-                if (cancelled) return;
-                setGlobalFrames(Array.isArray(framesData) ? framesData : []);
-                setFrameCategories(Array.isArray(categoriesData) ? categoriesData : []);
-            })
-            .catch((err) => {
-                console.error('Failed to load global design frames', err);
-                if (!cancelled) {
-                    setGlobalFrames([]);
-                    setFrameCategories([]);
-                }
-            })
-            .finally(() => {
-                if (!cancelled) setFramesLoading(false);
-            });
-        return () => { cancelled = true; };
-    }, []);
-
-    const categoryNames = frameCategories.map((c) => c.name).filter(Boolean);
-    const filterCategories = ['הכל', ...new Set([
-        ...categoryNames,
-        ...globalFrames.map((f) => f.category).filter(Boolean),
-    ])];
-
-    const filteredGlobalFrames = frameCategoryFilter === 'הכל'
-        ? globalFrames
-        : globalFrames.filter((f) => f.category === frameCategoryFilter);
-
-    const globalFrameItems = filteredGlobalFrames.map((frame) => ({
-        id: frame._id,
-        alt: frame.title,
-        src: frame.thumbnailUrl || frame.imageUrl,
-        isGlobalFrame: true,
-        frameData: frame,
-    }));
 
     const handleAdd = (item) => {
-        if (item.isGlobalFrame && item.frameData) {
-            onApplyGlobalFrame(item.frameData);
-            return;
-        }
-
         if (item.type === 'shape' && item.content) {
             addShapeElement(item.content);
             return;
@@ -439,120 +330,6 @@ const ElementsPanel = ({
         img.src = item.src;
     };
 
-    const renderGlobalFramesSection = () => (
-        <div id="design-frames-section" className="mb-8 scroll-mt-2">
-            <div className="flex justify-between items-end mb-3 px-2">
-                <h3 className="font-bold text-gray-800 text-base">מסגרות עיצוב</h3>
-                {globalFrameItems.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setExpandedCategory({ title: 'מסגרות עיצוב', items: globalFrameItems, isGlobalFrames: true })}
-                        className="text-sm font-medium text-gray-500 hover:text-red-500 transition-colors flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
-                    >
-                        <span>הצג הכל</span>
-                        <ChevronLeftIcon className="w-3 h-3" />
-                    </button>
-                )}
-            </div>
-
-            <div className="flex gap-2 mb-3 px-1">
-                <button
-                    type="button"
-                    onClick={onSelectGlobalFrame}
-                    disabled={!activeGlobalFrameId}
-                    className={`flex-1 px-3 py-2.5 rounded-xl border text-sm font-bold transition-colors ${
-                        activeGlobalFrameId
-                            ? 'border-red-200 text-red-600 bg-red-50 hover:bg-red-100'
-                            : 'border-gray-200 text-gray-300 cursor-not-allowed'
-                    }`}
-                >
-                    הזז מסגרת
-                </button>
-                <button
-                    type="button"
-                    onClick={onRemoveGlobalFrame}
-                    disabled={!activeGlobalFrameId}
-                    className={`flex-1 px-3 py-2.5 rounded-xl border-2 border-dashed text-sm font-bold transition-colors ${
-                        activeGlobalFrameId
-                            ? 'border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-500 hover:bg-red-50'
-                            : 'border-gray-200 text-gray-300 cursor-not-allowed'
-                    }`}
-                >
-                    הסר מסגרת
-                </button>
-            </div>
-
-            {activeGlobalFrameId && (
-                <button
-                    type="button"
-                    onClick={onDetectFrameSlots}
-                    className="w-full mb-3 px-3 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors"
-                >
-                    זהה ריבועים ריקים להעלאת תמונות
-                </button>
-            )}
-
-            <div className="flex flex-wrap gap-2 mb-3 px-1">
-                {filterCategories.map((cat) => (
-                    <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setFrameCategoryFilter(cat)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                            frameCategoryFilter === cat
-                                ? 'bg-red-500 text-white border-red-500'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'
-                        }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
-            </div>
-
-            {framesLoading ? (
-                <p className="text-sm text-gray-400 px-2">טוען מסגרות...</p>
-            ) : globalFrameItems.length === 0 ? (
-                <p className="text-sm text-gray-400 px-2">אין מסגרות זמינות כרגע</p>
-            ) : (
-                <div className="grid grid-cols-3 gap-2 px-1">
-                    {globalFrameItems.slice(0, 6).map((item) => {
-                        const isActive = activeGlobalFrameId === item.id;
-                        return (
-                        <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                                if (isActive) {
-                                    onSelectGlobalFrame?.();
-                                    return;
-                                }
-                                handleAdd(item);
-                            }}
-                            className={`relative aspect-square bg-white rounded-xl border shadow-sm hover:shadow-md transition-all p-1.5 flex items-center justify-center group ${
-                                isActive
-                                    ? 'border-red-500 ring-2 ring-red-200'
-                                    : 'border-gray-200 hover:border-red-300'
-                            }`}
-                            title={isActive ? 'לחצו לבחירת המסגרת להזזה' : item.alt}
-                        >
-                            {item.frameData?.layoutType === 'multi_dropzone' && (
-                                <span className="absolute top-1 right-1 z-10 text-[9px] font-bold bg-red-500 text-white px-1 py-0.5 rounded">
-                                    קולאז׳
-                                </span>
-                            )}
-                            <img
-                                src={item.src}
-                                alt={item.alt}
-                                className="max-w-full max-h-full object-contain transition-transform duration-300 group-hover:scale-105"
-                            />
-                        </button>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-    );
-
     if (expandedCategory) {
         return (
             <div className="p-4 h-full flex flex-col">
@@ -567,35 +344,12 @@ const ElementsPanel = ({
                     </button>
                 </div>
 
-                {expandedCategory.isGlobalFrames && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {filterCategories.map((cat) => (
-                            <button
-                                key={cat}
-                                type="button"
-                                onClick={() => setFrameCategoryFilter(cat)}
-                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                                    frameCategoryFilter === cat
-                                        ? 'bg-red-500 text-white border-red-500'
-                                        : 'bg-white text-gray-600 border-gray-200 hover:border-red-300'
-                                }`}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
                 <div className="grid grid-cols-3 gap-3 overflow-y-auto pb-4" style={{ scrollbarWidth: 'thin' }}>
-                    {(expandedCategory.isGlobalFrames ? globalFrameItems : expandedCategory.items).map(item => (
+                    {expandedCategory.items.map(item => (
                         <button
                             key={item.id}
                             onClick={() => handleAdd(item)}
-                            className={`aspect-square bg-white rounded-xl border shadow-sm hover:shadow-md transition-all p-2 flex items-center justify-center group ${
-                                item.isGlobalFrame && activeGlobalFrameId === item.id
-                                    ? 'border-red-500 ring-2 ring-red-200'
-                                    : 'border-gray-200 hover:border-red-300'
-                            }`}
+                            className="aspect-square bg-white rounded-xl border border-gray-200 hover:border-red-300 shadow-sm hover:shadow-md transition-all p-2 flex items-center justify-center group"
                             title={item.alt}
                         >
                             <img
@@ -612,90 +366,41 @@ const ElementsPanel = ({
 
     return (
         <div className="p-4 overflow-y-auto h-full">
-            {isCollage && (
-                <div className="mb-6 rounded-xl border border-red-100 bg-red-50/60 p-3">
-                    <input
-                        ref={slotFileInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif,image/webp"
-                        className="hidden"
-                        onChange={handleSlotFileChange}
-                    />
-                    <h3 className="font-bold text-gray-800 text-base mb-1">חלונות תמונה לקולאז׳</h3>
-                    <p className="text-xs text-gray-500 mb-3">
-                        העלו תמונה נפרדת לכל חלון. אפשר גם ללחוץ ישירות על החלונות בקנבס.
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
-                        {(activeGlobalFrame.dropzones || []).map((zone, index) => {
-                            const filled = getDropzoneImageForSlot(elements || [], zone.id);
-                            return (
-                                <div
-                                    key={zone.id}
-                                    className="rounded-lg border border-gray-200 bg-white p-2 flex flex-col gap-2"
-                                >
-                                    <div className="aspect-square rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-                                        {filled ? (
-                                            <img src={filled.src} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <PlusIcon className="w-6 h-6 text-gray-300" />
-                                        )}
-                                    </div>
-                                    <p className="text-xs font-semibold text-gray-700 truncate">
-                                        {zone.label || `חלון ${index + 1}`}
-                                    </p>
-                                    <div className="flex gap-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => openSlotUpload(zone.id)}
-                                            className="flex-1 text-[11px] font-bold py-1.5 rounded-md bg-red-500 text-white hover:bg-red-600"
-                                        >
-                                            {filled ? 'החלף' : 'העלה'}
-                                        </button>
-                                        {filled && (
-                                            <button
-                                                type="button"
-                                                onClick={() => onClearDropzoneImage?.(zone.id)}
-                                                className="px-2 text-[11px] font-bold py-1.5 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
-                                            >
-                                                נקה
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-            {renderGlobalFramesSection()}
             <ElementSection title="צורות" items={shapes} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "צורות", items: shapes })} />
             <ElementSection title="תמונות רקע" items={backgroundAssets} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "תמונות רקע", items: backgroundAssets })} />
             <ElementSection title="גרפיקות" items={graphics} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "גרפיקות", items: graphics })} />
-            <ElementSection title="מסגרות לתמונה" items={frames} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "מסגרות לתמונה", items: frames })} />
             <ElementSection title="אייקונים" items={icons} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "אייקונים", items: icons })} />
         </div>
     );
 }
 
-const TextPanel = ({ addTextElement, onGoToFrames }) => {
+const TextPanel = ({ addTextElement, addCaptionElement, captionDefaults }) => {
     return (
         <div className="p-4">
             <div className="space-y-3">
                 <h3 className="text-xl font-bold text-gray-800 mb-1 text-right">סגנון טקסט</h3>
                 <p className="text-sm text-gray-500 mb-4 text-right">הקש על טקסט כדי להוסיף לדף</p>
-                {onGoToFrames && <FramesShortcut onGoToFrames={onGoToFrames} />}
                 <button
                     onClick={addTextElement}
                     className="w-full text-center py-3 rounded-lg bg-red-500 text-white font-bold hover:bg-red-600 transition-colors"
                 >
                     הוסף תיבת טקסט
                 </button>
+                <button
+                    onClick={addCaptionElement}
+                    className="w-full text-center py-3 rounded-lg border border-red-200 bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors"
+                >
+                    {captionDefaults?.buttonLabel || 'הוסף כתובית לתמונה'}
+                </button>
+                <p className="text-xs text-gray-500 text-right">
+                    הכתובית נוספת בתחתית התמונה. אחרי הבחירה ניתן לשנות גופן, צבע וגודל בסרגל העליון.
+                </p>
             </div>
         </div>
     );
 };
 
-const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage, onGoToFrames }) => {
+const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage }) => {
     const fileInputRef = useRef(null);
 
     const handleUploadClick = () => {
@@ -745,7 +450,6 @@ const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage, onGo
     return (
         <div className="p-4 text-right">
             <h3 className="font-semibold text-gray-800 mb-4">תמונות</h3>
-            {onGoToFrames && <FramesShortcut onGoToFrames={onGoToFrames} />}
             <button
                 onClick={handleUploadClick}
                 className="w-full flex items-center justify-center p-3 mb-6 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
@@ -796,26 +500,17 @@ const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage, onGo
 
 const EditorSidebar = ({
     addTextElement,
+    addCaptionElement,
     addImageElement,
     addShapeElement,
-    onApplyGlobalFrame,
-    onRemoveGlobalFrame,
-    onSelectGlobalFrame,
-    onDetectFrameSlots,
-    activeGlobalFrameId,
-    activeGlobalFrame,
-    elements,
-    onAddImageToDropzone,
-    onClearDropzoneImage,
     uploadedImages,
     deleteUploadedImage,
-    selectedElement,
-    onUpdateElement,
     canvasBackground,
     setCanvasBackground,
     uploadedBackgrounds,
     addUploadedBackground,
     deleteUploadedBackground,
+    editorSettings = DEFAULT_EDITOR_SETTINGS,
 }) => {
     const [activeTab, setActiveTab] = useState('background');
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -839,21 +534,6 @@ const EditorSidebar = ({
         if (isCollapsed) setIsCollapsed(false);
     };
 
-    const goToFrames = () => {
-        setActiveTab('elements');
-        setMobilePanelOpen(true);
-        if (isCollapsed) setIsCollapsed(false);
-        // גלילה למקטע המסגרות אחרי שהפאנל נטען
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                document.getElementById('design-frames-section')?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'start',
-                });
-            }, 50);
-        });
-    };
-
     const panelContent = (
         <>
             {activeTab === 'background' && (
@@ -863,30 +543,19 @@ const EditorSidebar = ({
                     uploadedBackgrounds={uploadedBackgrounds}
                     addUploadedBackground={addUploadedBackground}
                     deleteUploadedBackground={deleteUploadedBackground}
-                    onGoToFrames={goToFrames}
                 />
             )}
             {activeTab === 'elements' && (
                 <ElementsPanel
                     addImageElement={addImageElement}
                     addShapeElement={addShapeElement}
-                    onApplyGlobalFrame={onApplyGlobalFrame}
-                    onRemoveGlobalFrame={onRemoveGlobalFrame}
-                    onSelectGlobalFrame={onSelectGlobalFrame}
-                    onDetectFrameSlots={onDetectFrameSlots}
-                    activeGlobalFrameId={activeGlobalFrameId}
-                    activeGlobalFrame={activeGlobalFrame}
-                    elements={elements}
-                    onAddImageToDropzone={onAddImageToDropzone}
-                    onClearDropzoneImage={onClearDropzoneImage}
                 />
             )}
             {activeTab === 'text' && (
                 <TextPanel
                     addTextElement={addTextElement}
-                    selectedElement={selectedElement}
-                    onUpdateElement={onUpdateElement}
-                    onGoToFrames={goToFrames}
+                    addCaptionElement={addCaptionElement}
+                    captionDefaults={editorSettings.captionDefaults}
                 />
             )}
             {activeTab === 'images' && (
@@ -894,7 +563,6 @@ const EditorSidebar = ({
                     addImageElement={addImageElement}
                     uploadedImages={uploadedImages}
                     deleteUploadedImage={deleteUploadedImage}
-                    onGoToFrames={goToFrames}
                 />
             )}
         </>

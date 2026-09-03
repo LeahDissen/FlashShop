@@ -7,7 +7,7 @@ export default function WaveDivider({ fill = '#ffffff', className = '' }) {
   return (
     <div className={`w-full overflow-hidden leading-[0] rotate-180 ${className}`}>
       <svg
-        className="relative block w-[calc(100%+1.3px)] h-[60px] md:h-[90px]"
+        className="relative block w-[calc(100%+1.3px)] h-[32px] md:h-[48px]"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 1200 120"
         preserveAspectRatio="none"

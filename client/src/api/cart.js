@@ -1,17 +1,11 @@
 import axios from 'axios';
 import { MONGO_API } from '../config/api';
+import { compactCustomDesignForCart } from '../utils/cartItem';
 const API_URL = `${MONGO_API}/orders`;
 const MAX_IMAGE_LENGTH_FOR_SYNC = 500_000;
 
 const compactCartItemForSync = (item) => {
-    const compactCustomDesign = item?.customDesign
-        ? {
-            projectId: item.customDesign.projectId,
-            projectName: item.customDesign.projectName,
-            canvasSize: item.customDesign.canvasSize,
-            printSizeCm: item.customDesign.printSizeCm,
-        }
-        : undefined;
+    const compactCustomDesign = compactCustomDesignForCart(item?.customDesign);
 
     const imageForSync =
         typeof item?.image === 'string' &&

@@ -1,4 +1,4 @@
-import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaMagic } from 'react-icons/fa';
+import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaMagic, FaSlidersH } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -62,6 +62,13 @@ export default function AdminDashboardPage() {
       description: "ניהול מסגרות עיצוב מוכנות שזמינות לכל המוצרים בעורך.",
       icon: <FaImage className="text-3xl text-white" />,
       link: "/designframes",
+    },
+    {
+      id: 8,
+      title: "הגדרות עורך התמונות",
+      description: "מידות המסגרות, גופנים, צבעים והטקסטים שהלקוח רואה בעורך.",
+      icon: <FaSlidersH className="text-3xl text-white" />,
+      link: "/editorsettings",
     },
   ];
 

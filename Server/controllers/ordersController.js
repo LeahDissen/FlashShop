@@ -5,6 +5,8 @@ const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
+const { isDriveConfigured, moveDesignsToOrderFolder, uploadRemoteImageToStaging } = require("../services/googleDriveService");
+const { loadEditorSettings } = require("./editorSettingsController");
 
 const isValidObjectId = (id) =>
     mongoose.Types.ObjectId.isValid(id) &&
@@ -34,15 +36,126 @@ const resolveProductId = (item) => {
 // פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
 const isSameUser = (a, b) => String(a) === String(b);
 
+const MAX_STORED_IMAGE_LENGTH = 500_000;
+
+const maybeStoreImage = (img) => {
+    if (typeof img !== "string" || !img) return undefined;
+    if (img.startsWith("data:") && img.length > MAX_STORED_IMAGE_LENGTH) return undefined;
+    return img;
+};
+
+const sanitizeDriveFileName = (value, fallback) => {
+    const cleaned = String(value || "")
+        .replace(/[\\/:*?"<>|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    return cleaned.slice(0, 120) || fallback;
+};
+
+const extensionFromImageUrl = (url) => {
+    const match = String(url || "").toLowerCase().match(/\.(jpe?g|png|webp|gif)(?:\?|$)/);
+    if (!match) return "jpg";
+    return match[1] === "jpeg" ? "jpg" : match[1];
+};
+
+const compactDriveFile = (file) => {
+    if (!file || typeof file !== "object" || !file.id) return undefined;
+    return {
+        id: String(file.id),
+        name: file.name ? String(file.name) : undefined,
+        url: file.url ? String(file.url) : undefined,
+    };
+};
+
+/** שומר את בחירות הלקוח בעורך (מסגרת, מידה, כיוון, כתוביות) לצורך ההפקה */
+const compactFrameSelection = (frameSelection) => {
+    if (!frameSelection || typeof frameSelection !== "object") return undefined;
+    const compact = {
+        frameId: frameSelection.frameId,
+        frameTitle: frameSelection.frameTitle,
+        frameImageUrl: frameSelection.frameImageUrl,
+        printSizeKey: frameSelection.printSizeKey,
+        printSizeLabel: frameSelection.printSizeLabel,
+        frameOrientation: frameSelection.frameOrientation,
+        canvasOrientation: frameSelection.canvasOrientation,
+        orientationFlipped: frameSelection.orientationFlipped,
+        layoutType: frameSelection.layoutType,
+        isFixedOverlay: frameSelection.isFixedOverlay,
+        rotationApplied: frameSelection.rotationApplied,
+    };
+    Object.keys(compact).forEach((key) => {
+        if (compact[key] === undefined) delete compact[key];
+    });
+    return Object.keys(compact).length ? compact : undefined;
+};
+
+const compactCaptions = (captions) => {
+    if (!Array.isArray(captions) || captions.length === 0) return undefined;
+    return captions.slice(0, 20).map((caption) => ({
+        content: String(caption?.content ?? "").slice(0, 300),
+        fontFamily: caption?.fontFamily,
+        fontSize: caption?.fontSize,
+        color: caption?.color,
+    }));
+};
+
+const compactCustomDesign = (customDesign) => {
+    if (!customDesign || typeof customDesign !== "object") return undefined;
+    const compact = {
+        projectId: customDesign.projectId,
+        projectName: customDesign.projectName,
+        canvasSize: customDesign.canvasSize,
+        printSizeCm: customDesign.printSizeCm,
+        frameSelection: compactFrameSelection(customDesign.frameSelection),
+        captions: compactCaptions(customDesign.captions),
+        designFile: compactDriveFile(customDesign.designFile),
+        driveFile: compactDriveFile(customDesign.driveFile),
+    };
+    const hasValue = Object.values(compact).some((value) => value != null);
+    return hasValue ? compact : undefined;
+};
+
+const compactCustomization = (customization) => {
+    if (!customization || typeof customization !== "object") return undefined;
+    const compact = {
+        type: customization.type,
+        name: customization.name,
+        email: customization.email,
+        phone: customization.phone,
+        description: customization.description,
+        printSize: customization.printSize,
+        width: customization.width,
+        height: customization.height,
+        originalImage: maybeStoreImage(customization.originalImage),
+        referenceImage: maybeStoreImage(customization.referenceImage),
+    };
+    Object.keys(compact).forEach((key) => {
+        if (compact[key] === undefined || compact[key] === "") {
+            delete compact[key];
+        }
+    });
+    return Object.keys(compact).length ? compact : undefined;
+};
+
+const withItemExtras = (base, item) => {
+    const extras = {};
+    if (item.itemType) extras.itemType = item.itemType;
+    const customDesign = compactCustomDesign(item.customDesign);
+    if (customDesign) extras.customDesign = customDesign;
+    const customization = compactCustomization(item.customization);
+    if (customization) extras.customization = customization;
+    return { ...base, ...extras };
+};
+
 const sanitizeCartItem = (item) => {
-    const sanitized = {
+    const sanitized = withItemExtras({
         name: item.name,
         size: item.size,
         quantity: item.quantity,
         price: item.price,
-        image: item.image,
+        image: maybeStoreImage(item.image) ?? (typeof item.image === "string" ? item.image : undefined),
         itemType: item.itemType,
-    };
+    }, item);
     const rawId = resolveProductId(item);
     if (isValidObjectId(rawId)) {
         sanitized.productId = rawId;
@@ -118,6 +231,101 @@ async function markCouponAsUsed(couponCode, userId) {
     await ClubModel.findOneAndUpdate({ giftCode: couponCode }, { isUsed: true });
 }
 
+const shortOrderLabel = (id) => String(id).slice(-8).toUpperCase();
+
+/**
+ * מעלה תמונות פיתוח ל-Drive לפני סידור תיקיית ההזמנה.
+ * מוצרים רגילים נשארים בניהול הזמנות בלבד.
+ */
+async function uploadPhotoPrintsToDrive(order) {
+    if (!isDriveConfigured()) return;
+
+    let changed = false;
+    for (let itemIndex = 0; itemIndex < order.items.length; itemIndex += 1) {
+        const item = order.items[itemIndex];
+        if (!isPhotoPrintItem(item)) continue;
+        if (item.customDesign?.designFile?.id) continue;
+
+        const imageUrl = String(item.image || "");
+        if (!imageUrl.startsWith("http")) continue;
+
+        const originalName = String(item.name || "")
+            .replace(/^פיתוח תמונה\s*/i, "")
+            .replace(/[()]/g, "")
+            .trim();
+        const sizePart = item.size ? `${item.size} ` : "";
+        const ext = extensionFromImageUrl(imageUrl);
+        const fileName = sanitizeDriveFileName(
+            `פיתוח ${sizePart}${originalName || itemIndex + 1}.${ext}`,
+            `photo-print-${itemIndex + 1}.${ext}`,
+        );
+
+        try {
+            const uploaded = await uploadRemoteImageToStaging({ imageUrl, fileName });
+            if (!uploaded?.id) continue;
+            item.customDesign = {
+                ...(item.customDesign || {}),
+                designFile: compactDriveFile(uploaded),
+            };
+            changed = true;
+        } catch (err) {
+            console.warn(`Drive: failed to upload photo print ${itemIndex} for order ${order._id}`, err.message);
+        }
+    }
+
+    if (changed) {
+        order.markModified("items");
+        await order.save();
+    }
+}
+
+/**
+ * מסדר את קבצי העיצוב של ההזמנה בתיקיית Google Drive ייחודית ושומר את הקישור.
+ * כישלון כאן לא מפיל את ההזמנה – היא נשמרת גם בלי Drive.
+ */
+async function attachDriveFolderToOrder(order) {
+    if (!isDriveConfigured()) return;
+
+    const files = order.items
+        .map((item, itemIndex) => {
+            const file = item.customDesign?.designFile;
+            if (!file?.id) return null;
+            return { itemIndex, id: file.id, name: file.name };
+        })
+        .filter(Boolean);
+
+    if (files.length === 0) return;
+
+    try {
+        const settings = await loadEditorSettings();
+        const result = await moveDesignsToOrderFolder({
+            orderId: String(order._id),
+            orderLabel: shortOrderLabel(order._id),
+            files,
+            folderTemplate: settings?.drive?.orderFolderTemplate,
+        });
+        if (!result) return;
+
+        result.files.forEach(({ itemIndex, id, name, url }) => {
+            const item = order.items[itemIndex];
+            if (!item?.customDesign) return;
+            item.customDesign = { ...item.customDesign, driveFile: { id, name, url } };
+        });
+
+        order.drive = {
+            folderId: result.folderId,
+            folderName: result.folderName,
+            folderUrl: result.folderUrl,
+            fileCount: result.files.length,
+            uploadedAt: new Date(),
+        };
+        order.markModified("items");
+        await order.save();
+    } catch (err) {
+        console.error("Drive: failed to organize order designs", err.message);
+    }
+}
+
 // ============================================================================
 // ראוטים (Route Handlers)
 // ============================================================================
@@ -143,7 +351,7 @@ exports.getOrders = async (req, res) => {
             return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
         }
         const orders = await OrderModel.find({ status: { $ne: "pending" } })
-            .populate("user_id", "name email")
+            .populate("user_id", "name email createdAt")
             .sort({ date_created: -1 });
         res.json(orders);
     } catch (err) {
@@ -260,6 +468,38 @@ exports.deleteOrders = async (req, res) => {
     }
 };
 
+exports.syncOrderDrive = async (req, res) => {
+    try {
+        if (req.tokenData.role !== "admin") {
+            return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
+        }
+        if (!isDriveConfigured()) {
+            return res.status(503).json({
+                msg: "Google Drive אינו מוגדר בשרת. יש להגדיר GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY ו-GOOGLE_DRIVE_ROOT_FOLDER_ID.",
+            });
+        }
+
+        const order = await OrderModel.findById(req.params.id);
+        if (!order) {
+            return res.status(404).json({ msg: "ההזמנה לא נמצאה" });
+        }
+
+        await uploadPhotoPrintsToDrive(order);
+        await attachDriveFolderToOrder(order);
+
+        const fresh = await OrderModel.findById(order._id).populate("user_id", "name email createdAt");
+        if (!fresh?.drive?.folderUrl) {
+            return res.status(500).json({
+                msg: "ההעלאה ל-Drive לא הושלמה. בדקו שהתמונות זמינות ושיש לחשבון השירות הרשאה לתיקייה.",
+            });
+        }
+        res.json(fresh);
+    } catch (err) {
+        console.error("Drive sync failed:", err);
+        res.status(500).json({ msg: "שגיאה בשליחה ל-Google Drive" });
+    }
+};
+
 // יצירת הזמנה חדשה וסגירת עגלת הקניות (מאובטח לחלוטין מפני זיוף מחירים)
 exports.createOrder = async (req, res) => {
     try {
@@ -291,13 +531,13 @@ exports.createOrder = async (req, res) => {
                     const cartPrice = Number(item.price);
                     if (cartPrice > 0 && item.name) {
                         subtotal += cartPrice * qty;
-                        verifiedItems.push({
+                        verifiedItems.push(withItemExtras({
                             name: item.name,
                             size: item.size,
                             price: cartPrice,
                             quantity: qty,
                             image: item.image,
-                        });
+                        }, item));
                         continue;
                     }
                     return res.status(404).json({ msg: "המוצר המבוקש לא נמצא במערכת" });
@@ -315,14 +555,14 @@ exports.createOrder = async (req, res) => {
                 }
 
                 subtotal += unitPrice * qty;
-                verifiedItems.push({
+                verifiedItems.push(withItemExtras({
                     productId: product._id,
                     name,
                     size: item.size,
                     price: unitPrice,
                     quantity: qty,
                     image,
-                });
+                }, item));
                 continue;
             }
 
@@ -333,7 +573,7 @@ exports.createOrder = async (req, res) => {
                 }
 
                 subtotal += photoUnitPrice * qty;
-                verifiedItems.push({
+                verifiedItems.push(withItemExtras({
                     name: item.name,
                     size: item.size,
                     price: photoUnitPrice,
@@ -341,7 +581,7 @@ exports.createOrder = async (req, res) => {
                     image: typeof item.image === "string" && item.image.length > 500_000
                         ? null
                         : item.image,
-                });
+                }, item));
                 continue;
             }
 
@@ -352,39 +592,39 @@ exports.createOrder = async (req, res) => {
                 }
 
                 subtotal += unitPrice * qty;
-                verifiedItems.push({
+                verifiedItems.push(withItemExtras({
                     name: item.name || "מוצר בעיצוב אישי",
                     size: item.size,
                     price: unitPrice,
                     quantity: qty,
                     image: item.image,
-                });
+                }, item));
                 continue;
             }
 
             if (item.customization && Number(item.price) > 0 && item.name) {
                 const unitPrice = Number(item.price);
                 subtotal += unitPrice * qty;
-                verifiedItems.push({
+                verifiedItems.push(withItemExtras({
                     name: item.name,
                     size: item.size,
                     price: unitPrice,
                     quantity: qty,
                     image: item.image,
-                });
+                }, item));
                 continue;
             }
 
             if (item.name && Number(item.price) > 0) {
                 const unitPrice = Number(item.price);
                 subtotal += unitPrice * qty;
-                verifiedItems.push({
+                verifiedItems.push(withItemExtras({
                     name: item.name,
                     size: item.size,
                     price: unitPrice,
                     quantity: qty,
                     image: item.image,
-                });
+                }, item));
                 continue;
             }
 
@@ -416,6 +656,14 @@ exports.createOrder = async (req, res) => {
 
         const saved = await newOrder.save();
 
+        await uploadPhotoPrintsToDrive(saved);
+        // ארגון קבצי העיצוב בתיקיית Drive לפי הזמנה (לא חוסם במקרה של כשל)
+        await attachDriveFolderToOrder(saved);
+
+        if (saved.items.some(isPhotoPrintItem) && !isDriveConfigured()) {
+            console.warn("Drive: photo prints were not uploaded because Google Drive is not configured");
+        }
+
         // מימוש הקופון במידה וקיים
         if (couponCode) {
             await markCouponAsUsed(couponCode, userId);
@@ -446,7 +694,7 @@ exports.createOrder = async (req, res) => {
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
-        const order = await OrderModel.findById(id).populate("user_id", "name email");
+        const order = await OrderModel.findById(id).populate("user_id", "name email createdAt");
 
         if (!order) {
             return res.status(404).json({ msg: "הזמנה לא נמצאה" });

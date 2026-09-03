@@ -32,34 +32,107 @@ function resolveOutputDimensions(aspect) {
     };
 }
 
-function getImageRectInCropFrame(crop, zoom, mediaSize, cropSize) {
-    const width = mediaSize.width * zoom;
-    const height = mediaSize.height * zoom;
-    const centerX = cropSize.width / 2 + crop.x;
-    const centerY = cropSize.height / 2 + crop.y;
-
-    return {
-        x: centerX - width / 2,
-        y: centerY - height / 2,
-        width,
-        height,
-    };
+/**
+ * יוצר Blob באיכות גבוהה מאזור חיתוך שנבחר (react-image-crop)
+ */
+export function detectTextDirection(text) {
+    const sample = String(text || '');
+    const rtl = (sample.match(/[\u0590-\u05FF\u0600-\u06FF]/g) || []).length;
+    const ltr = (sample.match(/[A-Za-z]/g) || []).length;
+    if (ltr > rtl) return 'ltr';
+    return 'rtl';
 }
 
-/**
- * יוצר Blob באיכות גבוהה — תואם לתצוגת react-easy-crop (כולל זום החוצה ורקע)
- */
+function wrapFillText(ctx, text, x, y, maxWidth, lineHeight) {
+    const paragraphs = String(text).split(/\n/);
+    const lines = [];
+
+    paragraphs.forEach((para) => {
+        const words = para.split(/\s+/).filter(Boolean);
+        if (words.length === 0) {
+            lines.push('');
+            return;
+        }
+        let current = words[0];
+        for (let i = 1; i < words.length; i += 1) {
+            const next = `${current} ${words[i]}`;
+            if (ctx.measureText(next).width <= maxWidth) {
+                current = next;
+            } else {
+                lines.push(current);
+                current = words[i];
+            }
+        }
+        lines.push(current);
+    });
+
+    const startY = y - (lines.length - 1) * lineHeight;
+    lines.forEach((line, index) => {
+        ctx.fillText(line, x, startY + index * lineHeight);
+    });
+}
+
+/** מצייר מסגרת קבועה וכתוביות מעל תמונת ההדפסה */
+export async function drawPrintOverlays(ctx, {
+    width,
+    height,
+    frameSrc,
+    captions = [],
+    previewCropWidth,
+}) {
+    if (frameSrc) {
+        try {
+            const frame = await createImage(frameSrc);
+            ctx.drawImage(frame, 0, 0, width, height);
+        } catch (err) {
+            console.warn('Frame overlay failed', err);
+        }
+    }
+
+    const list = Array.isArray(captions) ? captions : [];
+    if (list.length === 0) return;
+
+    const scale = previewCropWidth > 0 ? width / previewCropWidth : 1;
+    list.forEach((caption) => {
+        const content = String(caption?.content ?? '').trim();
+        if (!content) return;
+
+        const fontSize = Math.max(8, (Number(caption.fontSize) || 24) * scale);
+        const xRatio = Number.isFinite(Number(caption.x)) ? Number(caption.x) : 0.5;
+        const yRatio = Number.isFinite(Number(caption.y)) ? Number(caption.y) : 0.92;
+
+        ctx.save();
+        ctx.direction = detectTextDirection(content);
+        ctx.font = `${fontSize}px "${caption.fontFamily || 'Rubik'}", Rubik, sans-serif`;
+        ctx.fillStyle = caption.color || '#FFFFFF';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.shadowColor = 'rgba(0,0,0,0.65)';
+        ctx.shadowBlur = 4 * scale;
+        ctx.shadowOffsetY = Math.max(1, scale);
+        wrapFillText(
+            ctx,
+            content,
+            width * xRatio,
+            height * yRatio,
+            width * 0.9,
+            fontSize * 1.25,
+        );
+        ctx.restore();
+    });
+}
+
 export async function getPrintCropBlob({
     imageSrc,
-    crop,
-    zoom,
-    mediaSize,
-    cropSize,
+    placement,
     aspect,
     backgroundColor = '#FFFFFF',
     file = null,
+    frameSrc = null,
+    captions = [],
+    previewCropWidth,
 }) {
-    if (!mediaSize?.width || !cropSize?.width || !aspect) {
+    if (!placement?.w || !placement?.h || !aspect) {
         throw new Error('Missing crop layout data');
     }
 
@@ -76,26 +149,25 @@ export async function getPrintCropBlob({
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-    const rect = getImageRectInCropFrame(crop, zoom, mediaSize, cropSize);
-    const scaleX = outputWidth / cropSize.width;
-    const scaleY = outputHeight / cropSize.height;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, outputWidth, outputHeight);
-    ctx.clip();
     ctx.drawImage(
         image,
         0,
         0,
         image.naturalWidth,
         image.naturalHeight,
-        rect.x * scaleX,
-        rect.y * scaleY,
-        rect.width * scaleX,
-        rect.height * scaleY,
+        Number(placement.x) * outputWidth,
+        Number(placement.y) * outputHeight,
+        Number(placement.w) * outputWidth,
+        Number(placement.h) * outputHeight,
     );
-    ctx.restore();
+
+    await drawPrintOverlays(ctx, {
+        width: outputWidth,
+        height: outputHeight,
+        frameSrc,
+        captions,
+        previewCropWidth: previewCropWidth || outputWidth,
+    });
 
     const { mimeType, quality } = resolveOutputFormat(file);
 

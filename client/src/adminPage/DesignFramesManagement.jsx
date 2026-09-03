@@ -14,11 +14,26 @@ import {
     getFrameCategories,
     updateFrameCategory,
 } from '../api/frameCategories';
+import { getEditorSettings } from '../api/editorSettings';
 import SmartImageInput from '../components/SmartImageInput';
 import { DROPZONE_PRESETS, normalizeDropzones } from '../utils/dropzoneUtils';
 import { detectEmptyPhotoSlots } from '../utils/detectEmptyPhotoSlots';
+import { DEFAULT_EDITOR_SETTINGS } from '../constants/editorSettingsDefaults';
 
 const ASPECT_RATIO_PRESETS = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:1', '2:1'];
+
+const ORIENTATION_OPTIONS = [
+    { value: 'any', label: 'מתאים לשניהם' },
+    { value: 'landscape', label: 'לרוחב' },
+    { value: 'portrait', label: 'לאורך' },
+];
+
+const orientationFromDimensions = (width, height) => {
+    if (!(width > 0) || !(height > 0)) return 'any';
+    if (width > height) return 'landscape';
+    if (height > width) return 'portrait';
+    return 'any';
+};
 
 const createEmptyZone = (index) => ({
     id: `zone_${index + 1}`,
@@ -55,6 +70,9 @@ const emptyForm = {
     thumbnailUrl: '',
     category: 'כללי',
     aspectRatio: '1:1',
+    printSizeKey: '',
+    orientation: 'any',
+    isFixedOverlay: true,
     layoutType: 'single_overlay',
     dropzones: [],
     isActive: true,
@@ -64,6 +82,7 @@ const emptyForm = {
 export default function DesignFramesManagement() {
     const [frames, setFrames] = useState([]);
     const [categories, setCategories] = useState([]);
+    const [printSizes, setPrintSizes] = useState(DEFAULT_EDITOR_SETTINGS.framePrintSizes);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -77,12 +96,16 @@ export default function DesignFramesManagement() {
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const [framesData, categoriesData] = await Promise.all([
+            const [framesData, categoriesData, settingsData] = await Promise.all([
                 getDesignFrames(true),
                 getFrameCategories(),
+                getEditorSettings().catch(() => null),
             ]);
             setFrames(framesData);
             setCategories(categoriesData);
+            if (settingsData?.framePrintSizes?.length) {
+                setPrintSizes(settingsData.framePrintSizes);
+            }
         } catch (err) {
             console.error(err);
             setMessage({ type: 'error', text: 'שגיאה בטעינת נתונים' });
@@ -104,6 +127,7 @@ export default function DesignFramesManagement() {
             setForm((prev) => ({
                 ...prev,
                 aspectRatio: ratioFromDimensions(width, height),
+                orientation: orientationFromDimensions(width, height),
             }));
         } catch {
             // keep manual aspect ratio
@@ -140,6 +164,9 @@ export default function DesignFramesManagement() {
             thumbnailUrl: (form.thumbnailUrl || form.imageUrl).trim(),
             category: form.category,
             aspectRatio: form.aspectRatio.trim(),
+            printSizeKey: form.printSizeKey,
+            orientation: form.orientation,
+            isFixedOverlay: form.isFixedOverlay,
             layoutType,
             dropzones,
             isActive: form.isActive,
@@ -224,6 +251,9 @@ export default function DesignFramesManagement() {
             thumbnailUrl: frame.thumbnailUrl || frame.imageUrl || '',
             category: frame.category || 'כללי',
             aspectRatio: frame.aspectRatio || '1:1',
+            printSizeKey: frame.printSizeKey || '',
+            orientation: frame.orientation || 'any',
+            isFixedOverlay: frame.isFixedOverlay !== false,
             layoutType: frame.layoutType === 'multi_dropzone' ? 'multi_dropzone' : 'single_overlay',
             dropzones: normalizeDropzones(frame.dropzones || []),
             isActive: frame.isActive !== false,
@@ -401,6 +431,55 @@ export default function DesignFramesManagement() {
                                     </datalist>
                                 </div>
                             </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">תיקיית מידה</label>
+                                    <select
+                                        value={form.printSizeKey}
+                                        onChange={(e) => setForm((p) => ({ ...p, printSizeKey: e.target.value }))}
+                                        className="w-full border border-gray-200 rounded-lg p-2.5"
+                                    >
+                                        <option value="">כל המידות</option>
+                                        {printSizes.map((size) => (
+                                            <option key={size.key} value={size.key}>{size.label}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        מידות התיקיות נערכות במסך "הגדרות עורך התמונות".
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">כיוון המסגרת</label>
+                                    <select
+                                        value={form.orientation}
+                                        onChange={(e) => setForm((p) => ({ ...p, orientation: e.target.value }))}
+                                        className="w-full border border-gray-200 rounded-lg p-2.5"
+                                    >
+                                        {ORIENTATION_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        מזוהה אוטומטית מהתמונה, וניתן לשנות ידנית.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label className="flex items-start gap-2 cursor-pointer rounded-xl bg-gray-50 border border-gray-100 p-3">
+                                <input
+                                    type="checkbox"
+                                    checked={form.isFixedOverlay}
+                                    onChange={(e) => setForm((p) => ({ ...p, isFixedOverlay: e.target.checked }))}
+                                    className="rounded mt-0.5"
+                                />
+                                <span className="text-sm text-gray-700">
+                                    שכבת Overlay קבועה
+                                    <span className="block text-xs text-gray-500">
+                                        המסגרת נפרסת על כל משטח העיצוב והלקוח לא יכול להזיז או לשנות את גודלה.
+                                    </span>
+                                </span>
+                            </label>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -683,6 +762,19 @@ export default function DesignFramesManagement() {
                                                 className="max-h-full max-w-full object-contain"
                                             />
                                         </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 mb-3">
+                                        <span className="text-xs bg-[#f2665e]/10 text-[#f2665e] px-2 py-0.5 rounded">
+                                            {printSizes.find((size) => size.key === frame.printSizeKey)?.label || 'כל המידות'}
+                                        </span>
+                                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                            {ORIENTATION_OPTIONS.find((o) => o.value === (frame.orientation || 'any'))?.label}
+                                        </span>
+                                        {frame.isFixedOverlay !== false && (
+                                            <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded">
+                                                Overlay קבוע
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                                         <span className="text-xs text-gray-500">

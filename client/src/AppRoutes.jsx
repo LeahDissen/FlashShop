@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import AdminDashboardPage from "./adminPage/AdminDashboardPage";
 import EditPages from "./adminPage/EditPages";
+import OrderDetailPage from "./adminPage/OrderDetailPage";
 import OrdersManagement from "./adminPage/OrdersManagement";
 import ProductsManagement from "./adminPage/ProductsManagement";
 import SendMailToClub from "./adminPage/SendMailToClub";
@@ -24,6 +25,7 @@ import TipsPage from "./pages/TipsPage";
 import ProductSelectionPage from "./pages/ProductSelectionPage";
 import CaptionIdeasPage from "./pages/CaptionIdeasPage";
 import DesignFramesManagement from "./adminPage/DesignFramesManagement";
+import EditorSettingsManagement from "./adminPage/EditorSettingsManagement";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
@@ -63,11 +65,13 @@ export default function AppRoutes() {
                 <Route path="/admindashboard" element={<AdminRoute><Layout><AdminDashboardPage /></Layout></AdminRoute>} />
                 <Route path="/editpages" element={<AdminRoute><Layout><EditPages /></Layout></AdminRoute>} />
                 <Route path="/ordersmanagement" element={<AdminRoute><Layout><OrdersManagement /></Layout></AdminRoute>} />
+                <Route path="/ordersmanagement/:orderId" element={<AdminRoute><Layout><OrderDetailPage /></Layout></AdminRoute>} />
                 <Route path="/productsmanagement" element={<AdminRoute><Layout><ProductsManagement /></Layout></AdminRoute>} />
                 <Route path="/sendmail" element={<AdminRoute><Layout><SendMailToClub /></Layout></AdminRoute>} />
                 <Route path="/updatecatalog" element={<AdminRoute><Layout><UpdateCatalog /></Layout></AdminRoute>} />
                 <Route path="/viewmessages" element={<AdminRoute><Layout><ViewMessages /></Layout></AdminRoute>} />
                 <Route path="/designframes" element={<AdminRoute><Layout><DesignFramesManagement /></Layout></AdminRoute>} />
+                <Route path="/editorsettings" element={<AdminRoute><Layout><EditorSettingsManagement /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                 <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />

@@ -5,6 +5,7 @@ import { getAllTips } from '../api/tips';
 import AdminControls from '../components/AdminControls.jsx';
 import SmartImageInput from '../components/SmartImageInput';
 import Testimonials, { DEFAULT_TESTIMONIALS } from '../components/Testimonials';
+import WaveDivider from '../components/WaveDivider';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import useAppStore from '../store/appStore';
 import { useTipsStore } from '../store/tipsStore';
@@ -38,11 +39,11 @@ const INITIAL_DATA = {
 };
 
 /**
- * HomePage — Figma-inspired layout with responsive hero.
+ * HomePage — Figma-inspired layout with wave hero.
  *
  * Layout:
- *  - Hero: heading + CTA + wave photo (stacks on tablet/mobile)
- *  - Product grid: 6 tiles + shipping badge
+ *  - Full-width hero image with the same wave divider as the products page
+ *  - Title + 6 product tiles below the wave
  *  - Story, Testimonials, Tips
  */
 export default function HomePage() {
@@ -281,67 +282,29 @@ export default function HomePage() {
     const ViewContent = (
         <div className="w-full bg-white overflow-x-hidden">
 
-            {/* ══ HERO + PRODUCTS ═══════════════════════════════════════════ */}
+            {/* ══ HERO WAVE + PRODUCTS ══════════════════════════════════════ */}
             <section className="home-hero">
-                <div className="home-hero__inner">
-                    <div className="home-hero__row">
-                        <div className="home-hero__copy">
-                            <h1 className="home-hero__title">
-                                {draft.title || (<>מה הסיפור<br />שלכם?</>)}
-                            </h1>
-                        </div>
-
-                        <div className="home-hero__media">
-                            <div className="home-hero__frame">
-                                {draft.mainImg ? (
-                                    <div className="home-hero__photo">
-                                        <img src={draft.mainImg} alt="תמונת Hero" />
-                                    </div>
-                                ) : (
-                                    <div className="home-hero__placeholder">תמונת Hero</div>
-                                )}
-                            </div>
-
-                            <button
-                                type="button"
-                                className="home-hero__float"
-                                onClick={() => navigate('/photo-development')}
-                                aria-label="לפיתוח תמונות"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-                                    aria-hidden="true">
-                                    <path d="M12 19V5" />
-                                    <path d="M5 12l7-7 7 7" />
-                                </svg>
-                            </button>
-                        </div>
+                <div className="home-hero__banner">
+                    <div
+                        className="home-hero__banner-bg"
+                        style={{
+                            backgroundColor: '#f8dcdb',
+                            backgroundImage: draft.mainImg ? `url(${draft.mainImg})` : 'none',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                        }}
+                    >
+                        {draft.mainImg ? <div className="home-hero__banner-overlay" /> : null}
+                        <WaveDivider fill="#ffffff" className="home-hero__wave" />
                     </div>
+                </div>
+
+                <div className="home-hero__inner">
+                    <h1 className="home-hero__title">
+                        {draft.title || (<>מה הסיפור<br />שלכם?</>)}
+                    </h1>
 
                     <div className="home-products">
-                        <div className="home-products__grid">
-                            {gridItems.map((prod, index) => (
-                                prod?.image ? (
-                                    <Link
-                                        key={index}
-                                        to={prod.link || '/products'}
-                                        aria-label={prod.name || `קטגוריה ${index + 1}`}
-                                        className="home-products__tile"
-                                    >
-                                        <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
-                                        {prod.name ? (
-                                            <span className="home-products__tile-label">{prod.name}</span>
-                                        ) : null}
-                                    </Link>
-                                ) : (
-                                    <div key={index} className="home-products__empty">
-                                        {prod?.name || `מוצר ${index + 1}`}
-                                    </div>
-                                )
-                            ))}
-                        </div>
-
                         <div className="home-products__badge" aria-label="משלוחים לכל הארץ">
                             <svg className="home-products__badge-ring" viewBox="0 0 100 100" aria-hidden="true">
                                 <defs>
@@ -364,6 +327,28 @@ export default function HomePage() {
                                     <circle cx="18.5" cy="18.5" r="2.5" />
                                 </svg>
                             </div>
+                        </div>
+
+                        <div className="home-products__grid">
+                            {gridItems.map((prod, index) => (
+                                prod?.image ? (
+                                    <Link
+                                        key={index}
+                                        to={prod.link || '/products'}
+                                        aria-label={prod.name || `קטגוריה ${index + 1}`}
+                                        className="home-products__tile"
+                                    >
+                                        <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
+                                        {prod.name ? (
+                                            <span className="home-products__tile-label">{prod.name}</span>
+                                        ) : null}
+                                    </Link>
+                                ) : (
+                                    <div key={index} className="home-products__empty">
+                                        {prod?.name || `מוצר ${index + 1}`}
+                                    </div>
+                                )
+                            ))}
                         </div>
                     </div>
 
@@ -422,7 +407,7 @@ export default function HomePage() {
                                         <img src={tip.img} alt={tip.title} />
                                     </div>
                                     <div className="home-tips__body">
-                                        <h4 className="line-clamp-2">
+                                        <h4 className="line-clamp-1">
                                             {tip.title ? tip.title.split(":")[0].trim() : ""}
                                         </h4>
                                         <p className="line-clamp-3">

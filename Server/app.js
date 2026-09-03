@@ -5,23 +5,24 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const express = require("express");
 
-const apiRateLimiter = require("./middlewares/apiRate");
 const authRoutes = require("./routes/authRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const orderRoutes = require("./routes/ordersRoutes");
-const photoPriceRoutes = require("./routes/photoPriceRoutes.js");
+const photoPriceRoutes = require("./routes/photoPriceRoutes");
 const productRoutes = require("./routes/productRoutes");
-const tipsRoutes = require("./routes/tipsRoutes.js");
-const catalogRoutes = require("./routes/catalogRoutes.js");
-const captionIdeasRoutes = require("./routes/captionIdeasRoutes.js");
-const designFramesRoutes = require("./routes/designFramesRoutes.js");
-const frameCategoriesRoutes = require("./routes/frameCategoriesRoutes.js");
+const tipsRoutes = require("./routes/tipsRoutes");
+const catalogRoutes = require("./routes/catalogRoutes");
+const captionIdeasRoutes = require("./routes/captionIdeasRoutes");
+const designFramesRoutes = require("./routes/designFramesRoutes");
+const frameCategoriesRoutes = require("./routes/frameCategoriesRoutes");
+const editorSettingsRoutes = require("./routes/editorSettingsRoutes");
+const designUploadsRoutes = require("./routes/designUploadsRoutes");
 
-const PORT = config.PORT;
-const HOST_NAME = config.HOST_NAME;
+const PORT = Number(process.env.PORT || config.PORT) || 10000;
+const HOST = process.env.HOST || "0.0.0.0";
 const app = express();
-
+app.set('trust proxy', 1);
 const allowedOrigins = Array.from(new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -57,11 +58,9 @@ app.use("/catalog", catalogRoutes);
 app.use("/caption-ideas", captionIdeasRoutes);
 app.use("/design-frames", designFramesRoutes);
 app.use("/frame-categories", frameCategoriesRoutes);
+app.use("/editor-settings", editorSettingsRoutes);
+app.use("/design-uploads", designUploadsRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://${HOST_NAME}:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });
-// const PORT = process.env.PORT || 10000;
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`);
-// });
