@@ -116,7 +116,7 @@ const collectItemDownloads = (item, orderId, index) => {
         return files;
     }
 
-    add(item.image, "הורדת עיצוב / תמונה", "design");
+    add(item.image, "הורדת תמונה", "design");
     add(item.customization?.referenceImage, "הורדת קובץ מצורף", "reference");
     return files;
 };
@@ -129,6 +129,13 @@ const itemKindLabel = (item) => {
     }
     if (item.customization) return "מוצר מותאם";
     return "מוצר מהקטלוג";
+};
+
+const splitItemDisplayName = (name) => {
+    const raw = String(name || "").trim();
+    const match = raw.match(/^(.*)\s+\(([^)]+)\)\s*$/);
+    if (!match) return { title: raw, fileName: null };
+    return { title: match[1].trim(), fileName: match[2].trim() };
 };
 
 const copyText = async (value) => {
@@ -206,6 +213,8 @@ const CaptionsSummary = ({ captions }) => {
 const Chip = ({ children }) => (
     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{children}</span>
 );
+
+const ITEMS_PAGE_SIZE = 20;
 
 /** בחירות הלקוח בעורך: מסגרת, מידה, כיוון וכתוביות – כפי שנשמרו עם ההזמנה */
 const DesignSelectionDetails = ({ customDesign, orientationLabels }) => {
@@ -309,11 +318,13 @@ export default function OrderDetailPage() {
     const [updatingStatus, setUpdatingStatus] = useState(false);
     const [syncingDrive, setSyncingDrive] = useState(false);
     const [driveError, setDriveError] = useState("");
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PAGE_SIZE);
 
     useEffect(() => {
         const load = async () => {
             setLoading(true);
             setError("");
+            setVisibleCount(ITEMS_PAGE_SIZE);
             try {
                 const data = await getOrderById(orderId);
                 setOrder(data);
@@ -548,34 +559,46 @@ export default function OrderDetailPage() {
                             <FaBoxOpen className="text-[#f2665e]" />
                             פריטים להפקה
                         </h2>
-                        <div className="space-y-4">
-                            {order.items.map((item, i) => {
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                            {order.items.slice(0, visibleCount).map((item, i) => {
                                 const downloads = collectItemDownloads(item, order._id, i);
                                 const printSize = item.customDesign?.printSizeCm;
                                 const driveFile = item.customDesign?.driveFile || item.customDesign?.designFile;
+                                const { title, fileName } = splitItemDisplayName(item.name);
                                 return (
-                                    <div key={i} className="border border-gray-100 rounded-2xl p-4">
-                                        <div className="flex flex-col sm:flex-row gap-4">
+                                    <div key={i} className="border border-gray-100 rounded-2xl p-4 h-full flex flex-col">
+                                        <div className="flex flex-col sm:flex-row gap-4 flex-1">
                                             {item.image ? (
-                                                <a href={item.image} target="_blank" rel="noreferrer" className="shrink-0">
-                                                    <img
-                                                        src={item.image}
-                                                        alt={item.name}
-                                                        className="w-full sm:w-36 h-36 object-cover rounded-xl border border-gray-100 bg-gray-50"
-                                                    />
+                                                <a href={item.image} target="_blank" rel="noreferrer" className="block w-full sm:w-36 shrink-0">
+                                                    <span className="block aspect-square w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+                                                        <img
+                                                            src={item.image}
+                                                            alt={item.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </span>
                                                 </a>
                                             ) : (
-                                                <div className="w-full sm:w-36 h-36 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
-                                                    <FaBoxOpen size={28} />
+                                                <div className="w-full sm:w-36 shrink-0">
+                                                    <div className="aspect-square w-full rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                                                        <FaBoxOpen size={28} />
+                                                    </div>
                                                 </div>
                                             )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                    <h3 className="font-bold text-gray-800">{item.name}</h3>
-                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                            <div className="flex-1 min-w-0 flex flex-col">
+                                                <div className="flex flex-wrap items-start gap-2 mb-1">
+                                                    <h3 className="font-bold text-gray-800">
+                                                        {title}
+                                                    </h3>
+                                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full shrink-0">
                                                         {itemKindLabel(item)}
                                                     </span>
                                                 </div>
+                                                {fileName && (
+                                                    <p className="text-sm text-gray-500 mb-1 break-all" dir="ltr">
+                                                        {fileName}
+                                                    </p>
+                                                )}
                                                 <p className="text-sm text-gray-500">
                                                     כמות: {item.quantity}
                                                     {item.size ? ` · גודל: ${item.size}` : ""}
@@ -600,7 +623,7 @@ export default function OrderDetailPage() {
                                                             key={file.filename}
                                                             type="button"
                                                             onClick={() => downloadAsset(file.src, file.filename)}
-                                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f2665e] text-white text-sm font-medium hover:bg-[#d95248]"
+                                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#f2665e] text-white text-sm font-medium whitespace-nowrap hover:bg-[#d95248]"
                                                         >
                                                             <FaDownload size={12} />
                                                             {file.label}
@@ -632,6 +655,15 @@ export default function OrderDetailPage() {
                                 );
                             })}
                         </div>
+                        {visibleCount < order.items.length && (
+                            <button
+                                type="button"
+                                onClick={() => setVisibleCount((count) => count + ITEMS_PAGE_SIZE)}
+                                className="mt-4 w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-600 text-sm font-medium hover:border-[#f2665e] hover:text-[#f2665e] transition-colors"
+                            >
+                                טען עוד ({order.items.length - visibleCount} נוספים)
+                            </button>
+                        )}
                     </section>
                 </div>
 
