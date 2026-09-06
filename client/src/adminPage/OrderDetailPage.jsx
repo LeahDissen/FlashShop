@@ -214,7 +214,7 @@ const Chip = ({ children }) => (
     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{children}</span>
 );
 
-const ITEMS_PAGE_SIZE = 20;
+const ITEMS_PAGE_SIZE = 10;
 
 /** בחירות הלקוח בעורך: מסגרת, מידה, כיוון וכתוביות – כפי שנשמרו עם ההזמנה */
 const DesignSelectionDetails = ({ customDesign, orientationLabels }) => {
@@ -559,15 +559,15 @@ export default function OrderDetailPage() {
                             <FaBoxOpen className="text-[#f2665e]" />
                             פריטים להפקה
                         </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                        <div className="space-y-4">
                             {order.items.slice(0, visibleCount).map((item, i) => {
                                 const downloads = collectItemDownloads(item, order._id, i);
                                 const printSize = item.customDesign?.printSizeCm;
                                 const driveFile = item.customDesign?.driveFile || item.customDesign?.designFile;
                                 const { title, fileName } = splitItemDisplayName(item.name);
                                 return (
-                                    <div key={i} className="border border-gray-100 rounded-2xl p-4 h-full flex flex-col">
-                                        <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                                    <div key={i} className="border border-gray-100 rounded-2xl p-4">
+                                        <div className="flex flex-col sm:flex-row gap-4">
                                             {item.image ? (
                                                 <a href={item.image} target="_blank" rel="noreferrer" className="block w-full sm:w-36 shrink-0">
                                                     <span className="block aspect-square w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
@@ -585,7 +585,7 @@ export default function OrderDetailPage() {
                                                     </div>
                                                 </div>
                                             )}
-                                            <div className="flex-1 min-w-0 flex flex-col">
+                                            <div className="flex-1 min-w-0">
                                                 <div className="flex flex-wrap items-start gap-2 mb-1">
                                                     <h3 className="font-bold text-gray-800">
                                                         {title}
