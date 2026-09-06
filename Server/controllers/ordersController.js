@@ -5,7 +5,13 @@ const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
-const { isDriveConfigured, moveDesignsToOrderFolder, uploadRemoteImageToStaging } = require("../services/googleDriveService");
+const {
+    isDriveConfigured,
+    moveDesignsToOrderFolder,
+    ensureOrderFolder,
+    downloadImageSource,
+    uploadBufferToFolder,
+} = require("../services/googleDriveService");
 const { loadEditorSettings } = require("./editorSettingsController");
 
 const isValidObjectId = (id) =>
@@ -56,6 +62,26 @@ const extensionFromImageUrl = (url) => {
     const match = String(url || "").toLowerCase().match(/\.(jpe?g|png|webp|gif)(?:\?|$)/);
     if (!match) return "jpg";
     return match[1] === "jpeg" ? "jpg" : match[1];
+};
+
+const extensionFromMime = (mime) => {
+    const type = String(mime || "").toLowerCase();
+    if (type.includes("png")) return "png";
+    if (type.includes("webp")) return "webp";
+    if (type.includes("gif")) return "gif";
+    return "jpg";
+};
+
+const resolvePhotoPrintSource = (item) => {
+    const candidates = [
+        item?.image,
+        item?.customization?.originalImage,
+        item?.customization?.referenceImage,
+    ];
+    for (const src of candidates) {
+        if (typeof src === "string" && src.trim()) return src.trim();
+    }
+    return "";
 };
 
 const compactDriveFile = (file) => {
@@ -236,40 +262,131 @@ const shortOrderLabel = (id) => String(id).slice(-8).toUpperCase();
 /**
  * מעלה תמונות פיתוח ל-Drive לפני סידור תיקיית ההזמנה.
  * מוצרים רגילים נשארים בניהול הזמנות בלבד.
+ * @param {{ strict?: boolean }} [options] — strict=true מהכפתור באדמין; אחרת לא מפיל יצירת הזמנה.
  */
-async function uploadPhotoPrintsToDrive(order) {
+async function uploadPhotoPrintsToDrive(order, { strict = false } = {}) {
     if (!isDriveConfigured()) return;
 
-    let changed = false;
+    const orderId = String(order._id);
+    const photoIndexes = [];
     for (let itemIndex = 0; itemIndex < order.items.length; itemIndex += 1) {
+        if (isPhotoPrintItem(order.items[itemIndex])) photoIndexes.push(itemIndex);
+    }
+
+    if (photoIndexes.length === 0) {
+        if (strict) {
+            const err = new Error("אין בהזמנה פריטי פיתוח תמונות להעלאה.");
+            err.driveUserFacing = true;
+            throw err;
+        }
+        return;
+    }
+
+    console.log(`[Drive][order=${orderId}] stage=uploadPhotoPrints start items=${photoIndexes.length}`);
+
+    let folder;
+    try {
+        const settings = await loadEditorSettings();
+        folder = await ensureOrderFolder({
+            orderId,
+            orderLabel: shortOrderLabel(order._id),
+            folderTemplate: settings?.drive?.orderFolderTemplate,
+        });
+    } catch (err) {
+        if (strict) throw err;
+        console.warn(`[Drive][order=${orderId}] stage=ensureOrderFolder failed:`, err.message);
+        return;
+    }
+
+    let uploaded = 0;
+    let skipped = 0;
+    let changed = false;
+
+    for (const itemIndex of photoIndexes) {
         const item = order.items[itemIndex];
-        if (!isPhotoPrintItem(item)) continue;
-        if (item.customDesign?.designFile?.id) continue;
+        if (item.customDesign?.designFile?.id) {
+            console.log(`[Drive][order=${orderId}][item=${itemIndex}] stage=skip already_uploaded`);
+            skipped += 1;
+            continue;
+        }
 
-        const imageUrl = String(item.image || "");
-        if (!imageUrl.startsWith("http")) continue;
-
+        const imageUrl = resolvePhotoPrintSource(item);
         const originalName = String(item.name || "")
             .replace(/^פיתוח תמונה\s*/i, "")
             .replace(/[()]/g, "")
             .trim();
         const sizePart = item.size ? `${item.size} ` : "";
-        const ext = extensionFromImageUrl(imageUrl);
-        const fileName = sanitizeDriveFileName(
-            `פיתוח ${sizePart}${originalName || itemIndex + 1}.${ext}`,
-            `photo-print-${itemIndex + 1}.${ext}`,
+        const fallbackExt = imageUrl.startsWith("data:") ? "jpg" : extensionFromImageUrl(imageUrl);
+        const fileNameHint = sanitizeDriveFileName(
+            `פיתוח ${sizePart}${originalName || itemIndex + 1}.${fallbackExt}`,
+            `photo-print-${itemIndex + 1}.${fallbackExt}`,
         );
 
+        if (!imageUrl || (!imageUrl.startsWith("http") && !imageUrl.startsWith("data:"))) {
+            console.error(
+                `[Drive][order=${orderId}][item=${itemIndex}] stage=resolveSource failed reason=missing_file`,
+            );
+            const message = `קובץ התמונה חסר בפריט ${itemIndex + 1} (${item.name || "ללא שם"}).`;
+            if (strict) {
+                const err = new Error(message);
+                err.driveUserFacing = true;
+                throw err;
+            }
+            console.warn(`[Drive][order=${orderId}][item=${itemIndex}] ${message}`);
+            continue;
+        }
+
         try {
-            const uploaded = await uploadRemoteImageToStaging({ imageUrl, fileName });
-            if (!uploaded?.id) continue;
+            const downloaded = await downloadImageSource(imageUrl, {
+                orderId,
+                fileName: fileNameHint,
+                itemIndex,
+            });
+            const ext = imageUrl.startsWith("data:")
+                ? extensionFromMime(downloaded.mimeType)
+                : extensionFromImageUrl(imageUrl);
+            const fileName = sanitizeDriveFileName(
+                `פיתוח ${sizePart}${originalName || itemIndex + 1}.${ext}`,
+                `photo-print-${itemIndex + 1}.${ext}`,
+            );
+            const file = await uploadBufferToFolder({
+                buffer: downloaded.buffer,
+                mimeType: downloaded.mimeType,
+                fileName,
+                parentId: folder.folderId,
+                orderId,
+                itemIndex,
+            });
+            const compact = compactDriveFile(file);
             item.customDesign = {
                 ...(item.customDesign || {}),
-                designFile: compactDriveFile(uploaded),
+                designFile: compact,
+                driveFile: compact,
             };
+            uploaded += 1;
             changed = true;
         } catch (err) {
-            console.warn(`Drive: failed to upload photo print ${itemIndex} for order ${order._id}`, err.message);
+            if (strict) throw err;
+            console.warn(
+                `[Drive][order=${orderId}][item=${itemIndex}][file=${fileNameHint}] stage=uploadPhotoPrints failed:`,
+                err.message,
+            );
+        }
+    }
+
+    if (changed || (uploaded + skipped) > 0) {
+        const fileCount = order.items.filter(
+            (line) => isPhotoPrintItem(line) && line.customDesign?.designFile?.id,
+        ).length;
+        if (fileCount > 0) {
+            order.drive = {
+                folderId: folder.folderId,
+                folderName: folder.folderName,
+                folderUrl: folder.folderUrl,
+                fileCount,
+                uploadedAt: new Date(),
+            };
+            changed = true;
         }
     }
 
@@ -277,6 +394,10 @@ async function uploadPhotoPrintsToDrive(order) {
         order.markModified("items");
         await order.save();
     }
+
+    console.log(
+        `[Drive][order=${orderId}] stage=uploadPhotoPrints done uploaded=${uploaded} skipped=${skipped}`,
+    );
 }
 
 /**
@@ -484,19 +605,23 @@ exports.syncOrderDrive = async (req, res) => {
             return res.status(404).json({ msg: "ההזמנה לא נמצאה" });
         }
 
-        await uploadPhotoPrintsToDrive(order);
+        await uploadPhotoPrintsToDrive(order, { strict: true });
         await attachDriveFolderToOrder(order);
 
         const fresh = await OrderModel.findById(order._id).populate("user_id", "name email createdAt");
         if (!fresh?.drive?.folderUrl) {
             return res.status(500).json({
-                msg: "ההעלאה ל-Drive לא הושלמה. בדקו שהתמונות זמינות ושיש לחשבון השירות הרשאה לתיקייה.",
+                msg: "ההעלאה ל-Drive לא הושלמה: לא נוצרה תיקייה להזמנה. בדקו הרשאות לתיקייה הראשית ושהקבצים זמינים.",
             });
         }
         res.json(fresh);
     } catch (err) {
-        console.error("Drive sync failed:", err);
-        res.status(500).json({ msg: "שגיאה בשליחה ל-Google Drive" });
+        console.error(`[Drive][order=${req.params.id}] stage=sync failed:`, err.message);
+        res.status(500).json({
+            msg: err.driveUserFacing
+                ? err.message
+                : "שגיאה בשליחה ל-Google Drive.",
+        });
     }
 };
 
