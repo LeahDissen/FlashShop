@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     FaBoxOpen,
     FaCheckCircle,
@@ -207,6 +207,42 @@ const Chip = ({ children }) => (
     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{children}</span>
 );
 
+const DesignerRequestBox = ({ contact }) => {
+    if (!contact || contact.type !== "designer-service") return null;
+
+    return (
+        <div className="mt-4 rounded-xl border border-[#f2665e]/20 bg-[#fff5f4] p-4 text-sm flex gap-4 items-start">
+            {contact.referenceImage && (
+                <a href={contact.referenceImage} target="_blank" rel="noreferrer" className="shrink-0">
+                    <img
+                        src={contact.referenceImage}
+                        alt="תמונה מצורפת"
+                        className="w-24 h-24 object-cover rounded-lg border border-[#f2665e]/20 bg-white"
+                    />
+                </a>
+            )}
+            <div className="min-w-0 flex-1 space-y-1">
+                {contact.name && <p className="font-bold text-gray-800">{contact.name}</p>}
+                {contact.phone && (
+                    <p className="flex items-center gap-2 text-gray-700">
+                        <FaPhone className="text-[#f2665e]" size={12} />
+                        <a href={`tel:${contact.phone}`} className="hover:underline" dir="ltr">{contact.phone}</a>
+                    </p>
+                )}
+                {contact.email && (
+                    <p className="flex items-center gap-2 text-gray-700">
+                        <FaEnvelope className="text-[#f2665e]" size={12} />
+                        <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
+                    </p>
+                )}
+                {contact.description && (
+                    <p className="text-gray-600 mt-2 whitespace-pre-wrap">{contact.description}</p>
+                )}
+            </div>
+        </div>
+    );
+};
+
 /** בחירות הלקוח בעורך: מסגרת, מידה, כיוון וכתוביות – כפי שנשמרו עם ההזמנה */
 const DesignSelectionDetails = ({ customDesign, orientationLabels }) => {
     const frame = customDesign?.frameSelection;
@@ -328,12 +364,6 @@ export default function OrderDetailPage() {
     }, [orderId]);
 
     const customer = order?.user_id && typeof order.user_id === "object" ? order.user_id : null;
-    const designerContacts = useMemo(() => {
-        if (!order?.items) return [];
-        return order.items
-            .map((item) => item.customization)
-            .filter((c) => c?.type === "designer-service");
-    }, [order]);
 
     const handleStatusChange = async (newStatus) => {
         if (!order) return;
@@ -447,47 +477,10 @@ export default function OrderDetailPage() {
                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 sm:col-span-2">
                                 <p className="text-gray-500 mb-1">כתובת למשלוח / טלפון בחשבון</p>
                                 <p className="text-gray-600">
-                                    לא נאספים כרגע בקופה. אם יש פרטי התקשרות בבקשת עיצוב, הם יופיעו למטה.
+                                    לא נאספים כרגע בקופה. אם יש פרטי התקשרות בבקשת עיצוב, הם יופיעו בכרטיס הפריט.
                                 </p>
                             </div>
                         </div>
-
-                        {designerContacts.length > 0 && (
-                            <div className="mt-4 space-y-3">
-                                <h3 className="text-sm font-semibold text-gray-500">פרטי קשר מבקשת עיצוב</h3>
-                                {designerContacts.map((contact, i) => (
-                                    <div key={i} className="rounded-xl border border-[#f2665e]/20 bg-[#fff5f4] p-4 text-sm flex gap-4 items-start">
-                                        {contact.referenceImage && (
-                                            <a href={contact.referenceImage} target="_blank" rel="noreferrer" className="shrink-0">
-                                                <img
-                                                    src={contact.referenceImage}
-                                                    alt="תמונה מצורפת"
-                                                    className="w-24 h-24 object-cover rounded-lg border border-[#f2665e]/20 bg-white"
-                                                />
-                                            </a>
-                                        )}
-                                        <div className="min-w-0 flex-1 space-y-1">
-                                            {contact.name && <p className="font-bold text-gray-800">{contact.name}</p>}
-                                            {contact.phone && (
-                                                <p className="flex items-center gap-2 text-gray-700">
-                                                    <FaPhone className="text-[#f2665e]" size={12} />
-                                                    <a href={`tel:${contact.phone}`} className="hover:underline" dir="ltr">{contact.phone}</a>
-                                                </p>
-                                            )}
-                                            {contact.email && (
-                                                <p className="flex items-center gap-2 text-gray-700">
-                                                    <FaEnvelope className="text-[#f2665e]" size={12} />
-                                                    <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
-                                                </p>
-                                            )}
-                                            {contact.description && (
-                                                <p className="text-gray-600 mt-2 whitespace-pre-wrap">{contact.description}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
                     </section>
 
                     {showDriveCard && (
@@ -626,6 +619,7 @@ export default function OrderDetailPage() {
                                                     orientationLabels={settings.orientationLabels}
                                                 />
                                                 <CaptionsSummary captions={item.customDesign?.captions} />
+                                                <DesignerRequestBox contact={item.customization} />
                                             </div>
                                         </div>
                                     </div>
