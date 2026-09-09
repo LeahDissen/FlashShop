@@ -17,6 +17,7 @@ const captionIdeasRoutes = require("./routes/captionIdeasRoutes");
 const designFramesRoutes = require("./routes/designFramesRoutes");
 const frameCategoriesRoutes = require("./routes/frameCategoriesRoutes");
 const editorSettingsRoutes = require("./routes/editorSettingsRoutes");
+const editorAssetsRoutes = require("./routes/editorAssetsRoutes");
 const designUploadsRoutes = require("./routes/designUploadsRoutes");
 
 const PORT = Number(process.env.PORT || config.PORT) || 10000;
@@ -59,6 +60,7 @@ app.use("/caption-ideas", captionIdeasRoutes);
 app.use("/design-frames", designFramesRoutes);
 app.use("/frame-categories", frameCategoriesRoutes);
 app.use("/editor-settings", editorSettingsRoutes);
+app.use("/editor-assets", editorAssetsRoutes);
 app.use("/design-uploads", designUploadsRoutes);
 
 app.listen(PORT, HOST, () => {

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { BackgroundIcon, ChevronLeftIcon, GridIcon, ImageIcon, TextIcon, XIcon } from '../icons';
 import { DEFAULT_EDITOR_SETTINGS } from '../../constants/editorSettingsDefaults';
+import { useEditorAssets } from '../../hooks/useEditorAssets';
 
 const SidebarTab = ({ icon, label, isActive, onClick, compact = false }) => {
     return (
@@ -19,34 +20,27 @@ const SidebarTab = ({ icon, label, isActive, onClick, compact = false }) => {
     );
 };
 
-const ColorSwatch = ({ color, onClick, isSelected }) => (
+const ColorSwatch = ({ color, value, onClick, isSelected }) => (
     <button
         onClick={onClick}
-        className={`w-9 h-9 sm:w-8 sm:h-8 rounded-md cursor-pointer border border-gray-200 touch-manipulation ${color} ${isSelected ? 'ring-2 ring-red-500 ring-offset-1' : ''}`}
-        aria-label={`Select ${color} color`}
+        className={`w-9 h-9 sm:w-8 sm:h-8 rounded-md cursor-pointer border border-gray-200 touch-manipulation ${color || ''} ${isSelected ? 'ring-2 ring-red-500 ring-offset-1' : ''}`}
+        style={value ? { backgroundColor: value } : undefined}
+        aria-label={`Select ${color || value} color`}
         aria-pressed={isSelected}
     ></button>
 );
 
-const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgrounds, addUploadedBackground, deleteUploadedBackground }) => {
+const BackgroundPanel = ({
+    canvasBackground,
+    setCanvasBackground,
+    uploadedBackgrounds,
+    addUploadedBackground,
+    deleteUploadedBackground,
+    colors,
+    backgroundImages,
+}) => {
     const fileInputRef = useRef(null);
     const colorInputRef = useRef(null);
-
-    const colors = [
-        { value: '#FFFFFF', class: 'bg-white' }, { value: '#E5E7EB', class: 'bg-gray-200' }, { value: '#9CA3AF', class: 'bg-gray-400' }, { value: '#4B5563', class: 'bg-gray-600' },
-        { value: '#1F2937', class: 'bg-gray-800' }, { value: '#000000', class: 'bg-black' }, { value: '#9333EA', class: 'bg-purple-600' }, { value: '#C084FC', class: 'bg-purple-400' },
-        { value: '#F472B6', class: 'bg-pink-400' }, { value: '#F87171', class: 'bg-red-400' }, { value: '#DC2626', class: 'bg-red-600' }, { value: '#1E40AF', class: 'bg-blue-800' },
-        { value: '#3B82F6', class: 'bg-blue-500' }, { value: '#38BDF8', class: 'bg-sky-400' }, { value: '#67E8F9', class: 'bg-cyan-300' }, { value: '#2DD4BF', class: 'bg-teal-400' },
-        { value: '#FB923C', class: 'bg-orange-400' }, { value: '#FBBF24', class: 'bg-amber-400' }, { value: '#FDE047', class: 'bg-yellow-300' }, { value: '#A3E635', class: 'bg-lime-400' },
-        { value: '#22C55E', class: 'bg-green-500' },
-    ];
-
-    const backgroundImages = [
-        'https://images.unsplash.com/photo-1519750783826-e2420f4d687f?q=80&w=300&h=450&fit=crop',
-        'https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17?q=80&w=300&h=450&fit=crop',
-        'https://images.unsplash.com/photo-1604147706283-d7119b5b822c?q=80&w=300&h=450&fit=crop',
-        'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=300&h=450&fit=crop',
-    ];
 
     const handleUploadClick = () => {
         fileInputRef.current?.click();
@@ -78,7 +72,7 @@ const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgr
         setCanvasBackground({ type: 'color', value: event.target.value });
     };
 
-    const isCustomColor = canvasBackground.type === 'color' && !colors.some(c => c.value === canvasBackground.value);
+    const isCustomColor = canvasBackground.type === 'color' && !(colors || []).some(c => c.value === canvasBackground.value);
 
     return (
         <div className="p-4 text-right">
@@ -100,10 +94,11 @@ const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgr
 
             <h4 className="font-semibold text-gray-700 text-sm mb-3">צבעים</h4>
             <div className="grid grid-cols-6 sm:grid-cols-5 gap-2 mb-6">
-                {colors.map(c => (
+                {(colors || []).map(c => (
                     <ColorSwatch
                         key={c.value}
                         color={c.class}
+                        value={c.value}
                         onClick={() => setCanvasBackground({ type: 'color', value: c.value })}
                         isSelected={canvasBackground.type === 'color' && canvasBackground.value === c.value}
                     />
@@ -162,7 +157,7 @@ const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgr
 
             <h4 className="font-semibold text-gray-700 text-sm mb-3">תמונות רקע</h4>
             <div className="grid grid-cols-2 gap-2">
-                {backgroundImages.map(imgSrc => {
+                {(backgroundImages || []).map(imgSrc => {
                     const isSelected = canvasBackground.type === 'image' && canvasBackground.value === imgSrc;
                     return (
                         <button
@@ -179,6 +174,22 @@ const BackgroundPanel = ({ canvasBackground, setCanvasBackground, uploadedBackgr
         </div>
     );
 };
+
+const FALLBACK_COLORS = [
+    { value: '#FFFFFF', class: 'bg-white' }, { value: '#E5E7EB', class: 'bg-gray-200' }, { value: '#9CA3AF', class: 'bg-gray-400' }, { value: '#4B5563', class: 'bg-gray-600' },
+    { value: '#1F2937', class: 'bg-gray-800' }, { value: '#000000', class: 'bg-black' }, { value: '#9333EA', class: 'bg-purple-600' }, { value: '#C084FC', class: 'bg-purple-400' },
+    { value: '#F472B6', class: 'bg-pink-400' }, { value: '#F87171', class: 'bg-red-400' }, { value: '#DC2626', class: 'bg-red-600' }, { value: '#1E40AF', class: 'bg-blue-800' },
+    { value: '#3B82F6', class: 'bg-blue-500' }, { value: '#38BDF8', class: 'bg-sky-400' }, { value: '#67E8F9', class: 'bg-cyan-300' }, { value: '#2DD4BF', class: 'bg-teal-400' },
+    { value: '#FB923C', class: 'bg-orange-400' }, { value: '#FBBF24', class: 'bg-amber-400' }, { value: '#FDE047', class: 'bg-yellow-300' }, { value: '#A3E635', class: 'bg-lime-400' },
+    { value: '#22C55E', class: 'bg-green-500' },
+];
+
+const FALLBACK_CANVAS_BACKGROUNDS = [
+    'https://images.unsplash.com/photo-1519750783826-e2420f4d687f?q=80&w=300&h=450&fit=crop',
+    'https://images.unsplash.com/photo-1528459801416-a9e53bbf4e17?q=80&w=300&h=450&fit=crop',
+    'https://images.unsplash.com/photo-1604147706283-d7119b5b822c?q=80&w=300&h=450&fit=crop',
+    'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?q=80&w=300&h=450&fit=crop',
+];
 
 const svgToDataURL = (svgString) =>
     `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
@@ -235,6 +246,15 @@ const icons = [
     { id: 'plane', alt: 'Plane', src: svgToDataURL(`<svg viewBox="0 0 24 24" fill="#1F2937" xmlns="http://www.w3.org/2000/svg"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`) },
     { id: 'twitter', alt: 'Twitter', src: svgToDataURL(`<svg viewBox="0 0 24 24" fill="#1F2937" xmlns="http://www.w3.org/2000/svg"><path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05-.78-.83-1.88-1.35-3.09-1.35-2.34 0-4.24 1.9-4.24 4.24 0 .33.04.65.1.96-3.53-.18-6.66-1.87-8.75-4.44-.37.63-.58 1.37-.58 2.15 0 1.47.75 2.77 1.89 3.53-.69-.02-1.35-.21-1.92-.53v.05c0 2.05 1.46 3.76 3.4 4.15-.36.1-.73.15-1.11.15-.27 0-.54-.02-.8-.06.54 1.68 2.1 2.91 3.96 2.94-1.45 1.14-3.27 1.82-5.25 1.82-.34 0-.68-.02-1.02-.06 1.87 1.2 4.09 1.9 6.47 1.9 7.76 0 12.01-6.43 12.01-12.01 0-.18 0-.37-.01-.55.82-.6 1.53-1.34 2.09-2.2z"/></svg>`) },
 ];
+
+const FALLBACK_EDITOR_ASSETS = {
+    shapes,
+    backgroundAssets,
+    graphics,
+    icons,
+    canvasBackgrounds: FALLBACK_CANVAS_BACKGROUNDS,
+    colors: FALLBACK_COLORS,
+};
 
 const ElementSection = ({ title, items, onAdd, onShowAll }) => {
     const scrollContainerRef = useRef(null);
@@ -302,6 +322,10 @@ const ElementSection = ({ title, items, onAdd, onShowAll }) => {
 const ElementsPanel = ({
     addImageElement,
     addShapeElement,
+    shapes,
+    backgroundAssets,
+    graphics,
+    icons,
 }) => {
     const [expandedCategory, setExpandedCategory] = useState(null);
 
@@ -512,6 +536,7 @@ const EditorSidebar = ({
     deleteUploadedBackground,
     editorSettings = DEFAULT_EDITOR_SETTINGS,
 }) => {
+    const { assets } = useEditorAssets(FALLBACK_EDITOR_ASSETS);
     const [activeTab, setActiveTab] = useState('background');
     const [isCollapsed, setIsCollapsed] = useState(false);
     /** במובייל: האם פאנל הכלים פתוח מעל הטאבים */
@@ -543,12 +568,18 @@ const EditorSidebar = ({
                     uploadedBackgrounds={uploadedBackgrounds}
                     addUploadedBackground={addUploadedBackground}
                     deleteUploadedBackground={deleteUploadedBackground}
+                    colors={assets.colors}
+                    backgroundImages={assets.canvasBackgrounds}
                 />
             )}
             {activeTab === 'elements' && (
                 <ElementsPanel
                     addImageElement={addImageElement}
                     addShapeElement={addShapeElement}
+                    shapes={assets.shapes}
+                    backgroundAssets={assets.backgroundAssets}
+                    graphics={assets.graphics}
+                    icons={assets.icons}
                 />
             )}
             {activeTab === 'text' && (

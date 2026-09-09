@@ -25,6 +25,7 @@ import TipsPage from "./pages/TipsPage";
 import ProductSelectionPage from "./pages/ProductSelectionPage";
 import CaptionIdeasPage from "./pages/CaptionIdeasPage";
 import DesignFramesManagement from "./adminPage/DesignFramesManagement";
+import EditorAssetsManagement from "./adminPage/EditorAssetsManagement";
 import EditorSettingsManagement from "./adminPage/EditorSettingsManagement";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import CheckoutPage from "./pages/CheckoutPage";
@@ -71,6 +72,7 @@ export default function AppRoutes() {
                 <Route path="/updatecatalog" element={<AdminRoute><Layout><UpdateCatalog /></Layout></AdminRoute>} />
                 <Route path="/viewmessages" element={<AdminRoute><Layout><ViewMessages /></Layout></AdminRoute>} />
                 <Route path="/designframes" element={<AdminRoute><Layout><DesignFramesManagement /></Layout></AdminRoute>} />
+                <Route path="/editorassets" element={<AdminRoute><Layout><EditorAssetsManagement /></Layout></AdminRoute>} />
                 <Route path="/editorsettings" element={<AdminRoute><Layout><EditorSettingsManagement /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />

@@ -1,4 +1,4 @@
-import { FaCamera, FaGift, FaHome, FaLightbulb, FaMagic, FaScroll, FaShoppingCart, FaTags, FaWindowMaximize, FaWindowMinimize } from 'react-icons/fa';
+import { FaCamera, FaGift, FaHome, FaLightbulb, FaMagic, FaScroll, FaShoppingCart, FaTags, FaThLarge, FaWindowMaximize, FaWindowMinimize } from 'react-icons/fa';
 import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAppStore from '../store/appStore';
@@ -100,10 +100,24 @@ export default function EditPages() {
             targetEndpoint: "cart",
             type: "page"
         },
+        {
+            id: 10,
+            title: "ניהול רכיבי עיצוב עצמי",
+            description: "הוספה, עריכה ומחיקה של צורות, תמונות רקע, גרפיקות ואייקונים בעורך.",
+            icon: <FaThLarge className="text-3xl text-white" />,
+            link: "/editorassets",
+            targetEndpoint: null,
+            type: "admin"
+        },
     ];
 
     const handleEditClick = (page) => {
         const stateData = { autoEdit: true, targetEndpoint: page.targetEndpoint };
+
+        if (page.type === 'admin') {
+            navigate(page.link);
+            return;
+        }
 
         if (page.type === 'popup') {
             if (page.targetEndpoint === 'club') {
