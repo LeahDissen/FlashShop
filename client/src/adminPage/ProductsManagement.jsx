@@ -20,10 +20,12 @@ import {
     parseCustomCategoriesFromPage,
     parseHiddenCategoriesFromPage,
     sanitizeCustomCategories,
+    MAGNET_CATEGORY,
 } from "../constants/productCategories";
 import { getProductDirectLink } from "../utils/productDisplay";
 import { CAPTION_CATEGORIES } from "../constants/captionCategories";
 import { validatePriceTiers, serializePriceTiers } from "../utils/productQuantityPricing";
+import { parseMagnetSize } from "../utils/magnetSize";
 
 const createEmptyTier = () => ({
     id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -43,6 +45,7 @@ const INITIAL_FORM_DATA = {
     printWidth: 12,
     printHeight: 18,
     allowOrientationToggle: false,
+    size: "",
 };
 
 export default function ProductsManagement() {
@@ -73,6 +76,11 @@ export default function ProductsManagement() {
         const displayType = formData.displayType
             || (formData.category ? getDisplayTypeForCategory(formData.category) : "");
         return displayType === DISPLAY_TYPES.DESIGN;
+    }, [formData.category, formData.displayType, categoryListVersion]);
+    const isMagnetCategory = useMemo(() => {
+        const displayType = formData.displayType
+            || (formData.category ? getDisplayTypeForCategory(formData.category) : "");
+        return displayType === DISPLAY_TYPES.MAGNET || formData.category === MAGNET_CATEGORY;
     }, [formData.category, formData.displayType, categoryListVersion]);
 
     useEffect(() => {
@@ -136,6 +144,10 @@ export default function ProductsManagement() {
                 setProductCaptions([]);
                 setNewCaption({ text: "", category: "כללי" });
             }
+            if (newCategoryDisplayType === DISPLAY_TYPES.MAGNET) {
+                setTieredPricingEnabled(false);
+                setPriceTiers([]);
+            }
             setNewCategoryName("");
             setNewCategoryDisplayType(DISPLAY_TYPES.DESIGN);
             setShowAddCategory(false);
@@ -196,10 +208,15 @@ export default function ProductsManagement() {
                 setProductCaptions([]);
                 setNewCaption({ text: "", category: "כללי" });
             }
+            if (displayType === DISPLAY_TYPES.MAGNET) {
+                setTieredPricingEnabled(false);
+                setPriceTiers([]);
+            }
             setFormData({
                 ...formData,
                 category: value,
                 displayType,
+                size: displayType === DISPLAY_TYPES.MAGNET ? formData.size : "",
             });
             return;
         }
@@ -214,7 +231,7 @@ export default function ProductsManagement() {
         }
 
         let serializedTiers = [];
-        if (tieredPricingEnabled) {
+        if (tieredPricingEnabled && !isMagnetCategory) {
             const validation = validatePriceTiers(priceTiers);
             if (!validation.valid) {
                 alert(validation.message);
@@ -224,6 +241,12 @@ export default function ProductsManagement() {
         }
 
         const displayType = getDisplayTypeForCategory(formData.category);
+        const magnetSize = isMagnetCategory ? formData.size.trim() : "";
+        if (isMagnetCategory && !magnetSize) {
+            alert("יש להזין גודל למגנט");
+            return;
+        }
+
         const payload = {
             name: formData.name.trim(),
             description: formData.description.trim(),
@@ -232,7 +255,8 @@ export default function ProductsManagement() {
             displayType,
             stock: Number(formData.stock),
             image: formData.image.trim(),
-            priceTiers: serializedTiers,
+            priceTiers: isMagnetCategory ? [] : serializedTiers,
+            size: magnetSize,
             captionIdeas: isDesignCategory
                 ? productCaptions
                     .map(({ text, category }) => ({
@@ -247,6 +271,14 @@ export default function ProductsManagement() {
             payload.printWidth = Number(formData.printWidth) || 12;
             payload.printHeight = Number(formData.printHeight) || 18;
             payload.allowOrientationToggle = Boolean(formData.allowOrientationToggle);
+        }
+
+        if (isMagnetCategory) {
+            const parsedSize = parseMagnetSize(magnetSize);
+            if (parsedSize) {
+                payload.printWidth = parsedSize.width;
+                payload.printHeight = parsedSize.height;
+            }
         }
 
         try {
@@ -284,11 +316,12 @@ export default function ProductsManagement() {
             printWidth: product.printWidth ?? 12,
             printHeight: product.printHeight ?? 18,
             allowOrientationToggle: Boolean(product.allowOrientationToggle),
+            size: product.size ?? "",
         });
         setProductCaptions(
             displayType === DISPLAY_TYPES.DESIGN ? (product.captionIdeas ?? []) : [],
         );
-        const tiers = product.priceTiers ?? [];
+        const tiers = displayType === DISPLAY_TYPES.MAGNET ? [] : (product.priceTiers ?? []);
         setTieredPricingEnabled(tiers.length > 0);
         setPriceTiers(
             tiers.length > 0
@@ -508,10 +541,7 @@ export default function ProductsManagement() {
                             <div className="w-1/2">
                                 <label className="block text-sm font-medium text-gray-700">מחיר (₪)</label>
                                 <input type="number" name="price" value={formData.price} onChange={handleChange} className="w-full p-2 border rounded-lg" required />
-                                {formData.displayType === DISPLAY_TYPES.MAGNET && (
-                                    <p className="text-xs text-gray-400 mt-1">למגנטים: מחיר בסיסי — הלקוח יבחר גודל עם מחיר משלו</p>
-                                )}
-                                {tieredPricingEnabled && (
+                                {tieredPricingEnabled && !isMagnetCategory && (
                                     <p className="text-xs text-gray-400 mt-1">מחיר בסיס — ישמש כברירת מחדל אם הכמות לא תואמת מדרגה</p>
                                 )}
                             </div>
@@ -521,6 +551,24 @@ export default function ProductsManagement() {
                             </div>
                         </div>
 
+                        {isMagnetCategory && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">גודל</label>
+                                <input
+                                    name="size"
+                                    value={formData.size}
+                                    onChange={handleChange}
+                                    placeholder='לדוגמה: 15×10'
+                                    className="w-full p-2 border rounded-lg"
+                                    required
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    כל גודל נשמר כמוצר נפרד. להוסיף גודל נוסף — צרו מוצר מגנט נוסף.
+                                </p>
+                            </div>
+                        )}
+
+                        {!isMagnetCategory && (
                         <div className="rounded-lg border border-dashed border-[#f2665e]/40 bg-[#fff5f4] p-3 space-y-3">
                             <div className="flex items-center justify-between gap-2">
                                 <div>
@@ -617,6 +665,7 @@ export default function ProductsManagement() {
                                 </div>
                             )}
                         </div>
+                        )}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">URL תמונה</label>
                             <SmartImageInput
@@ -791,7 +840,10 @@ export default function ProductsManagement() {
                                         <div>
                                             <h3 className="font-bold text-gray-800">{product.name}</h3>
                                             <p className="text-xs text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded mt-1">{product.category}</p>
-                                            {(product.printWidth || product.printHeight) && product.displayType !== DISPLAY_TYPES.SIMPLE && (
+                                            {product.size && (
+                                                <p className="text-xs text-[#f2665e] mt-1">גודל: {product.size}</p>
+                                            )}
+                                            {(product.printWidth || product.printHeight) && product.displayType !== DISPLAY_TYPES.SIMPLE && product.displayType !== DISPLAY_TYPES.MAGNET && (
                                                 <p className="text-xs text-[#f2665e] mt-1">
                                                     הדפסה: {product.printWidth ?? 12}×{product.printHeight ?? 18} ס"מ
                                                 </p>

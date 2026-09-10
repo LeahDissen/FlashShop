@@ -53,29 +53,22 @@ export const PRODUCT_CATEGORIES = [
         value: 'מגנטים',
         label: 'מגנטים',
         displayType: DISPLAY_TYPES.MAGNET,
-        hint: 'העלאת תמונה + בחירת גודל — המחיר מתעדכן לפי הגודל',
+        hint: 'העלאת תמונה. כל גודל הוא מוצר נפרד עם מחיר ומלאי משלו',
     },
 ];
 
 export const MAGNET_CATEGORY = 'מגנטים';
 
-export const MAGNET_SIZES = [
-    { label: '10×15', width: 10, height: 15, price: 8 },
-    { label: '13×18', width: 13, height: 18, price: 12 },
-    { label: '15×20', width: 15, height: 20, price: 15 },
-    { label: '20×30', width: 20, height: 30, price: 30 },
-];
-
 export const DISPLAY_TYPE_HINTS = {
     [DISPLAY_TYPES.DESIGN]: 'מוצר עם עיצוב — עורך, גרפיקאית או העלאת תמונה',
     [DISPLAY_TYPES.SIMPLE]: 'תמונה + מחיר בלבד — ללא עיצוב',
-    [DISPLAY_TYPES.MAGNET]: 'העלאת תמונה + בחירת גודל — המחיר מתעדכן לפי הגודל',
+    [DISPLAY_TYPES.MAGNET]: 'העלאת תמונה. כל גודל הוא מוצר נפרד עם מחיר ומלאי משלו',
 };
 
 export const DISPLAY_TYPE_LABELS = {
     [DISPLAY_TYPES.DESIGN]: 'עיצוב (עורך / גרפיקאית)',
     [DISPLAY_TYPES.SIMPLE]: 'תמונה + מחיר',
-    [DISPLAY_TYPES.MAGNET]: 'מגנטים (תמונה + גודל)',
+    [DISPLAY_TYPES.MAGNET]: 'מגנטים (העלאת תמונה)',
 };
 
 let customCategoriesCache = [];

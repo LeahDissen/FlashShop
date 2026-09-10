@@ -5,9 +5,9 @@ import { getProductById } from '../api/products';
 import { useCartStore } from '../store/cartStore';
 import { useProductStore } from '../store/productStore';
 import { getPage } from '../api/pages';
-import { MAGNET_SIZES } from '../constants/productCategories';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
 import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
+import { parseMagnetSize, withMagnetPrintDimensions } from '../utils/magnetSize';
 import { withTieredPricingFields } from '../utils/cartItem';
 import ProductPricingInfo from '../components/ProductPricingInfo';
 import {
@@ -30,7 +30,6 @@ const ProductSelectionPage = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedImage, setUploadedImage] = useState(null);
     const [magnetImage, setMagnetImage] = useState(null);
-    const [selectedMagnetSize, setSelectedMagnetSize] = useState(MAGNET_SIZES[0]);
 
     const [showDesignerForm, setShowDesignerForm] = useState(false);
     const [isDesignerUploading, setIsDesignerUploading] = useState(false);
@@ -240,26 +239,29 @@ const ProductSelectionPage = () => {
             return;
         }
         const quantity = getQuantity();
+        const parsedSize = parseMagnetSize(product.size);
+        const unitPrice = Number(product.price) || 0;
         await addToCartAndNavigate([buildCartItem({
             id: `${product._id}-magnet-${Date.now()}`,
             quantity,
-            price: selectedMagnetSize.price,
+            price: unitPrice,
             image: magnetImage,
-            size: selectedMagnetSize.label,
+            size: product.size || undefined,
             customization: {
                 type: 'magnet',
-                printSize: selectedMagnetSize.label,
-                width: selectedMagnetSize.width,
-                height: selectedMagnetSize.height,
+                printSize: product.size || undefined,
+                width: parsedSize?.width ?? product.printWidth,
+                height: parsedSize?.height ?? product.printHeight,
             },
         })]);
     };
 
     const handleDesignClick = () => {
         const quantity = applyQuantity(getQuantity());
-        setSelectedProduct(product);
+        const productForEditor = withMagnetPrintDimensions(product);
+        setSelectedProduct(productForEditor);
         setOrderQuantity(quantity);
-        navigate(`/editor/${productId}`, { state: { product, quantity } });
+        navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity } });
     };
 
     // שליחת טופס גרפיקאית עם וולידציות מורחבות
@@ -414,8 +416,10 @@ const ProductSelectionPage = () => {
                                             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                                                 {magnetProduct ? (
                                                     <>
-                                                        <span className="text-xl font-semibold text-gray-900">{selectedMagnetSize.price} ₪</span>
-                                                        <span className="text-xs text-[#f2665e]/80">גודל {selectedMagnetSize.label} ס&quot;מ</span>
+                                                        <span className="text-xl font-semibold text-gray-900">{product.price} ₪</span>
+                                                        {product.size && (
+                                                            <span className="text-xs text-[#f2665e]/80">גודל {product.size} ס&quot;מ</span>
+                                                        )}
                                                     </>
                                                 ) : showTieredPricing ? (
                                                     <>
@@ -498,23 +502,15 @@ const ProductSelectionPage = () => {
 
                                     {magnetProduct && (
                                         <div className="space-y-4 w-full">
-                                            <div className="flex flex-wrap gap-2">
-                                                {MAGNET_SIZES.map((size) => (
-                                                    <button
-                                                        key={size.label}
-                                                        type="button"
-                                                        onClick={() => setSelectedMagnetSize(size)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors cursor-pointer ${
-                                                            selectedMagnetSize.label === size.label
-                                                                ? 'bg-[#f2665e] text-white border-[#f2665e]'
-                                                                : 'bg-white text-[#f2665e] border-[#f2665e]/40 hover:bg-[#fff5f4]'
-                                                        }`}
-                                                    >
-                                                        {size.label} — {size.price} ₪
-                                                    </button>
-                                                ))}
-                                            </div>
                                             <div className="flex flex-wrap items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDesignClick}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer"
+                                                >
+                                                    <Palette size={16} />
+                                                    עיצוב עצמי
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => magnetFileRef.current?.click()}
