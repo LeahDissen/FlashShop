@@ -35,8 +35,11 @@ export const formatOrderDate = (dateString) => {
 };
 
 export const getCustomerName = (order) => {
+    if (order?.customer?.name) return order.customer.name;
     if (order?.user_id && typeof order.user_id === "object") {
         return order.user_id.name || "—";
     }
     return "—";
 };
+
+export const isDeliveryOrder = (order) => order?.fulfillment_method === "delivery";

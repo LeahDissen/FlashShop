@@ -28,6 +28,7 @@ import {
     STATUS_STYLES,
     formatOrderDate,
     getCustomerName,
+    isDeliveryOrder,
     shortOrderId,
 } from "./orderStatus";
 
@@ -407,6 +408,17 @@ export default function OrderDetailPage() {
                         הזמנה #{shortOrderId(order._id)}
                     </h1>
                     <p className="text-gray-500 mt-1">{formatOrderDate(order.date_created)}</p>
+                    <div className="mt-3">
+                        {isDeliveryOrder(order) ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 inline-flex items-center gap-1">
+                                <FaShippingFast /> הזמנה למשלוח
+                            </span>
+                        ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                איסוף עצמי
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     {getStatusBadge(order.status)}
@@ -422,31 +434,65 @@ export default function OrderDetailPage() {
 
             <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <section className={`bg-white rounded-2xl shadow-sm border p-6 ${isDeliveryOrder(order) ? "border-blue-200 ring-1 ring-blue-100" : "border-gray-100"}`}>
                         <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                             <FaUser className="text-[#f2665e]" />
                             פרטי לקוח
+                            {isDeliveryOrder(order) && (
+                                <span className="mr-auto px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 inline-flex items-center gap-1">
+                                    <FaShippingFast /> למשלוח
+                                </span>
+                            )}
                         </h2>
                         <div className="grid sm:grid-cols-2 gap-4 text-sm">
                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                <p className="text-gray-500 mb-1">שם</p>
-                                <p className="font-bold text-gray-800">{getCustomerName(order)}</p>
+                                <p className="text-gray-500 mb-1">שם מלא</p>
+                                <p className="font-bold text-gray-800">{order.customer?.name || getCustomerName(order)}</p>
                             </div>
                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                <p className="text-gray-500 mb-1">אימייל</p>
-                                {customer?.email ? (
+                                <p className="text-gray-500 mb-1">טלפון</p>
+                                {order.customer?.phone ? (
+                                    <p className="flex items-center gap-2 font-medium text-gray-800">
+                                        <FaPhone className="text-[#f2665e]" size={12} />
+                                        <a href={`tel:${order.customer.phone}`} className="hover:underline" dir="ltr">{order.customer.phone}</a>
+                                    </p>
+                                ) : (
+                                    <p className="text-gray-400">לא צוין</p>
+                                )}
+                            </div>
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                <p className="text-gray-500 mb-1">מייל</p>
+                                {(order.customer?.email || customer?.email) ? (
                                     <div className="flex items-center gap-2">
-                                        <a href={`mailto:${customer.email}`} className="font-medium text-[#f2665e] break-all">
-                                            {customer.email}
+                                        <FaEnvelope className="text-[#f2665e]" size={12} />
+                                        <a href={`mailto:${order.customer?.email || customer?.email}`} className="font-medium text-[#f2665e] break-all">
+                                            {order.customer?.email || customer?.email}
                                         </a>
-                                        <button type="button" onClick={() => copyText(customer.email)} className="text-gray-400 hover:text-gray-700" title="העתק">
+                                        <button type="button" onClick={() => copyText(order.customer?.email || customer?.email)} className="text-gray-400 hover:text-gray-700" title="העתק">
                                             <FaCopy size={12} />
                                         </button>
                                     </div>
                                 ) : (
-                                    <p className="text-gray-400">לא זמין</p>
+                                    <p className="text-gray-400">לא צוין</p>
                                 )}
                             </div>
+                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                <p className="text-gray-500 mb-1">אופן קבלה</p>
+                                <p className="font-bold text-gray-800">
+                                    {isDeliveryOrder(order) ? "משלוח לבית (+25 ₪)" : "איסוף עצמי"}
+                                </p>
+                            </div>
+                            {isDeliveryOrder(order) && (
+                                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 sm:col-span-2">
+                                    <p className="text-blue-700 mb-2 font-semibold flex items-center gap-2">
+                                        <FaShippingFast /> כתובת למשלוח
+                                    </p>
+                                    <p className="text-gray-800 font-medium">
+                                        {order.shipping_address?.street} {order.shipping_address?.houseNumber}
+                                    </p>
+                                    <p className="text-gray-800">{order.shipping_address?.city}</p>
+                                </div>
+                            )}
                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                                 <p className="text-gray-500 mb-1">מזהה לקוח</p>
                                 <p className="font-mono text-xs text-gray-700 break-all">{customer?._id || order.user_id || "—"}</p>
@@ -454,12 +500,6 @@ export default function OrderDetailPage() {
                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                                 <p className="text-gray-500 mb-1">תאריך הצטרפות</p>
                                 <p className="text-gray-800">{formatOrderDate(customer?.createdAt)}</p>
-                            </div>
-                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 sm:col-span-2">
-                                <p className="text-gray-500 mb-1">כתובת למשלוח / טלפון בחשבון</p>
-                                <p className="text-gray-600">
-                                    לא נאספים כרגע בקופה. אם יש פרטי התקשרות בבקשת עיצוב, הם יופיעו למטה.
-                                </p>
                             </div>
                         </div>
 
@@ -711,6 +751,12 @@ export default function OrderDetailPage() {
                                 <div className="flex justify-between text-green-600">
                                     <span>הנחה{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
                                     <span>-₪{Number(order.discount).toFixed(2)}</span>
+                                </div>
+                            )}
+                            {Number(order.shipping_fee) > 0 && (
+                                <div className="flex justify-between text-gray-700">
+                                    <span>משלוח</span>
+                                    <span>₪{Number(order.shipping_fee).toFixed(2)}</span>
                                 </div>
                             )}
                             <div className="flex justify-between items-center pt-3 border-t border-gray-200">

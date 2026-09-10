@@ -1,11 +1,18 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createOrder } from '../api/orders';
+import { fetchUserInfo } from '../api/auth';
+import { getShopSettings } from '../api/shopSettings';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { clearCheckoutDraft, loadCheckoutDraft } from '../utils/checkoutDraft';
 import { toCheckoutItem } from '../utils/cartItem';
 import { saveLastOrder } from '../utils/orderConfirmation';
+
+const DELIVERY_FEE = 25;
+
+const emptyCustomer = { name: '', phone: '', email: '' };
+const emptyShipping = { city: '', street: '', houseNumber: '' };
 
 export default function CheckoutPage() {
     const navigate = useNavigate();
@@ -14,9 +21,12 @@ export default function CheckoutPage() {
     const cartItems = useCartStore((state) => state.cartItems);
 
     const [draft, setDraft] = useState(null);
+    const [step, setStep] = useState('method');
+    const [fulfillmentMethod, setFulfillmentMethod] = useState(null);
+    const [customer, setCustomer] = useState(emptyCustomer);
+    const [shipping, setShipping] = useState(emptyShipping);
     const [isPaying, setIsPaying] = useState(false);
-    const [cardName, setCardName] = useState('');
-    const [cardNumber, setCardNumber] = useState('');
+    const [paymentLinkUrl, setPaymentLinkUrl] = useState('');
     const paymentSubmittedRef = useRef(false);
 
     useEffect(() => {
@@ -44,33 +54,107 @@ export default function CheckoutPage() {
         });
     }, [isAuthenticated, cartItems, navigate]);
 
-    const handlePayment = async (e) => {
-        e.preventDefault();
-        if (!draft || isPaying) return;
+    useEffect(() => {
+        if (!isAuthenticated) return;
 
-        if (!cardName.trim() || cardNumber.replace(/\s/g, '').length < 8) {
-            alert('נא למלא פרטי תשלום תקינים');
+        const loadProfile = async () => {
+            try {
+                const response = await fetchUserInfo();
+                const user = response.data;
+                setCustomer((prev) => ({
+                    ...prev,
+                    name: prev.name || user?.name || '',
+                    email: prev.email || user?.email || '',
+                    phone: prev.phone || user?.phone || '',
+                }));
+            } catch {
+                // אין פרופיל מזוהה — השדות נשארים למילוי ידני
+            }
+        };
+
+        loadProfile();
+    }, [isAuthenticated]);
+
+    useEffect(() => {
+        if (step !== 'payment') return;
+        const loadPaymentLink = async () => {
+            try {
+                const settings = await getShopSettings();
+                setPaymentLinkUrl(settings.paymentLinkUrl || '');
+            } catch {
+                setPaymentLinkUrl('');
+            }
+        };
+        loadPaymentLink();
+    }, [step]);
+
+    const shippingFee = fulfillmentMethod === 'delivery' ? DELIVERY_FEE : 0;
+    const payableTotal = draft ? Math.max(0, Number(draft.totalPrice) + shippingFee) : 0;
+
+    const selectPickup = () => {
+        setFulfillmentMethod('pickup');
+        setStep('details');
+    };
+
+    const selectDelivery = () => {
+        setFulfillmentMethod('delivery');
+        setStep('details');
+    };
+
+    const updateCustomer = (field, value) => {
+        setCustomer((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const updateShipping = (field, value) => {
+        setShipping((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleDetailsContinue = (e) => {
+        e.preventDefault();
+        if (!customer.name.trim() || !customer.phone.trim()) {
+            alert('נא למלא שם מלא וטלפון');
             return;
         }
+        if (fulfillmentMethod === 'pickup' && !customer.email.trim()) {
+            alert('נא למלא כתובת מייל');
+            return;
+        }
+        if (fulfillmentMethod === 'delivery') {
+            if (!shipping.city.trim() || !shipping.street.trim() || !shipping.houseNumber.trim()) {
+                alert('נא למלא עיר, רחוב ומספר בית');
+                return;
+            }
+        }
+        setStep('payment');
+    };
+
+    const handleSecurePayment = async () => {
+        if (!draft || isPaying || !fulfillmentMethod) return;
 
         setIsPaying(true);
         try {
             const order = await createOrder({
                 items: draft.items.map(toCheckoutItem),
                 couponCode: draft.appliedCoupon || undefined,
+                fulfillmentMethod,
+                customer,
+                shippingAddress: fulfillmentMethod === 'delivery' ? shipping : undefined,
             });
 
             paymentSubmittedRef.current = true;
             saveLastOrder(order);
+            clearCheckoutDraft();
+            clearCart();
+
+            if (paymentLinkUrl) {
+                window.open(paymentLinkUrl, '_blank', 'noopener,noreferrer');
+            }
 
             const orderId = String(order._id);
             navigate(`/order-confirmation/${orderId}`, {
                 replace: true,
                 state: { order },
             });
-
-            clearCheckoutDraft();
-            clearCart();
         } catch (error) {
             const msg = error.response?.data?.msg;
             if (error.response?.data?.code === 'TOKEN_EXPIRED') {
@@ -92,11 +176,13 @@ export default function CheckoutPage() {
         );
     }
 
+    const inputClass = 'w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:border-[#f2665e]';
+
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4" dir="rtl">
             <div className="max-w-3xl mx-auto space-y-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-800">תשלום</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">תשלום ומשלוחים</h1>
                     <Link to="/cart" className="text-[#f2665e] font-medium hover:underline">
                         חזרה לעגלה
                     </Link>
@@ -127,61 +213,214 @@ export default function CheckoutPage() {
                                 <span>-₪{Number(draft.discount).toFixed(2)}</span>
                             </div>
                         )}
+                        {shippingFee > 0 && (
+                            <div className="flex justify-between text-gray-700">
+                                <span>משלוח</span>
+                                <span>₪{shippingFee.toFixed(2)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between text-lg font-bold text-[#f2665e] pt-2">
                             <span>לתשלום</span>
-                            <span>₪{Number(draft.totalPrice).toFixed(2)}</span>
+                            <span>₪{payableTotal.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
 
-                <form onSubmit={handlePayment} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-                    <h2 className="text-xl font-bold text-gray-800">פרטי תשלום</h2>
-                    <p className="text-sm text-gray-500">
-                        ההזמנה תיווצר במערכת רק לאחר אישור תשלום מוצלח.
-                    </p>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">שם על הכרטיס</label>
-                        <input
-                            type="text"
-                            value={cardName}
-                            onChange={(e) => setCardName(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg p-3"
-                            placeholder="שם מלא"
-                            required
-                        />
+                {step === 'method' && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                        <h2 className="text-xl font-bold text-gray-800">בחירת אופן קבלה</h2>
+                        <p className="text-sm text-gray-500">לפני התשלום, בחרו איסוף עצמי או משלוח לבית.</p>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <button
+                                type="button"
+                                onClick={selectPickup}
+                                className="p-6 rounded-2xl border-2 border-gray-200 hover:border-[#f2665e] hover:bg-[#fff5f4] transition text-right"
+                            >
+                                <p className="text-lg font-bold text-gray-800">איסוף עצמי</p>
+                                <p className="text-sm text-gray-500 mt-1">ללא תוספת תשלום</p>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={selectDelivery}
+                                className="p-6 rounded-2xl border-2 border-gray-200 hover:border-[#f2665e] hover:bg-[#fff5f4] transition text-right"
+                            >
+                                <p className="text-lg font-bold text-gray-800">משלוח</p>
+                                <p className="text-sm text-gray-500 mt-1">תוספת 25 ₪ · עד 7 ימי עסקים</p>
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">מספר כרטיס</label>
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg p-3 ltr text-left"
-                            placeholder="1234 5678 9012 3456"
-                            required
-                        />
-                    </div>
+                )}
 
-                    <button
-                        type="submit"
-                        disabled={isPaying}
-                        className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248] transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                        {isPaying ? (
-                            <>
-                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                מעבד תשלום...
-                            </>
-                        ) : (
-                            `שלם ₪${Number(draft.totalPrice).toFixed(2)}`
+                {step === 'details' && fulfillmentMethod === 'pickup' && (
+                    <form onSubmit={handleDetailsContinue} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                        <h2 className="text-xl font-bold text-gray-800">פרטי לקוח לאיסוף עצמי</h2>
+                        <p className="text-sm text-gray-500">אם אתם מחוברים, השם והמייל ממולאים אוטומטית וניתן לערוך אותם.</p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">שם מלא</label>
+                            <input
+                                type="text"
+                                value={customer.name}
+                                onChange={(e) => updateCustomer('name', e.target.value)}
+                                className={inputClass}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">טלפון</label>
+                            <input
+                                type="tel"
+                                dir="ltr"
+                                value={customer.phone}
+                                onChange={(e) => updateCustomer('phone', e.target.value)}
+                                className={`${inputClass} text-left`}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">מייל</label>
+                            <input
+                                type="email"
+                                dir="ltr"
+                                value={customer.email}
+                                onChange={(e) => updateCustomer('email', e.target.value)}
+                                className={`${inputClass} text-left`}
+                                required
+                            />
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setStep('method')}
+                                className="flex-1 border border-gray-200 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-50"
+                            >
+                                חזרה
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248]"
+                            >
+                                המשך לתשלום
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {step === 'details' && fulfillmentMethod === 'delivery' && (
+                    <form onSubmit={handleDetailsContinue} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                        <h2 className="text-xl font-bold text-gray-800">פרטי משלוח</h2>
+                        <p className="text-sm font-medium text-[#f2665e] bg-[#fff5f4] border border-[#f2665e]/20 rounded-xl px-4 py-3">
+                            משלוח בתוספת 25 ₪ - עד 7 ימי עסקים
+                        </p>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">שם</label>
+                            <input
+                                type="text"
+                                value={customer.name}
+                                onChange={(e) => updateCustomer('name', e.target.value)}
+                                className={inputClass}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">טלפון</label>
+                            <input
+                                type="tel"
+                                dir="ltr"
+                                value={customer.phone}
+                                onChange={(e) => updateCustomer('phone', e.target.value)}
+                                className={`${inputClass} text-left`}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">עיר</label>
+                            <input
+                                type="text"
+                                value={shipping.city}
+                                onChange={(e) => updateShipping('city', e.target.value)}
+                                className={inputClass}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">רחוב</label>
+                            <input
+                                type="text"
+                                value={shipping.street}
+                                onChange={(e) => updateShipping('street', e.target.value)}
+                                className={inputClass}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">מספר בית</label>
+                            <input
+                                type="text"
+                                value={shipping.houseNumber}
+                                onChange={(e) => updateShipping('houseNumber', e.target.value)}
+                                className={inputClass}
+                                required
+                            />
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setStep('method')}
+                                className="flex-1 border border-gray-200 text-gray-700 font-medium py-3 rounded-lg hover:bg-gray-50"
+                            >
+                                חזרה
+                            </button>
+                            <button
+                                type="submit"
+                                className="flex-1 bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248]"
+                            >
+                                אישור
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {step === 'payment' && (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                        <h2 className="text-xl font-bold text-gray-800">פרטי תשלום</h2>
+                        <p className="text-sm text-gray-500">
+                            ההזמנה תישמר במערכת, ואז תועברו לתשלום מאובטח בקישור חיצוני.
+                        </p>
+                        {!paymentLinkUrl && (
+                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                קישור התשלום עדיין לא הוגדר במסך ההגדרות. ההזמנה תישמר, אבל לא ייפתח מסך תשלום חיצוני.
+                            </p>
                         )}
-                    </button>
-                </form>
+                        <p className="text-sm text-gray-600">
+                            {fulfillmentMethod === 'delivery' ? 'משלוח לבית' : 'איסוף עצמי'} · {customer.name}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleSecurePayment}
+                            disabled={isPaying}
+                            className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248] transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isPaying ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    מעבד הזמנה...
+                                </>
+                            ) : (
+                                'מעבר לתשלום מאובטח'
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStep('details')}
+                            className="w-full text-sm text-gray-500 hover:text-gray-800"
+                        >
+                            חזרה לפרטים
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

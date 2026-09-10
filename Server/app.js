@@ -19,6 +19,7 @@ const frameCategoriesRoutes = require("./routes/frameCategoriesRoutes");
 const editorSettingsRoutes = require("./routes/editorSettingsRoutes");
 const editorAssetsRoutes = require("./routes/editorAssetsRoutes");
 const designUploadsRoutes = require("./routes/designUploadsRoutes");
+const shopSettingsRoutes = require("./routes/shopSettingsRoutes");
 
 const PORT = Number(process.env.PORT || config.PORT) || 10000;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -62,6 +63,7 @@ app.use("/frame-categories", frameCategoriesRoutes);
 app.use("/editor-settings", editorSettingsRoutes);
 app.use("/editor-assets", editorAssetsRoutes);
 app.use("/design-uploads", designUploadsRoutes);
+app.use("/shop-settings", shopSettingsRoutes);
 
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);

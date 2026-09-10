@@ -26,6 +26,22 @@ let orderSchema = new mongoose.Schema({
         uploadedAt: { type: Date },
     },
     total_price: Number,
+    shipping_fee: { type: Number, default: 0 },
+    fulfillment_method: {
+        type: String,
+        enum: ["pickup", "delivery"],
+        default: "pickup",
+    },
+    customer: {
+        name: { type: String },
+        phone: { type: String },
+        email: { type: String },
+    },
+    shipping_address: {
+        city: { type: String },
+        street: { type: String },
+        houseNumber: { type: String },
+    },
     status: {
         type: String,
         default: "pending"

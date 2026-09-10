@@ -112,6 +112,18 @@ export default function OrderConfirmationPage() {
                             <span className="text-gray-500">סה״כ שולם: </span>
                             <span className="font-bold text-lg">₪{Number(order.total_price).toFixed(2)}</span>
                         </p>
+                        {Number(order.shipping_fee) > 0 && (
+                            <p>
+                                <span className="text-gray-500">משלוח: </span>
+                                <span className="font-medium">₪{Number(order.shipping_fee).toFixed(2)}</span>
+                            </p>
+                        )}
+                        <p>
+                            <span className="text-gray-500">אופן קבלה: </span>
+                            <span className="font-medium">
+                                {order.fulfillment_method === 'delivery' ? 'משלוח לבית' : 'איסוף עצמי'}
+                            </span>
+                        </p>
                         {order.discount > 0 && (
                             <p>
                                 <span className="text-gray-500">הנחה: </span>

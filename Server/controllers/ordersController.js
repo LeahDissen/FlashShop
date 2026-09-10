@@ -14,6 +14,22 @@ const {
 } = require("../services/googleDriveService");
 const { loadEditorSettings } = require("./editorSettingsController");
 
+const DELIVERY_FEE = 25;
+
+const sanitizeText = (value, max = 120) => String(value || "").trim().slice(0, max);
+
+const sanitizeCustomerDetails = (customer = {}) => ({
+    name: sanitizeText(customer.name, 120),
+    phone: sanitizeText(customer.phone, 40),
+    email: sanitizeText(customer.email, 120).toLowerCase(),
+});
+
+const sanitizeShippingAddress = (shipping = {}) => ({
+    city: sanitizeText(shipping.city, 80),
+    street: sanitizeText(shipping.street, 120),
+    houseNumber: sanitizeText(shipping.houseNumber, 20),
+});
+
 const isValidObjectId = (id) =>
     mongoose.Types.ObjectId.isValid(id) &&
     String(new mongoose.Types.ObjectId(id)) === String(id);
@@ -629,10 +645,27 @@ exports.syncOrderDrive = async (req, res) => {
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.tokenData._id;
-        const { items, couponCode } = req.body;
+        const { items, couponCode, fulfillmentMethod, customer, shippingAddress } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ msg: "העגלה ריקה" });
+        }
+
+        const method = fulfillmentMethod === "delivery" ? "delivery" : "pickup";
+        const customerDetails = sanitizeCustomerDetails(customer);
+        if (!customerDetails.name || !customerDetails.phone) {
+            return res.status(400).json({ msg: "יש למלא שם מלא וטלפון" });
+        }
+        if (method === "pickup" && !customerDetails.email) {
+            return res.status(400).json({ msg: "יש למלא כתובת מייל" });
+        }
+
+        let shippingDetails;
+        if (method === "delivery") {
+            shippingDetails = sanitizeShippingAddress(shippingAddress);
+            if (!shippingDetails.city || !shippingDetails.street || !shippingDetails.houseNumber) {
+                return res.status(400).json({ msg: "יש למלא עיר, רחוב ומספר בית למשלוח" });
+            }
         }
 
         // --- אבטחה: חישוב מחיר אמין לפי סוג הפריט ---
@@ -766,7 +799,8 @@ exports.createOrder = async (req, res) => {
         }
 
         const discount = couponResult.discount || 0;
-        const total_price = Math.max(0, subtotal - discount);
+        const shipping_fee = method === "delivery" ? DELIVERY_FEE : 0;
+        const total_price = Math.max(0, subtotal - discount + shipping_fee);
 
         // יצירת ההזמנה החדשה בסטטוס processing
         const newOrder = new OrderModel({
@@ -775,6 +809,10 @@ exports.createOrder = async (req, res) => {
             subtotal,
             discount,
             coupon_code: couponCode || undefined,
+            shipping_fee,
+            fulfillment_method: method,
+            customer: customerDetails,
+            shipping_address: method === "delivery" ? shippingDetails : undefined,
             total_price,
             status: "processing",
         });

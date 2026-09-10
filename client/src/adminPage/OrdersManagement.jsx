@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaTimes, FaTimesCircle, FaTrash } from "react-icons/fa";
+import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaStore, FaTimes, FaTimesCircle, FaTrash } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { deleteOrders, getOrders, updateOrderStatus } from "../api/orders";
@@ -9,6 +9,7 @@ import {
     STATUS_STYLES,
     formatOrderDate,
     getCustomerName,
+    isDeliveryOrder,
     shortOrderId,
 } from "./orderStatus";
 
@@ -62,7 +63,9 @@ export default function OrdersManagement() {
                 const matchesStatus = filterStatus === "all" || order.status === filterStatus;
                 const matchesSearch =
                     order._id.toLowerCase().includes(term) ||
-                    getCustomerName(order).toLowerCase().includes(term);
+                    getCustomerName(order).toLowerCase().includes(term) ||
+                    String(order.customer?.phone || "").toLowerCase().includes(term) ||
+                    String(order.customer?.email || "").toLowerCase().includes(term);
                 return matchesStatus && matchesSearch;
             })
             .sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
@@ -257,6 +260,7 @@ export default function OrdersManagement() {
                                     </th>
                                     <th className="p-5">הזמנה</th>
                                     <th className="p-5">לקוח</th>
+                                    <th className="p-5">קבלה</th>
                                     <th className="p-5">פריטים</th>
                                     <th className="p-5">תאריך</th>
                                     <th className="p-5">סה"כ לתשלום</th>
@@ -269,7 +273,9 @@ export default function OrdersManagement() {
                                     <tr
                                         key={order._id}
                                         onClick={() => navigate(`/ordersmanagement/${order._id}`)}
-                                        className="hover:bg-gray-50/50 transition-colors group cursor-pointer"
+                                        className={`hover:bg-gray-50/50 transition-colors group cursor-pointer ${
+                                            isDeliveryOrder(order) ? "bg-blue-50/70 border-r-4 border-r-blue-500" : ""
+                                        }`}
                                     >
                                         <td className="p-5">
                                             <input
@@ -289,6 +295,22 @@ export default function OrdersManagement() {
                                             <div className="text-sm text-gray-800 font-medium">
                                                 {getCustomerName(order)}
                                             </div>
+                                            {order.customer?.phone && (
+                                                <div className="text-xs text-gray-500 mt-0.5" dir="ltr">
+                                                    {order.customer.phone}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="p-5 whitespace-nowrap">
+                                            {isDeliveryOrder(order) ? (
+                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 inline-flex items-center gap-1.5 whitespace-nowrap">
+                                                    <FaShippingFast /> משלוח
+                                                </span>
+                                            ) : (
+                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1.5 whitespace-nowrap">
+                                                    <FaStore /> איסוף עצמי
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="p-5">
                                             <div className="text-sm text-gray-600">
