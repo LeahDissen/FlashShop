@@ -13,6 +13,7 @@ const {
     uploadBufferToFolder,
 } = require("../services/googleDriveService");
 const { loadEditorSettings } = require("./editorSettingsController");
+const { validateCheckoutDetails, firstCheckoutValidationMessage } = require("../utils/checkoutValidation");
 
 const DELIVERY_FEE = 25;
 
@@ -653,19 +654,15 @@ exports.createOrder = async (req, res) => {
 
         const method = fulfillmentMethod === "delivery" ? "delivery" : "pickup";
         const customerDetails = sanitizeCustomerDetails(customer);
-        if (!customerDetails.name || !customerDetails.phone) {
-            return res.status(400).json({ msg: "יש למלא שם מלא וטלפון" });
-        }
-        if (method === "pickup" && !customerDetails.email) {
-            return res.status(400).json({ msg: "יש למלא כתובת מייל" });
-        }
-
-        let shippingDetails;
-        if (method === "delivery") {
-            shippingDetails = sanitizeShippingAddress(shippingAddress);
-            if (!shippingDetails.city || !shippingDetails.street || !shippingDetails.houseNumber) {
-                return res.status(400).json({ msg: "יש למלא עיר, רחוב ומספר בית למשלוח" });
-            }
+        const shippingDetails = method === "delivery" ? sanitizeShippingAddress(shippingAddress) : {};
+        const checkoutErrors = validateCheckoutDetails({
+            fulfillmentMethod: method,
+            customer: customerDetails,
+            shipping: shippingDetails,
+        });
+        const checkoutErrorMessage = firstCheckoutValidationMessage(checkoutErrors);
+        if (checkoutErrorMessage) {
+            return res.status(400).json({ msg: checkoutErrorMessage });
         }
 
         // --- אבטחה: חישוב מחיר אמין לפי סוג הפריט ---
