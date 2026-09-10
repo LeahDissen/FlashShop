@@ -8,6 +8,7 @@ import { useCartStore } from '../store/cartStore';
 import { clearCheckoutDraft, loadCheckoutDraft } from '../utils/checkoutDraft';
 import { toCheckoutItem } from '../utils/cartItem';
 import { saveLastOrder } from '../utils/orderConfirmation';
+import { validateCheckoutDetails } from '../utils/checkoutValidation';
 
 const DELIVERY_FEE = 25;
 
@@ -27,6 +28,7 @@ export default function CheckoutPage() {
     const [shipping, setShipping] = useState(emptyShipping);
     const [isPaying, setIsPaying] = useState(false);
     const [paymentLinkUrl, setPaymentLinkUrl] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
     const paymentSubmittedRef = useRef(false);
 
     useEffect(() => {
@@ -103,33 +105,39 @@ export default function CheckoutPage() {
 
     const updateCustomer = (field, value) => {
         setCustomer((prev) => ({ ...prev, [field]: value }));
+        setFieldErrors((prev) => ({ ...prev, [field]: '' }));
     };
 
     const updateShipping = (field, value) => {
         setShipping((prev) => ({ ...prev, [field]: value }));
+        setFieldErrors((prev) => ({ ...prev, [field]: '' }));
     };
 
     const handleDetailsContinue = (e) => {
         e.preventDefault();
-        if (!customer.name.trim() || !customer.phone.trim()) {
-            alert('נא למלא שם מלא וטלפון');
-            return;
-        }
-        if (fulfillmentMethod === 'pickup' && !customer.email.trim()) {
-            alert('נא למלא כתובת מייל');
-            return;
-        }
-        if (fulfillmentMethod === 'delivery') {
-            if (!shipping.city.trim() || !shipping.street.trim() || !shipping.houseNumber.trim()) {
-                alert('נא למלא עיר, רחוב ומספר בית');
-                return;
-            }
-        }
+        const errors = validateCheckoutDetails({
+            fulfillmentMethod,
+            customer,
+            shipping,
+        });
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) return;
         setStep('payment');
     };
 
     const handleSecurePayment = async () => {
         if (!draft || isPaying || !fulfillmentMethod) return;
+
+        const errors = validateCheckoutDetails({
+            fulfillmentMethod,
+            customer,
+            shipping,
+        });
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            setStep('details');
+            return;
+        }
 
         setIsPaying(true);
         try {
@@ -176,7 +184,13 @@ export default function CheckoutPage() {
         );
     }
 
-    const inputClass = 'w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:border-[#f2665e]';
+    const fieldClass = (name, extra = '') =>
+        `w-full border rounded-lg p-3 focus:outline-none ${
+            fieldErrors[name] ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-[#f2665e]'
+        } ${extra}`;
+
+    const FieldError = ({ name }) =>
+        fieldErrors[name] ? <p className="text-xs text-red-600 mt-1">{fieldErrors[name]}</p> : null;
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4" dir="rtl">
@@ -252,7 +266,7 @@ export default function CheckoutPage() {
                 )}
 
                 {step === 'details' && fulfillmentMethod === 'pickup' && (
-                    <form onSubmit={handleDetailsContinue} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                    <form noValidate onSubmit={handleDetailsContinue} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                         <h2 className="text-xl font-bold text-gray-800">פרטי לקוח לאיסוף עצמי</h2>
                         <p className="text-sm text-gray-500">אם אתם מחוברים, השם והמייל ממולאים אוטומטית וניתן לערוך אותם.</p>
                         <div>
@@ -261,9 +275,9 @@ export default function CheckoutPage() {
                                 type="text"
                                 value={customer.name}
                                 onChange={(e) => updateCustomer('name', e.target.value)}
-                                className={inputClass}
-                                required
+                                className={fieldClass('name')}
                             />
+                            <FieldError name="name" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">טלפון</label>
@@ -272,9 +286,10 @@ export default function CheckoutPage() {
                                 dir="ltr"
                                 value={customer.phone}
                                 onChange={(e) => updateCustomer('phone', e.target.value)}
-                                className={`${inputClass} text-left`}
-                                required
+                                className={fieldClass('phone', 'text-left')}
+                                placeholder="0501234567"
                             />
+                            <FieldError name="phone" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">מייל</label>
@@ -283,9 +298,9 @@ export default function CheckoutPage() {
                                 dir="ltr"
                                 value={customer.email}
                                 onChange={(e) => updateCustomer('email', e.target.value)}
-                                className={`${inputClass} text-left`}
-                                required
+                                className={fieldClass('email', 'text-left')}
                             />
+                            <FieldError name="email" />
                         </div>
                         <div className="flex gap-3">
                             <button
@@ -306,7 +321,7 @@ export default function CheckoutPage() {
                 )}
 
                 {step === 'details' && fulfillmentMethod === 'delivery' && (
-                    <form onSubmit={handleDetailsContinue} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                    <form noValidate onSubmit={handleDetailsContinue} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                         <h2 className="text-xl font-bold text-gray-800">פרטי משלוח</h2>
                         <p className="text-sm font-medium text-[#f2665e] bg-[#fff5f4] border border-[#f2665e]/20 rounded-xl px-4 py-3">
                             משלוח בתוספת 25 ₪ - עד 7 ימי עסקים
@@ -317,9 +332,9 @@ export default function CheckoutPage() {
                                 type="text"
                                 value={customer.name}
                                 onChange={(e) => updateCustomer('name', e.target.value)}
-                                className={inputClass}
-                                required
+                                className={fieldClass('name')}
                             />
+                            <FieldError name="name" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">טלפון</label>
@@ -328,9 +343,10 @@ export default function CheckoutPage() {
                                 dir="ltr"
                                 value={customer.phone}
                                 onChange={(e) => updateCustomer('phone', e.target.value)}
-                                className={`${inputClass} text-left`}
-                                required
+                                className={fieldClass('phone', 'text-left')}
+                                placeholder="0501234567"
                             />
+                            <FieldError name="phone" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">עיר</label>
@@ -338,9 +354,9 @@ export default function CheckoutPage() {
                                 type="text"
                                 value={shipping.city}
                                 onChange={(e) => updateShipping('city', e.target.value)}
-                                className={inputClass}
-                                required
+                                className={fieldClass('city')}
                             />
+                            <FieldError name="city" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">רחוב</label>
@@ -348,9 +364,9 @@ export default function CheckoutPage() {
                                 type="text"
                                 value={shipping.street}
                                 onChange={(e) => updateShipping('street', e.target.value)}
-                                className={inputClass}
-                                required
+                                className={fieldClass('street')}
                             />
+                            <FieldError name="street" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">מספר בית</label>
@@ -358,9 +374,9 @@ export default function CheckoutPage() {
                                 type="text"
                                 value={shipping.houseNumber}
                                 onChange={(e) => updateShipping('houseNumber', e.target.value)}
-                                className={inputClass}
-                                required
+                                className={fieldClass('houseNumber')}
                             />
+                            <FieldError name="houseNumber" />
                         </div>
                         <div className="flex gap-3">
                             <button
