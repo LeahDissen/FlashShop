@@ -125,6 +125,11 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                         ₪{priceLabel}
                                     </span>
                                 )}
+                                {product.size && (
+                                    <span className="text-gray-400 text-xs">
+                                        {product.size}
+                                    </span>
+                                )}
                             </div>
                         </div>
                         );

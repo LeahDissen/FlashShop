@@ -1,5 +1,6 @@
 const { ProductModel } = require("../models/productModel");
 const { generatePersonalizedProduct, generateGiftIdea } = require("../utils/aiService");
+const { isMagnetProductDoc, parseMagnetSize } = require("../utils/magnetSize");
 
 function normalizeMaxQuantity(value) {
     if (value == null || value === "") return null;
@@ -26,6 +27,20 @@ function sanitizeProductBody(body = {}) {
                 return row;
             })
             .filter((t) => Number.isFinite(t.minQuantity) && Number.isFinite(t.unitPrice));
+    }
+
+    if (typeof data.size === "string") {
+        data.size = data.size.trim();
+    }
+
+    if (isMagnetProductDoc(data)) {
+        data.priceTiers = [];
+        const parsedSize = parseMagnetSize(data.size);
+        if (parsedSize) {
+            data.size = parsedSize.label;
+            if (data.printWidth == null) data.printWidth = parsedSize.width;
+            if (data.printHeight == null) data.printHeight = parsedSize.height;
+        }
     }
 
     if (Array.isArray(data.captionIdeas)) {

@@ -53,7 +53,7 @@ import { useCartStore } from '../store/cartStore';
 import useAuthStore from '../store/authStore';
 import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
-import { prepareFrameImageSrc, punchDropzoneHoles } from '../utils/frameImageProcessing';
+import { withMagnetPrintDimensions } from '../utils/magnetSize';
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -346,7 +346,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     useEffect(() => {
         const productFromNav = location.state?.product;
         if (productFromNav) {
-            setSelectedProduct(productFromNav);
+            setSelectedProduct(withMagnetPrintDimensions(productFromNav));
             return;
         }
 
@@ -356,7 +356,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         getProductById(productId)
             .then((product) => {
                 if (!cancelled && product) {
-                    setSelectedProduct(product);
+                    setSelectedProduct(withMagnetPrintDimensions(product));
                 }
             })
             .catch((err) => console.error('Failed to load product for editor', err));
@@ -561,6 +561,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 price: productPrice,            
                 image: cartThumb || savedProject.preview || selectedProduct?.image,
                 quantity: orderQuantity || 1,
+                size: typeof selectedProduct === 'object' ? selectedProduct.size : undefined,
                 customDesign: {
                     projectId: savedProject._id,
                     projectName: savedProject.name,
@@ -641,6 +642,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 price: productPrice,
                 image: proj.preview,
                 quantity: 1,
+                size: typeof proj.selectedProduct === 'object' ? proj.selectedProduct.size : undefined,
                 customDesign: {
                     projectId: proj._id,
                     projectName: proj.name,

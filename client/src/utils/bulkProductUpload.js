@@ -3,6 +3,7 @@ import { addProduct } from '../api/products';
 import { getDisplayTypeForCategory } from '../constants/productCategories';
 import { parseCaptionsFromCell } from '../constants/captionCategories';
 import { uploadImageToCloudinary } from './cloudinaryUpload';
+import { parseMagnetSize } from './magnetSize';
 
 const CONCURRENCY = 3;
 
@@ -45,6 +46,8 @@ const COLUMN_ALIASES = {
     printheight: 'height',
     גובה: 'height',
     גובהשטחהדפסה: 'height',
+    size: 'size',
+    גודל: 'size',
     imagefile: 'imageFile',
     image: 'imageFile',
     filename: 'imageFile',
@@ -195,6 +198,7 @@ function validateRow(row, rowIndex) {
             imageFile,
             width: toNumber(row.width, 12),
             height: toNumber(row.height, 18),
+            size: String(row.size ?? '').trim(),
             captions: parseCaptionsFromCell(row.captions),
         },
     };
@@ -223,6 +227,20 @@ async function processRow(rowData, imageMap) {
     if (displayType === 'design') {
         payload.printWidth = rowData.width;
         payload.printHeight = rowData.height;
+    }
+
+    if (displayType === 'magnet') {
+        const parsedSize = parseMagnetSize(rowData.size)
+            || parseMagnetSize(rowData.title)
+            || (rowData.width && rowData.height
+                ? { label: `${rowData.width}×${rowData.height}`, width: rowData.width, height: rowData.height }
+                : null);
+        payload.size = rowData.size || parsedSize?.label || '';
+        payload.priceTiers = [];
+        if (parsedSize) {
+            payload.printWidth = parsedSize.width;
+            payload.printHeight = parsedSize.height;
+        }
     }
 
     await addProduct(payload);
