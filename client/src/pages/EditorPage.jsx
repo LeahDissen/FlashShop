@@ -20,6 +20,7 @@ import {
     getActiveGlobalFrame,
     getDropzoneImageForSlot,
     insertBelowGlobalFrame,
+    moveElementToEdge,
     isDropzoneImage,
     isGlobalFrame,
     removeDropzoneImages,
@@ -1291,49 +1292,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const handleBringToFront = useCallback(() => {
         if (!selectedElementId) return;
-        const el = elements.find((item) => item.id === selectedElementId);
-        if (!el || isGlobalFrame(el)) return;
-
-        const newElements = [...elements];
-        const index = newElements.findIndex((item) => item.id === selectedElementId);
-        if (index === -1) return;
-
-        const [removed] = newElements.splice(index, 1);
-
-        if (el.type === 'text') {
-            newElements.push(removed);
-        } else {
-            const frameIdx = newElements.findIndex(isGlobalFrame);
-            if (frameIdx === -1) {
-                newElements.push(removed);
-            } else {
-                newElements.splice(frameIdx, 0, removed);
-            }
-        }
-
-        updateElementsWithHistory(enforceLayerOrder(newElements));
+        updateElementsWithHistory(moveElementToEdge(elements, selectedElementId, 'front'));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const handleSendToBack = useCallback(() => {
         if (!selectedElementId) return;
-        const el = elements.find((item) => item.id === selectedElementId);
-        if (!el || isGlobalFrame(el)) return;
-
-        const newElements = [...elements];
-        const index = newElements.findIndex((item) => item.id === selectedElementId);
-        if (index === -1) return;
-
-        const [removed] = newElements.splice(index, 1);
-
-        if (el.type === 'text') {
-            const frameIdx = newElements.findIndex(isGlobalFrame);
-            const insertAt = frameIdx === -1 ? 0 : frameIdx + 1;
-            newElements.splice(insertAt, 0, removed);
-        } else {
-            newElements.unshift(removed);
-        }
-
-        updateElementsWithHistory(enforceLayerOrder(newElements));
+        updateElementsWithHistory(moveElementToEdge(elements, selectedElementId, 'back'));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const deleteUploadedImage = useCallback((srcToDelete) => {
