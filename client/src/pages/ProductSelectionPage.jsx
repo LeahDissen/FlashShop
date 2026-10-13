@@ -16,6 +16,8 @@ import {
     formatPrice,
 } from '../utils/productQuantityPricing';
 import SalePrice from '../components/SalePrice';
+import PrintOptionButton from '../components/PrintOptionButton';
+import { getPrintOption } from '../constants/printOptions';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -42,7 +44,8 @@ const ProductSelectionPage = () => {
         referenceImage: null
     });
 
-    const [heroBgImage, setHeroBgImage] = useState("");
+    // תוכן דף "products" ב-CMS: תמונת הבאנר וטקסטים של כפתורי האפשרויות
+    const [productsPageContent, setProductsPageContent] = useState({});
     const fileInputRef = useRef(null);
     const magnetFileRef = useRef(null);
     const designerFileRef = useRef(null);
@@ -66,17 +69,7 @@ const ProductSelectionPage = () => {
     }, [product, productId, setSelectedProduct, navigate]);
 
     useEffect(() => {
-        const fetchPageDesign = async () => {
-            try {
-                const data = await getPage("products");
-                if (data && data.img) {
-                    setHeroBgImage(data.img);
-                }
-            } catch (error) {
-                console.error("Error fetching products page design:", error);
-            }
-        };
-        fetchPageDesign();
+        getPage("products").then(setProductsPageContent);
     }, []);
 
     useEffect(() => {
@@ -157,6 +150,11 @@ const ProductSelectionPage = () => {
     if (!product) {
         return null;
     }
+
+    const selfDesignOption = getPrintOption(productsPageContent, 'optionSelfDesign');
+    const designerOption = getPrintOption(productsPageContent, 'optionDesigner');
+    const uploadOption = getPrintOption(productsPageContent, 'optionUpload');
+    const captionsOption = getPrintOption(productsPageContent, 'optionCaptions');
 
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
@@ -354,7 +352,7 @@ const ProductSelectionPage = () => {
             <div className="w-full relative">
                 <div
                     className="relative h-[160px] sm:h-[200px] bg-cover bg-center flex items-center justify-center text-white"
-                    style={{ backgroundImage: `url(${heroBgImage})`, backgroundColor: '#a39589' }}
+                    style={{ backgroundImage: `url(${productsPageContent.img || ''})`, backgroundColor: '#a39589' }}
                 >
                     <div className="absolute inset-0 bg-black/15"></div>
                     <h1 className="relative z-10 text-3xl sm:text-4xl font-bold text-center text-white tracking-wide drop-shadow-sm" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
@@ -508,7 +506,7 @@ const ProductSelectionPage = () => {
                                                     className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer"
                                                 >
                                                     <Palette size={16} />
-                                                    עיצוב עצמי
+                                                    {selfDesignOption.label}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -516,7 +514,7 @@ const ProductSelectionPage = () => {
                                                     disabled={isUploading}
                                                     className="px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
                                                 >
-                                                    {isUploading ? 'מעלה...' : magnetImage ? 'החלפת תמונה' : 'העלאת תמונה'}
+                                                    {isUploading ? 'מעלה...' : magnetImage ? 'החלפת תמונה' : uploadOption.label}
                                                 </button>
                                                 <input type="file" ref={magnetFileRef} onChange={handleMagnetFileChange} className="hidden" accept="image/*" />
                                                 <button
@@ -546,15 +544,17 @@ const ProductSelectionPage = () => {
                                     {!simpleProduct && !magnetProduct && (
                                     <>
                                     <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
-                                        <button
+                                        <PrintOptionButton
+                                            hint={selfDesignOption.hint}
                                             onClick={handleDesignClick}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
                                             <Palette size={17} />
-                                            עיצוב עצמי
-                                        </button>
+                                            {selfDesignOption.label}
+                                        </PrintOptionButton>
 
-                                        <button
+                                        <PrintOptionButton
+                                            hint={designerOption.hint}
                                             onClick={() => { setShowDesignerForm(!showDesignerForm); setUploadedImage(null); }}
                                             className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer ${
                                                 showDesignerForm
@@ -563,26 +563,27 @@ const ProductSelectionPage = () => {
                                             }`}
                                         >
                                             <Sparkles size={17} />
-                                            עיצוב מותאם
-                                        </button>
+                                            {designerOption.label}
+                                        </PrintOptionButton>
 
-                                        <button
+                                        <PrintOptionButton
+                                            hint={uploadOption.hint}
                                             onClick={() => fileInputRef.current.click()}
                                             disabled={isUploading}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e] text-[#f2665e] bg-[#fff5f4] hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
                                         >
                                             {isUploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
-                                            {isUploading ? 'מעלה...' : 'העלאת תמונה'}
-                                        </button>
+                                            {isUploading ? 'מעלה...' : uploadOption.label}
+                                        </PrintOptionButton>
 
-                                        <button
-                                            type="button"
+                                        <PrintOptionButton
+                                            hint={captionsOption.hint}
                                             onClick={() => navigate(`/product-selection/${productId}/caption-ideas`)}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
                                             <Type size={17} />
-                                            רעיונות לכיתוב
-                                        </button>
+                                            {captionsOption.label}
+                                        </PrintOptionButton>
                                     </div>
 
                                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />

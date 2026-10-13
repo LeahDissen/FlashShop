@@ -6,6 +6,7 @@ import PersonalizationSection from '../components/PersonalizationSection';
 import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
+import { PRINT_OPTIONS } from '../constants/printOptions';
 
 const ProductsPage = ({ onNavigate }) => {
     const [searchParams] = useSearchParams();
@@ -54,6 +55,27 @@ const ProductsPage = ({ onNavigate }) => {
                 <label className="block text-sm font-bold text-gray-700">תיאור:</label>
                 <textarea value={draft.sectionDescription} onChange={(e) => updateDraft({ sectionDescription: e.target.value })} className="w-full border p-2 rounded h-24" />
             </div>
+
+            <h3 className="font-bold text-lg border-b pb-2 mt-6">כפתורי האפשרויות בעמוד מוצר</h3>
+            <p className="text-xs text-gray-500">ההסבר מופיע ללקוח כשמרחפים עם העכבר מעל הכפתור, ובטלפון בלחיצה על אייקון ה-i.</p>
+            {PRINT_OPTIONS.map(({ key, defaultLabel, adminLabel }) => (
+                <div key={key} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                    <p className="text-sm font-bold text-gray-700">{adminLabel}</p>
+                    <input
+                        type="text"
+                        value={draft[`${key}Label`] || ''}
+                        onChange={(e) => updateDraft({ [`${key}Label`]: e.target.value })}
+                        placeholder={`טקסט הכפתור (ברירת מחדל: ${defaultLabel})`}
+                        className="w-full border p-2 rounded"
+                    />
+                    <textarea
+                        value={draft[`${key}Hint`] || ''}
+                        onChange={(e) => updateDraft({ [`${key}Hint`]: e.target.value })}
+                        placeholder="הסבר קצר (לא חובה)"
+                        className="w-full border p-2 rounded h-16"
+                    />
+                </div>
+            ))}
         </div>
     );
 
