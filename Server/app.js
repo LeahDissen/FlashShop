@@ -21,6 +21,7 @@ const editorAssetsRoutes = require("./routes/editorAssetsRoutes");
 const designUploadsRoutes = require("./routes/designUploadsRoutes");
 const shopSettingsRoutes = require("./routes/shopSettingsRoutes");
 const pagesRoutes = require("./routes/pagesRoutes");
+const popupsRoutes = require("./routes/popupsRoutes");
 
 const PORT = Number(process.env.PORT || config.PORT) || 10000;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -66,6 +67,7 @@ app.use("/editor-assets", editorAssetsRoutes);
 app.use("/design-uploads", designUploadsRoutes);
 app.use("/shop-settings", shopSettingsRoutes);
 app.use("/pages", pagesRoutes);
+app.use("/popups", popupsRoutes);
 
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);

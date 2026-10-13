@@ -1,4 +1,4 @@
-import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
+import { FaBoxOpen, FaBullhorn, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -76,6 +76,13 @@ export default function AdminDashboardPage() {
       description: "עריכת נוסח המיילים האוטומטיים שהלקוח מקבל בכל שלב בהזמנה.",
       icon: <FaEnvelope className="text-3xl text-white" />,
       link: "/orderemails",
+    },
+    {
+      id: 11,
+      title: "פופאפים באתר",
+      description: "הודעות קופצות ללקוחות: מבצעים, הודעות חשובות, קורסים — לפי עמוד, זמן ותאריכים.",
+      icon: <FaBullhorn className="text-3xl text-white" />,
+      link: "/popups",
     },
     {
       id: 9,

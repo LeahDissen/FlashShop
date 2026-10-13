@@ -40,8 +40,7 @@ export default function Club() {
 
             checkboxText: "",
             btnText: "",
-            successText: "הצטרפת בהצלחה למועדון!"
-,
+            successText: "הצטרפת בהצלחה למועדון!",
             welcomeSubject: "",
             welcomeBody: "",
             welcomeAttachmentUrl: ""
