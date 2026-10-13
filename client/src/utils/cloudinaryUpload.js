@@ -1,6 +1,8 @@
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '../config/api';
+
 const CLOUDINARY_UPLOAD_URL =
-    'https://api.cloudinary.com/v1_1/dwqywo11u/image/upload';
-const UPLOAD_PRESET = 'ml_default';
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+const UPLOAD_PRESET = CLOUDINARY_UPLOAD_PRESET;
 
 /** Cloudinary unsigned uploads are typically capped at ~10MB */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
