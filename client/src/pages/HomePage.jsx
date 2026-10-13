@@ -128,6 +128,14 @@ export default function HomePage() {
         updateDraft({ testimonials: list.filter((_, i) => i !== index) });
     };
 
+    /** ריבוע בלי קישור מפורש מוביל לעמוד המוצרים מסונן לפי שם הקטגוריה שלו */
+    const tileLink = (prod) => {
+        const link = (prod?.link || '').trim();
+        if (link) return link;
+        const name = (prod?.name || '').trim();
+        return name ? `/products?category=${encodeURIComponent(name)}` : '/products';
+    };
+
     /** Always 6 grid slots — real products or empty placeholders */
     const gridItems = useMemo(() => {
         const list = Array.isArray(draft.products) ? draft.products : [];
@@ -180,7 +188,7 @@ export default function HomePage() {
                             />
                             <input
                                 type="text"
-                                placeholder="קישור (e.g. /products)"
+                                placeholder="קישור (ריק = מוצרים לפי שם הקטגוריה)"
                                 value={prod?.link || ''}
                                 className="w-full border rounded p-1.5 text-xs ltr"
                                 dir="ltr"
@@ -334,7 +342,7 @@ export default function HomePage() {
                                 prod?.image ? (
                                     <Link
                                         key={index}
-                                        to={prod.link || '/products'}
+                                        to={tileLink(prod)}
                                         aria-label={prod.name || `קטגוריה ${index + 1}`}
                                         className="home-products__tile"
                                     >
