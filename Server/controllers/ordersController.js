@@ -573,9 +573,10 @@ exports.updateOrderStatus = async (req, res) => {
             { new: true }
         );
 
-        // הלקוח מקבל מייל בכל שינוי סטטוס (לפי הנוסח שהמנהלת הגדירה)
+        // הלקוח מקבל מייל בכל שינוי סטטוס (לפי הנוסח שהמנהלת הגדירה).
+        // נשלח ברקע: המנהלת לא מחכה לשרת המייל, וכשל נרשם בלוג בלבד.
         if (previous.status !== status) {
-            await sendOrderStatusEmail(order, status);
+            sendOrderStatusEmail(order, status);
         }
 
         res.json(order);
@@ -840,8 +841,8 @@ exports.createOrder = async (req, res) => {
             await markCouponAsUsed(couponCode, userId);
         }
 
-        // אישור קבלת ההזמנה ללקוח
-        await sendOrderStatusEmail(saved, "processing");
+        // אישור קבלת ההזמנה ללקוח (ברקע, לא מעכב את סיום ההזמנה)
+        sendOrderStatusEmail(saved, "processing");
 
         // איפוס וניקוי עגלת הקניות הזמנית (pending) של המשתמש
         await OrderModel.findOneAndUpdate(
