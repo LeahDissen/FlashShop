@@ -2,8 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
 import useAuthStore from './authStore';
+import useToastStore from './toastStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
 import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart } from '../utils/cartItem';
+
+export const CART_ADDED_MESSAGE = 'המוצר נוסף לסל בהצלחה!';
 
 const compactCartItem = (item) => {
   const compactCustomDesign = compactCustomDesignForCart(item?.customDesign);
@@ -40,7 +43,8 @@ export const useCartStore = create(
           set({ cartItems: [] });
       },
 
-      addToCart: async (newItems) => {
+      /** מוסיף פריטים לסל ומציג ללקוח אישור. אפשר להחליף את נוסח האישור דרך successMessage */
+      addToCart: async (newItems, { successMessage = CART_ADDED_MESSAGE } = {}) => {
           const preparedItems = await prepareCartItems(newItems);
           set((state) => {
               const updatedCart = assignCartLineIds([...state.cartItems, ...preparedItems]);
@@ -51,6 +55,7 @@ export const useCartStore = create(
               
               return { cartItems: updatedCart };
           });
+          useToastStore.getState().showToast(successMessage);
       },
 
       removeFromCart: (itemId) => {
