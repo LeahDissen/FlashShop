@@ -72,12 +72,10 @@ exports.joinClub = async (req, res) => {
             isUsed: false
         });
         await newMember.save();
-        try {
-            await sendWelcomeEmail({ email, name, code: newCode });
-            console.log("Welcome email sent to " + email);
-        } catch (emailErr) {
-            console.error("Failed to send welcome email:", emailErr);
-        }
+        // המייל נשלח ברקע: ההרשמה כבר נשמרה, והלקוחה לא צריכה לחכות לשרת המייל
+        sendWelcomeEmail({ email, name, code: newCode })
+            .then(() => console.log("Welcome email sent to " + email))
+            .catch((emailErr) => console.error("Failed to send welcome email:", emailErr.message));
         res.status(201).json({ msg: "הצטרפת בהצלחה!", code: newCode });
     } catch (err) {
         if (err.code === 11000) {
