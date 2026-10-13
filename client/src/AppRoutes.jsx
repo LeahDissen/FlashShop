@@ -39,10 +39,7 @@ const ProductsPageWrapper = () => {
 const EditorPageWrapper = () => {
     const navigate = useNavigate();
     return (
-        <EditorPage
-            onNavigateToHome={() => navigate('/products')}
-            onNavigateToCart={() => navigate('/cart')}
-        />
+        <EditorPage onNavigateToHome={() => navigate('/products')} />
     );
 };
 

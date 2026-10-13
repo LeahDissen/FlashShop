@@ -160,13 +160,14 @@ const ProductSelectionPage = () => {
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
 
+    // לאחר ההוספה לסל חוזרים לעמוד המוצרים כדי שהלקוח יוכל להמשיך לקנות
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
             await addToCart(items);
             if (successMessage) {
                 alert(successMessage);
             }
-            navigate('/cart');
+            navigate('/products');
         } catch (error) {
             console.error('Failed to add to cart:', error);
             alert('לא ניתן להוסיף לסל כרגע. נסו שוב.');
@@ -615,7 +616,7 @@ const ProductSelectionPage = () => {
                                         onClick={handleUploadAddToCart}
                                         className="w-full max-w-xs bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-6 rounded-full shadow-sm transition-all text-sm cursor-pointer"
                                     >
-                                        הוסף לסל והמשך לקופה
+                                        הוסף לסל
                                     </button>
                                 </div>
                             </div>
