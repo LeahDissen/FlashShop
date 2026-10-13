@@ -28,6 +28,7 @@ import CaptionIdeasPage from "./pages/CaptionIdeasPage";
 import DesignFramesManagement from "./adminPage/DesignFramesManagement";
 import EditorAssetsManagement from "./adminPage/EditorAssetsManagement";
 import EditorSettingsManagement from "./adminPage/EditorSettingsManagement";
+import PhotoPricingManagement from "./adminPage/PhotoPricingManagement";
 import ShopSettingsManagement from "./adminPage/ShopSettingsManagement";
 import PopupsManagement from "./adminPage/PopupsManagement";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
@@ -75,6 +76,7 @@ export default function AppRoutes() {
                 <Route path="/designframes" element={<AdminRoute><Layout><DesignFramesManagement /></Layout></AdminRoute>} />
                 <Route path="/editorassets" element={<AdminRoute><Layout><EditorAssetsManagement /></Layout></AdminRoute>} />
                 <Route path="/editorsettings" element={<AdminRoute><Layout><EditorSettingsManagement /></Layout></AdminRoute>} />
+                <Route path="/photopricing" element={<AdminRoute><Layout><PhotoPricingManagement /></Layout></AdminRoute>} />
                 <Route path="/shopsettings" element={<AdminRoute><Layout><ShopSettingsManagement /></Layout></AdminRoute>} />
                 <Route path="/popups" element={<AdminRoute><Layout><PopupsManagement /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />

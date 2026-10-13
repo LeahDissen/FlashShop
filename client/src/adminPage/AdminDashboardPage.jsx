@@ -1,4 +1,4 @@
-import { FaBoxOpen, FaBullhorn, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
+import { FaBoxOpen, FaBullhorn, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaImages, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -48,6 +48,13 @@ export default function AdminDashboardPage() {
       description: "החלפת קובץ הקטלוג (PDF) הניתן להורדה באתר.",
       icon: <FaFilePdf className="text-3xl text-white" />,
       link: "/updatecatalog",
+    },
+    {
+      id: "photo-pricing",
+      title: "מחירי פיתוח תמונות",
+      description: "מחיר לתמונה לפי גודל, הנחות לפי כמות והנחה על אלבום.",
+      icon: <FaImages className="text-3xl text-white" />,
+      link: "/photopricing",
     },
     {
       id: 6,
