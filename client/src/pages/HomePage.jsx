@@ -24,10 +24,21 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
+/** גובה תמונת ה-Hero לפי בחירת המנהלת (בדסקטופ; במובייל קטן יותר באותו יחס) */
+const HERO_HEIGHTS = {
+    small: { label: "נמוכה", px: 240 },
+    medium: { label: "בינונית", px: 360 },
+    large: { label: "גבוהה", px: 480 },
+};
+const DEFAULT_HERO_HEIGHT = "medium";
+const DEFAULT_HERO_FOCUS = 50; // אחוז אנכי: 0 = החלק העליון של התמונה, 100 = התחתון
+
 /** Stable initial data — defined outside component to prevent recreation on every render */
 const INITIAL_DATA = {
     title: "",
     mainImg: "",
+    heroHeight: DEFAULT_HERO_HEIGHT,
+    heroFocus: DEFAULT_HERO_FOCUS,
     products: [],
     goToAll: "",
     goToAbout: "",
@@ -137,6 +148,9 @@ export default function HomePage() {
     };
 
     /** Always 6 grid slots — real products or empty placeholders */
+    const heroHeightKey = HERO_HEIGHTS[draft.heroHeight] ? draft.heroHeight : DEFAULT_HERO_HEIGHT;
+    const heroFocus = Number.isFinite(Number(draft.heroFocus)) ? Number(draft.heroFocus) : DEFAULT_HERO_FOCUS;
+
     const gridItems = useMemo(() => {
         const list = Array.isArray(draft.products) ? draft.products : [];
         return [
@@ -165,6 +179,31 @@ export default function HomePage() {
                     className="w-full border p-2 rounded ltr"
                     previewClassName="h-[80px] w-[80px] rounded object-cover border border-gray-200"
                 />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                    <span className="font-bold block mb-1">גובה התמונה:</span>
+                    <select
+                        value={heroHeightKey}
+                        onChange={(e) => updateDraft({ heroHeight: e.target.value })}
+                        className="w-full border rounded p-2"
+                    >
+                        {Object.entries(HERO_HEIGHTS).map(([key, { label }]) => (
+                            <option key={key} value={key}>{label}</option>
+                        ))}
+                    </select>
+                </label>
+                <label className="block">
+                    <span className="font-bold block mb-1">איזה חלק מהתמונה יוצג: {heroFocus <= 20 ? "למעלה" : heroFocus >= 80 ? "למטה" : "אמצע"}</span>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={heroFocus}
+                        onChange={(e) => updateDraft({ heroFocus: Number(e.target.value) })}
+                        className="w-full accent-[#f2665e]"
+                    />
+                </label>
             </div>
             <div>
                 <label className="font-bold block mb-2">6 מוצרים — תמונה + שם + קישור:</label>
@@ -299,7 +338,8 @@ export default function HomePage() {
                             backgroundColor: '#f8dcdb',
                             backgroundImage: draft.mainImg ? `url(${draft.mainImg})` : 'none',
                             backgroundSize: 'cover',
-                            backgroundPosition: 'center',
+                            backgroundPosition: `center ${heroFocus}%`,
+                            '--hero-height': `${HERO_HEIGHTS[heroHeightKey].px}px`,
                         }}
                     >
                         {draft.mainImg ? <div className="home-hero__banner-overlay" /> : null}
