@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPage } from '../api/pages';
-import { getPhotoPrices } from '../api/photo';
+import { getPhotoPricing } from '../api/photo';
 import AdminControls from '../components/AdminControls';
 import Gallery from '../components/Gallery';
 import Hero from '../components/Hero';
@@ -22,12 +22,13 @@ import {
     getAlbumDiscount,
     getNextPricingTierHint,
     getOrderPricing,
-    getUnitPriceByQuantity,
+    getPhotoUnitPrice,
 } from '../utils/photoQuantityPricing';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [images, setImages] = useState([]);
-    const [priceList, setPriceList] = useState([]);
+    /** מחירון פיתוח התמונות מהשרת; null עד שנטען */
+    const [pricing, setPricing] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
     /** התקדמות העלאה מרובה: { done, total, failed } */
@@ -52,26 +53,23 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         }).catch(error => console.error("Error fetching main photos page data:", error));
-        const fetchPrices = async () => {
-            try {
-                const data = await getPhotoPrices();
-                setPriceList(mergePhotoPricesWithCatalog(data));
-            } catch (err) {
-                console.error("Failed to load prices from DB:", err);
-                setPriceList(mergePhotoPricesWithCatalog([]));
-            }
-        };
-        fetchPrices();
+        getPhotoPricing()
+            .then(setPricing)
+            .catch((err) => console.error("Failed to load photo pricing:", err));
     }, []);
 
-    const orderPricing = useMemo(() => getOrderPricing(images), [images]);
+    const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(pricing?.sizes), [pricing]);
+    const orderPricing = useMemo(
+        () => getOrderPricing(images, pricing, DEFAULT_PHOTO_PRINT_SIZE),
+        [images, pricing],
+    );
     const nextTierHint = useMemo(
-        () => getNextPricingTierHint(orderPricing.totalPrints),
-        [orderPricing.totalPrints],
+        () => getNextPricingTierHint(orderPricing.totalPrints, pricing),
+        [orderPricing.totalPrints, pricing],
     );
     const albumDiscount = useMemo(
-        () => getAlbumDiscount(orderPricing.totalPrints),
-        [orderPricing.totalPrints],
+        () => getAlbumDiscount(orderPricing.totalPrints, pricing),
+        [orderPricing.totalPrints, pricing],
     );
 
     const toGalleryImage = ({ file, index, url, width, height }) => ({
@@ -193,14 +191,12 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         : null;
 
     const handleSendOrder = () => {
-        if (images.length === 0) return;
-
-        const defaultSize = DEFAULT_PHOTO_PRINT_SIZE;
-        const unitPrice = getUnitPriceByQuantity(orderPricing.totalPrints);
+        if (images.length === 0 || !pricing) return;
 
         const cartItems = images.map((img) => {
-            const size = img.size || defaultSize;
+            const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
             const qty = Math.max(1, img.quantity);
+            const unitPrice = getPhotoUnitPrice(pricing, size, orderPricing.totalPrints);
             return {
                 id: img.id,
                 itemType: 'photo-print',
@@ -296,7 +292,8 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                 onAdjustPrint={setAdjustImageId}
                 onToggleOrientation={handleToggleOrientation}
                 onSendOrder={handleSendOrder}
-                availableSizes={priceList}
+                availableSizes={sizeOptions}
+                pricing={pricing}
                 orderPricing={orderPricing}
                 nextTierHint={nextTierHint}
                 albumDiscount={albumDiscount}
@@ -318,7 +315,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                     onSave={handleSaveCrop}
                     onClose={() => setAdjustImageId(null)}
                     isSaving={isCropSaving}
-                    availableSizes={priceList}
+                    availableSizes={sizeOptions}
                 />
             )}
 

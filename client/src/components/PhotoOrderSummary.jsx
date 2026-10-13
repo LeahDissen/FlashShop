@@ -3,10 +3,10 @@ import { ALBUM_CATEGORY } from '../utils/photoQuantityPricing';
 import PhotoPricingInfo from './PhotoPricingInfo';
 
 const PhotoOrderSummary = ({
+    pricing,
     totalPrints,
-    unitPrice,
     grandTotal,
-    tierLabel,
+    discountPercent,
     nextTierHint,
     albumDiscount,
 }) => {
@@ -17,13 +17,12 @@ const PhotoOrderSummary = ({
             <div className="bg-[#fff5f4] border border-[#f2665e]/30 rounded-xl p-4 text-center shadow-sm">
                 <div className="flex items-center justify-center gap-3 mb-1 flex-wrap">
                     <p className="text-sm text-gray-600">סיכום הזמנת פיתוח תמונות</p>
-                    <PhotoPricingInfo totalPrints={totalPrints} />
+                    <PhotoPricingInfo pricing={pricing} totalPrints={totalPrints} />
                 </div>
-                <p className="text-lg font-bold text-gray-800">
-                    {totalPrints} הדפסות ·{' '}
-                    <span className="text-[#f2665e]">{unitPrice.toFixed(2)} ₪</span> לתמונה
-                </p>
-                <p className="text-xs text-gray-500 mt-1">מדרגת מחיר: {tierLabel}</p>
+                <p className="text-lg font-bold text-gray-800">{totalPrints} הדפסות</p>
+                {discountPercent > 0 && (
+                    <p className="text-sm text-green-700 mt-1">הנחת כמות: {discountPercent}% על כל התמונות</p>
+                )}
                 <p className="text-2xl font-bold text-[#f2665e] mt-2">
                     סה״כ: {grandTotal.toFixed(2)} ₪
                 </p>

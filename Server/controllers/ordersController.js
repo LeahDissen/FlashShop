@@ -3,7 +3,8 @@ const { OrderModel } = require("../models/ordersModel");
 const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
-const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
+const { getPhotoUnitPrice, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
+const { loadPhotoPricing } = require("../services/photoPricingService");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
 const {
     isDriveConfigured,
@@ -674,7 +675,7 @@ exports.createOrder = async (req, res) => {
             (sum, item) => sum + (Number(item.quantity) || 1),
             0,
         );
-        const photoUnitPrice = getUnitPriceByQuantity(totalPhotoPrints);
+        const photoPricing = photoItems.length > 0 ? await loadPhotoPricing() : null;
 
         for (const item of items) {
             const qty = Number(item.quantity) || 1;
@@ -722,6 +723,8 @@ exports.createOrder = async (req, res) => {
             }
 
             if (isPhotoPrintItem(item)) {
+                // המחיר לתמונה תלוי בגודל ובכמות ההדפסות הכוללת – מחושב מחדש מהמחירון השמור
+                const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, totalPhotoPrints);
                 const cartPrice = Number(item.price);
                 if (!cartPrice || Math.abs(cartPrice - photoUnitPrice) > 0.01) {
                     return res.status(400).json({ msg: "מחיר הדפסת תמונה אינו תקין" });

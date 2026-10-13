@@ -1,130 +1,77 @@
-/** תמחור פיתוח תמונות לפי סך כל ההדפסות (סכום quantity) */
+/**
+ * תמחור פיתוח תמונות לפי המחירון שהמנהלת מגדירה (נטען מהשרת):
+ * מחיר בסיס לכל גודל, הנחת כמות לפי סך כל ההדפסות, והנחה על אלבום.
+ * אותו חישוב רץ בשרת בזמן יצירת ההזמנה (Server/utils/photoQuantityPricing.js).
+ */
 
-/** מדרגות מחיר — מקור אמת יחיד לתצוגה ולחישוב */
-export const PRICING_TABLE_ROWS = [
-    { min: 1, max: 39, unitPrice: 1.8, label: 'עד 39 תמונות' },
-    { min: 40, max: 99, unitPrice: 1.25, label: 'מ-40 תמונות' },
-    { min: 100, max: 199, unitPrice: 1.1, label: 'מ-100 תמונות' },
-    { min: 200, max: 499, unitPrice: 0.9, label: 'מ-200 תמונות' },
-    { min: 500, max: null, unitPrice: 0.8, label: 'מ-500 תמונות' },
-];
-
-const QUANTITY_TIERS = [...PRICING_TABLE_ROWS]
-    .map((row) => ({
-        minQuantity: row.min,
-        unitPrice: row.unitPrice,
-        label: row.label,
-    }))
-    .sort((a, b) => b.minQuantity - a.minQuantity);
-
-const ALBUM_DISCOUNT_TIERS = [
-    { minQuantity: 400, percent: 20 },
-    { minQuantity: 200, percent: 15 },
-    { minQuantity: 100, percent: 10 },
-];
-
-export function getTotalPrintCount(images = []) {
-    return images.reduce(
-        (sum, img) => sum + Math.max(1, Number(img.quantity) || 1),
-        0,
-    );
-}
-
-export function getUnitPriceByQuantity(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    const tier = QUANTITY_TIERS.find((t) => count >= t.minQuantity);
-    return tier ? tier.unitPrice : 1.8;
-}
-
-export function getActiveQuantityTier(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    return QUANTITY_TIERS.find((t) => count >= t.minQuantity) ?? QUANTITY_TIERS.at(-1);
-}
-
-export function getOrderTotal(images = []) {
-    const totalPrints = getTotalPrintCount(images);
-    return totalPrints * getUnitPriceByQuantity(totalPrints);
-}
-
-/** כמה עותקים חסרים למדרגת המחיר הבאה (זולה יותר) */
-export function getNextPriceTierHint(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    const tiersAsc = [...QUANTITY_TIERS].sort((a, b) => a.minQuantity - b.minQuantity);
-
-    for (const tier of tiersAsc) {
-        if (count < tier.minQuantity) {
-            return {
-                remaining: tier.minQuantity - count,
-                nextUnitPrice: tier.unitPrice,
-                nextLabel: tier.label,
-            };
-        }
-    }
-    return null;
-}
-
-export function getAlbumDiscountPercent(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    const tier = ALBUM_DISCOUNT_TIERS.find((t) => count >= t.minQuantity);
-    return tier ? tier.percent : 0;
-}
-
-export function getAlbumDiscountMessage(totalPrints) {
-    const percent = getAlbumDiscountPercent(totalPrints);
-    if (percent === 0) return null;
-    return `בחרת ${totalPrints} הדפסות — מגיעה לך ${percent}% הנחה על אלבומי תמונות!`;
-}
-
-export function formatPrice(amount) {
-    return `${Number(amount).toFixed(2)} ₪`;
-}
-
-/** שם קטגוריה לקישור לאלבומים (מתאים ל-category במוצרים) */
+/** שם קטגוריית האלבומים במוצרים (לקישור "לבחירת אלבום") */
 export const ALBUM_CATEGORY = 'אלבום';
 
-export function getOrderPricing(images = []) {
+const roundToAgora = (value) => Math.round(value * 100) / 100;
+const normalizeSize = (size) => String(size || '').toLowerCase().replace(/×/g, 'x').trim();
+const byMinAsc = (a, b) => a.minQuantity - b.minQuantity;
+
+export const formatShekel = (amount) => `${Number(amount).toFixed(2)} ₪`;
+
+export function getTotalPrintCount(images = []) {
+    return images.reduce((sum, img) => sum + Math.max(1, Number(img.quantity) || 1), 0);
+}
+
+export function getQuantityDiscountPercent(pricing, totalPrints) {
+    const count = Math.max(0, Number(totalPrints) || 0);
+    const tier = [...(pricing?.quantityTiers || [])].sort(byMinAsc).reverse().find((t) => count >= t.minQuantity);
+    return tier ? tier.discountPercent : 0;
+}
+
+/** מחיר לתמונה בגודל נתון, אחרי הנחת הכמות */
+export function getPhotoUnitPrice(pricing, size, totalPrints) {
+    const sizes = pricing?.sizes || [];
+    const entry = sizes.find((s) => normalizeSize(s.size) === normalizeSize(size)) || sizes[0];
+    const basePrice = Number(entry?.price) || 0;
+    return roundToAgora(basePrice * (1 - getQuantityDiscountPercent(pricing, totalPrints) / 100));
+}
+
+/** סיכום ההזמנה: כמות כוללת, סה"כ לתשלום ואחוז הנחת הכמות */
+export function getOrderPricing(images, pricing, defaultSize) {
     const totalPrints = getTotalPrintCount(images);
-    const unitPrice = getUnitPriceByQuantity(totalPrints);
-    const tier = getActiveQuantityTier(totalPrints);
+    const grandTotal = images.reduce((sum, img) => {
+        const quantity = Math.max(1, Number(img.quantity) || 1);
+        return sum + quantity * getPhotoUnitPrice(pricing, img.size || defaultSize, totalPrints);
+    }, 0);
     return {
         totalPrints,
-        unitPrice,
-        grandTotal: totalPrints * unitPrice,
-        tier,
+        grandTotal: roundToAgora(grandTotal),
+        discountPercent: getQuantityDiscountPercent(pricing, totalPrints),
     };
 }
 
-export function getNextPricingTierHint(totalPrints) {
-    const next = getNextPriceTierHint(totalPrints);
+/** "עוד X הדפסות ותקבלי Y% הנחה" — או null במדרגה האחרונה */
+export function getNextPricingTierHint(totalPrints, pricing) {
+    const next = [...(pricing?.quantityTiers || [])].sort(byMinAsc).find((t) => totalPrints < t.minQuantity);
     if (!next) return null;
-    return `עוד ${next.remaining} הדפסות ותקבלי ${next.nextUnitPrice.toFixed(2)} ₪ לתמונה (${next.nextLabel})`;
+    return `עוד ${next.minQuantity - totalPrints} הדפסות ותקבלי ${next.discountPercent}% הנחה על כל התמונות`;
 }
 
-export function getAlbumDiscount(totalPrints) {
-    const percent = getAlbumDiscountPercent(totalPrints);
-    if (!percent) return null;
-    return { percent };
+export function getAlbumDiscount(totalPrints, pricing) {
+    const tier = [...(pricing?.albumDiscountTiers || [])].sort(byMinAsc).reverse()
+        .find((t) => totalPrints >= t.minQuantity);
+    return tier?.percent ? { percent: tier.percent } : null;
 }
 
-export function formatQuantityRange(row) {
-    if (row.max == null) return `${row.min} הדפסות ומעלה`;
-    if (row.min === 1) return `1–${row.max} הדפסות`;
-    return `${row.min}–${row.max} הדפסות`;
-}
-
-export function isQuantityInRow(totalPrints, row) {
-    const count = Math.max(0, totalPrints);
-    if (count < row.min) return false;
-    if (row.max == null) return true;
-    return count <= row.max;
-}
-
-/** שורות לטבלת תמחור — עם סימון המדרגה הפעילה */
-export function getPricingTableDisplay(totalPrints = 0) {
-    return PRICING_TABLE_ROWS.map((row) => ({
-        ...row,
-        rangeLabel: formatQuantityRange(row),
-        priceLabel: `${row.unitPrice.toFixed(2)} ₪`,
-        isActive: isQuantityInRow(totalPrints, row),
-    }));
+/** שורות טבלת המחירים: לכל מדרגת כמות — המחיר לכל גודל, עם סימון המדרגה הפעילה */
+export function getPricingTableDisplay(pricing, totalPrints = 0) {
+    const tiers = [...(pricing?.quantityTiers || [])].sort(byMinAsc);
+    const starts = [1, ...tiers.map((t) => t.minQuantity).filter((min) => min > 1)];
+    return starts.map((min, index) => {
+        const nextMin = starts[index + 1];
+        return {
+            key: min,
+            rangeLabel: nextMin ? `${min}–${nextMin - 1}` : `${min}+`,
+            isActive: totalPrints >= min && (!nextMin || totalPrints < nextMin),
+            prices: (pricing?.sizes || []).map((s) => ({
+                size: s.size,
+                price: getPhotoUnitPrice(pricing, s.size, min),
+            })),
+        };
+    });
 }
