@@ -24,7 +24,7 @@ import {
     getOrderPricing,
     getPhotoUnitPrice,
 } from '../utils/photoQuantityPricing';
-import { clearPhotoDraft, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
+import { clearPhotoDraft, endAlbumDetour, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     // התמונות שנבחרו נשמרות לאורך הביקור (למשל כשיוצאים לבחור אלבום וחוזרים)
@@ -71,6 +71,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     useEffect(() => {
         savePhotoDraft(images);
     }, [images]);
+
+    // חזרה לעמוד (גם בלי לקנות אלבום) מסיימת את "היציאה לבחירת אלבום"
+    useEffect(endAlbumDetour, []);
 
     const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(pricing?.sizes), [pricing]);
     const orderPricing = useMemo(

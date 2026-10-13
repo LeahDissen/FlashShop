@@ -16,7 +16,8 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
-import { consumeReturnPath } from './utils/photoOrderDraft';
+import { getReturnPathAfterAdd } from './utils/photoOrderDraft';
+import { useProductStore } from './store/productStore';
 import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
 import ProductsPage from "./pages/productsPage";
 import ProfilePage from "./pages/profilePage";
@@ -41,7 +42,7 @@ const ProductsPageWrapper = () => {
 const EditorPageWrapper = () => {
     const navigate = useNavigate();
     return (
-        <EditorPage onNavigateToHome={() => navigate(consumeReturnPath('/products'))} />
+        <EditorPage onNavigateToHome={() => navigate(getReturnPathAfterAdd(useProductStore.getState().selectedProduct, '/products'))} />
     );
 };
 
