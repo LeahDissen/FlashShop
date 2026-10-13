@@ -45,6 +45,8 @@ import EditorSidebar from '../components/editor/EditorSidebar.jsx';
 import OrientationMismatchNotice from '../components/editor/OrientationMismatchNotice';
 import ProductPreviewModal from '../components/editor/ProductPreviewModal';
 import { useEditorSettings } from '../hooks/useEditorSettings';
+import { useEditorAssets } from '../hooks/useEditorAssets';
+import { buildEditorPalette } from '../utils/editorPalette';
 import { uploadFinalDesign } from '../api/designUploads';
 import { ClockIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
@@ -54,6 +56,9 @@ import useAuthStore from '../store/authStore';
 import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
 import { withMagnetPrintDimensions } from '../utils/magnetSize';
+
+/** העמוד צריך מהספרייה רק את הצבעים; שאר הקטגוריות נטענות בסרגל הצד */
+const EMPTY_EDITOR_ASSETS = { shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] };
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -103,6 +108,11 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const userId = useAuthStore((state) => state.userId);
 
     const { settings: editorSettings } = useEditorSettings();
+    const { assets: editorAssets } = useEditorAssets(EMPTY_EDITOR_ASSETS);
+    const colorPalette = useMemo(
+        () => buildEditorPalette(editorSettings.textToolbar?.colorPresets, editorAssets.colors),
+        [editorSettings.textToolbar?.colorPresets, editorAssets.colors],
+    );
 
     const [activeFrameAspectRatio, setActiveFrameAspectRatio] = useState(null);
     const [orientationFlipped, setOrientationFlipped] = useState(false);
@@ -1449,6 +1459,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                                 onBringToFront={handleBringToFront}
                                 onSendToBack={handleSendToBack}
                                 textOptions={editorSettings.textToolbar}
+                                colors={colorPalette}
                             />
                         </div>
                     )}
@@ -1512,6 +1523,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         addUploadedBackground={addUploadedBackground}
                         deleteUploadedBackground={deleteUploadedBackground}
                         editorSettings={editorSettings}
+                        colors={colorPalette}
                     />
                 </div>
             </div>
