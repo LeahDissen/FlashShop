@@ -9,6 +9,11 @@ exports.config = {
     EMAIL_PASS: process.env.EMAIL_PASS || process.env.PASS,
     SMTP_HOST: process.env.SMTP_HOST,
     SMTP_PORT: process.env.SMTP_PORT,
+    // שליחת מיילים דרך HTTP API (נדרש בשרתים שחוסמים SMTP, כמו Railway בתוכניות Hobby/Trial)
+    EMAIL_PROVIDER: process.env.EMAIL_PROVIDER, // "brevo" | "resend" | ריק = SMTP
+    EMAIL_API_KEY: process.env.EMAIL_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM, // כתובת השולח המאומתת אצל הספק
+    EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME,
     USER: process.env.EMAIL_USER || process.env.USER,
     PASS: process.env.EMAIL_PASS || process.env.PASS,
     BCRYPT_SALT: process.env.BCRYPT_SALT,
