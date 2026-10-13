@@ -74,22 +74,42 @@ function parseCloudinaryError(data) {
     return 'העלאת הקובץ נכשלה. נסו שוב.';
 }
 
-export async function uploadImageToCloudinary(file) {
-    const prepared = await prepareImageForUpload(file);
+/** שגיאה עם סימון האם שווה לנסות שוב (רשת/שרת) או לא (קובץ פגום, גדול מדי, 4xx) */
+const uploadError = (message, retryable) => Object.assign(new Error(message), { retryable });
+
+/**
+ * מעלה תמונה ומחזיר גם את המידות שקלאודינרי מדווח –
+ * חוסך הורדה חוזרת של כל תמונה רק כדי למדוד אותה.
+ */
+export async function uploadImageDetailed(file) {
+    let prepared;
+    try {
+        prepared = await prepareImageForUpload(file);
+    } catch (error) {
+        throw uploadError(error.message, false);
+    }
+
     const formData = new FormData();
     formData.append('file', prepared);
     formData.append('upload_preset', UPLOAD_PRESET);
 
-    const response = await fetch(CLOUDINARY_UPLOAD_URL, {
-        method: 'POST',
-        body: formData,
-    });
+    let response;
+    try {
+        response = await fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData });
+    } catch {
+        throw uploadError('בעיית רשת בזמן ההעלאה. נסו שוב.', true);
+    }
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-        throw new Error(parseCloudinaryError(data));
+        throw uploadError(parseCloudinaryError(data), response.status >= 500 || response.status === 429);
     }
 
-    return data.secure_url;
+    return { url: data.secure_url, width: data.width, height: data.height };
+}
+
+export async function uploadImageToCloudinary(file) {
+    const { url } = await uploadImageDetailed(file);
+    return url;
 }
