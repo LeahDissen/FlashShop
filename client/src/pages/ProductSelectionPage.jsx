@@ -15,6 +15,7 @@ import {
     hasTieredPricing,
     formatPrice,
 } from '../utils/productQuantityPricing';
+import { consumeReturnPath } from '../utils/photoOrderDraft';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -167,7 +168,7 @@ const ProductSelectionPage = () => {
             if (successMessage) {
                 alert(successMessage);
             }
-            navigate('/products');
+            navigate(consumeReturnPath('/products'));
         } catch (error) {
             console.error('Failed to add to cart:', error);
             alert('לא ניתן להוסיף לסל כרגע. נסו שוב.');

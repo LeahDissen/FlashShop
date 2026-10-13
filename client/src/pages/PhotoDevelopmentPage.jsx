@@ -24,9 +24,11 @@ import {
     getOrderPricing,
     getPhotoUnitPrice,
 } from '../utils/photoQuantityPricing';
+import { clearPhotoDraft, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
-    const [images, setImages] = useState([]);
+    // התמונות שנבחרו נשמרות לאורך הביקור (למשל כשיוצאים לבחור אלבום וחוזרים)
+    const [images, setImages] = useState(loadPhotoDraft);
     /** מחירון פיתוח התמונות מהשרת; null עד שנטען */
     const [pricing, setPricing] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -57,6 +59,10 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             .then(setPricing)
             .catch((err) => console.error("Failed to load photo pricing:", err));
     }, []);
+
+    useEffect(() => {
+        savePhotoDraft(images);
+    }, [images]);
 
     const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(pricing?.sizes), [pricing]);
     const orderPricing = useMemo(
@@ -223,6 +229,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         });
 
         addToCart(cartItems);
+        clearPhotoDraft();
         navigate('/cart');
     };
 
