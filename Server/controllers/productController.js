@@ -33,6 +33,10 @@ function sanitizeProductBody(body = {}) {
         data.size = data.size.trim();
     }
 
+    if (data.isOnSale !== undefined) {
+        data.isOnSale = data.isOnSale === true || data.isOnSale === "true";
+    }
+
     if (isMagnetProductDoc(data)) {
         data.priceTiers = [];
         const parsedSize = parseMagnetSize(data.size);

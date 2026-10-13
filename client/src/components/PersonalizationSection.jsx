@@ -112,8 +112,13 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                             onClick={() => handleProductClick(product)}
                             className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white border-transparent shadow-md hover:shadow-xl hover:border-red-300`}
                         >
-                            <div className="h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
+                            <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
                                 <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                {product.isOnSale && (
+                                    <span className="absolute top-2 right-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#f2665e] text-white shadow-md">
+                                        מבצע
+                                    </span>
+                                )}
                             </div>
 
                             <div className="p-3 flex flex-col items-center gap-1 bg-white">
