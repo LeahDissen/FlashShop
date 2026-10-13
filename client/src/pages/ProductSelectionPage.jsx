@@ -18,6 +18,7 @@ import {
 import SalePrice from '../components/SalePrice';
 import PrintOptionButton from '../components/PrintOptionButton';
 import { getPrintOption } from '../constants/printOptions';
+import { consumeReturnPath } from '../utils/photoOrderDraft';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -163,7 +164,7 @@ const ProductSelectionPage = () => {
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
             await addToCart(items, { successMessage });
-            navigate('/products');
+            navigate(consumeReturnPath('/products'));
         } catch (error) {
             console.error('Failed to add to cart:', error);
             alert('לא ניתן להוסיף לסל כרגע. נסו שוב.');

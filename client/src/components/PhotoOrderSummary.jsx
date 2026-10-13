@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ALBUM_CATEGORY } from '../utils/photoQuantityPricing';
 import PhotoPricingInfo from './PhotoPricingInfo';
+import { startAlbumDetour } from '../utils/photoOrderDraft';
 
 const PhotoOrderSummary = ({
     pricing,
@@ -38,9 +39,11 @@ const PhotoOrderSummary = ({
                     <p className="text-green-800 font-medium text-sm text-center sm:text-right">
                         בחרת {totalPrints} תמונות — מגיעה לך{' '}
                         <strong>{albumDiscount.percent}% הנחה</strong> על אלבומי תמונות!
+                        <span className="block text-xs text-green-700 mt-1">התמונות שבחרת נשמרות, ואחרי בחירת האלבום תחזרי לכאן.</span>
                     </p>
                     <Link
                         to={`/products?category=${encodeURIComponent(ALBUM_CATEGORY)}`}
+                        onClick={startAlbumDetour}
                         className="shrink-0 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-5 rounded-full transition-colors"
                     >
                         לבחירת אלבום

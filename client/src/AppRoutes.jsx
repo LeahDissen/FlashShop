@@ -17,6 +17,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
+import { consumeReturnPath } from './utils/photoOrderDraft';
 import PhotoDevelopmentPage from "./pages/PhotoDevelopmentPage";
 import ProductsPage from "./pages/productsPage";
 import ProfilePage from "./pages/profilePage";
@@ -42,7 +43,7 @@ const ProductsPageWrapper = () => {
 const EditorPageWrapper = () => {
     const navigate = useNavigate();
     return (
-        <EditorPage onNavigateToHome={() => navigate('/products')} />
+        <EditorPage onNavigateToHome={() => navigate(consumeReturnPath('/products'))} />
     );
 };
 
