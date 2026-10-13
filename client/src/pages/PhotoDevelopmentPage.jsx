@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPage } from '../api/pages';
 import { getPhotoPricing } from '../api/photo';
@@ -50,14 +50,22 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     }, "photos");
     const { draft, updateDraft, editMode } = adminControls;
 
+    const loadPricing = useCallback(() => getPhotoPricing()
+        .then((data) => {
+            setPricing(data);
+            return data;
+        })
+        .catch((err) => {
+            console.error("Failed to load photo pricing:", err);
+            return null;
+        }), []);
+
     useEffect(() => {
         getPage("photos").then((data) => {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         }).catch(error => console.error("Error fetching main photos page data:", error));
-        getPhotoPricing()
-            .then(setPricing)
-            .catch((err) => console.error("Failed to load photo pricing:", err));
+        loadPricing();
     }, []);
 
     useEffect(() => {
@@ -196,13 +204,19 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         ? images.find((img) => img.id === adjustImageId)
         : null;
 
-    const handleSendOrder = () => {
-        if (images.length === 0 || !pricing) return;
+    const handleSendOrder = async () => {
+        if (images.length === 0) return;
+        // המחירון נטען ברקע; אם הטעינה נכשלה מנסים שוב לפני שממשיכים
+        const activePricing = pricing || await loadPricing();
+        if (!activePricing) {
+            alert('לא הצלחנו לטעון את מחירי ההדפסה. נא לבדוק את החיבור לאינטרנט ולנסות שוב.');
+            return;
+        }
 
         const cartItems = images.map((img) => {
             const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
             const qty = Math.max(1, img.quantity);
-            const unitPrice = getPhotoUnitPrice(pricing, size, orderPricing.totalPrints);
+            const unitPrice = getPhotoUnitPrice(activePricing, size, orderPricing.totalPrints);
             return {
                 id: img.id,
                 itemType: 'photo-print',
