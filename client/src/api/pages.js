@@ -1,6 +1,6 @@
 import axios from "axios";
-import { REDIS_API } from "../config/api";
-const API_URL = `${REDIS_API}/api/page`;
+import { MONGO_API } from "../config/api";
+const API_URL = `${MONGO_API}/pages`;
 
 export const getPage = async (endpoint) => {
     const url = `${API_URL}/${endpoint}`;
