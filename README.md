@@ -10,8 +10,11 @@
 
 
 # הפעלה
-כדי להריץ את האפליקציה:
-**https://flashshop.onrender.com**
+האתר רץ ב-Cloudflare (לקוח) ו-Railway (שרת). פריסה של הלקוח:
+```
+cd client && npm run deploy        # vite build + wrangler deploy (דורש wrangler login)
+```
+פריסה של השרת: `railway up` מתיקיית הריפו (או חיבור ל-GitHub ב-Railway).
 
 
 # הוראות שימוש
