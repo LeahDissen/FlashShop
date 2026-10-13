@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProducts } from '../api/products';
+import SalePrice from './SalePrice';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
@@ -126,8 +127,8 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                     {product.name}
                                 </h3>
                                 {priceLabel && (
-                                    <span className="text-gray-500 text-xs">
-                                        ₪{priceLabel}
+                                    <span className="text-xs">
+                                        <SalePrice product={product} priceClassName="text-gray-500" />
                                     </span>
                                 )}
                                 {product.size && (
