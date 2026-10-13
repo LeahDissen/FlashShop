@@ -15,6 +15,51 @@ const BROADCAST_CONCURRENCY = 5;
 const unsubscribeUrlFor = (req, member) =>
     `${req.protocol}://${req.get("host")}/club/unsubscribe/${member._id}/${createUnsubscribeToken(member._id)}`;
 
+const axios = require("axios");
+const { PageModel } = require("../models/pageModel");
+
+const DEFAULT_WELCOME_SUBJECT = "ברוכים הבאים למועדון! 🎁";
+
+/** {{name}} / {{code}} בנוסח שהמנהלת כותבת; מפתח לא מוכר נשאר גלוי */
+const renderWelcomeText = (text, vars) =>
+    String(text || "").replace(/{{\s*(\w+)\s*}}/g, (match, key) =>
+        Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : match,
+    );
+
+/** מוריד את קובץ המתנה (PDF) כדי לצרף אותו למייל; כשל לא מונע את המייל עצמו */
+const fetchWelcomeAttachment = async (url) => {
+    if (!url) return [];
+    try {
+        const response = await axios.get(url, { responseType: "arraybuffer", timeout: 15000, maxContentLength: 15 * 1024 * 1024 });
+        const nameFromUrl = decodeURIComponent(new URL(url).pathname.split("/").pop() || "");
+        const filename = /\.pdf$/i.test(nameFromUrl) ? nameFromUrl : "gift.pdf";
+        return [{ filename, content: Buffer.from(response.data), contentType: "application/pdf" }];
+    } catch (err) {
+        console.error("[Club] welcome attachment download failed:", err.message);
+        return [];
+    }
+};
+
+/** שולח את מייל ההצטרפות לפי ההגדרות בדף 'club' (נושא, גוף, קובץ מצורף) */
+const sendWelcomeEmail = async ({ email, name, code }) => {
+    const page = await PageModel.findOne({ key: "club" }).lean();
+    const settings = page?.data || {};
+    const vars = { name, code };
+    const subject = renderWelcomeText(settings.welcomeSubject || DEFAULT_WELCOME_SUBJECT, vars);
+    const attachments = await fetchWelcomeAttachment(settings.welcomeAttachmentUrl);
+
+    if (settings.welcomeBody) {
+        return sendEmail(
+            email,
+            subject,
+            { title: subject, message: renderWelcomeText(settings.welcomeBody, vars) },
+            "./template/generalMail.handlebars",
+            attachments,
+        );
+    }
+    return sendEmail(email, subject, vars, "./template/clubWelcome.handlebars", attachments);
+};
+
 const generateGiftCode = () => {
     const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase();
     return `GIFT-${randomPart}`;
@@ -43,12 +88,7 @@ exports.joinClub = async (req, res) => {
         });
         await newMember.save();
         try {
-            await sendEmail(
-                email,
-                "ברוכים הבאים למועדון! 🎁",
-                { name: name, code: newCode },
-                "./template/clubWelcome.handlebars"
-            );
+            await sendWelcomeEmail({ email, name, code: newCode });
             console.log("Welcome email sent to " + email);
         } catch (emailErr) {
             console.error("Failed to send welcome email:", emailErr);

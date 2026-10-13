@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { joinClubRequest } from "../api/club";
+import { uploadDocumentToCloudinary } from "../utils/cloudinaryUpload";
 
 import { getPage } from "../api/pages";
 
@@ -40,6 +41,10 @@ export default function Club() {
             checkboxText: "",
             btnText: "",
             successText: "הצטרפת בהצלחה למועדון!"
+,
+            welcomeSubject: "",
+            welcomeBody: "",
+            welcomeAttachmentUrl: ""
         }, "club");
 
 
@@ -62,6 +67,26 @@ export default function Club() {
     const [isJoining, setIsJoining] = useState(false);
 
 
+
+
+    const [attachmentUploading, setAttachmentUploading] = useState(false);
+    const [attachmentError, setAttachmentError] = useState("");
+
+    const handleAttachmentFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        setAttachmentUploading(true);
+        setAttachmentError("");
+        try {
+            const url = await uploadDocumentToCloudinary(file);
+            updateDraft({ welcomeAttachmentUrl: url });
+        } catch (error) {
+            setAttachmentError(error.message || "העלאת הקובץ נכשלה");
+        } finally {
+            setAttachmentUploading(false);
+        }
+    };
 
     const closeClub = () => {
 
@@ -220,6 +245,32 @@ export default function Club() {
                 <div>
                     <label className="block text-sm font-bold text-gray-700">הודעה אחרי הרשמה מוצלחת:</label>
                     <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.successText} onChange={(e) => updateDraft({ successText: e.target.value })} />
+                </div>
+                <div className="border-t pt-4 mt-2">
+                    <h4 className="font-bold text-gray-800 mb-1">מייל ההצטרפות האוטומטי</h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                        נשלח לכל מי שנרשם/ת. אפשר להשתמש ב-<code dir="ltr">{"{{name}}"}</code> (שם) ו-<code dir="ltr">{"{{code}}"}</code> (קוד ההטבה). ריק = הנוסח הקבוע של האתר.
+                    </p>
+                    <label className="block text-sm font-bold text-gray-700">נושא המייל:</label>
+                    <input type="text" className="w-full border border-gray-300 p-2 rounded mb-3" value={draft.welcomeSubject || ""} onChange={(e) => updateDraft({ welcomeSubject: e.target.value })} placeholder="ברוכים הבאים למועדון! 🎁" />
+                    <label className="block text-sm font-bold text-gray-700">תוכן המייל:</label>
+                    <textarea className="w-full border border-gray-300 p-2 rounded min-h-[120px] mb-3" value={draft.welcomeBody || ""} onChange={(e) => updateDraft({ welcomeBody: e.target.value })} placeholder={"היי {{name}}, איזה כיף שהצטרפת!\nקוד ההטבה שלך: {{code}}"} />
+                    <label className="block text-sm font-bold text-gray-700">מדריך PDF במתנה (מצורף למייל):</label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <label className="cursor-pointer text-sm px-3 py-1.5 rounded border border-gray-300 bg-gray-50 hover:bg-gray-100">
+                            {attachmentUploading ? "מעלה..." : "העלאת PDF"}
+                            <input type="file" accept="application/pdf" className="hidden" onChange={handleAttachmentFile} disabled={attachmentUploading} />
+                        </label>
+                        {draft.welcomeAttachmentUrl ? (
+                            <>
+                                <a href={draft.welcomeAttachmentUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline truncate max-w-[220px]" dir="ltr">{draft.welcomeAttachmentUrl}</a>
+                                <button type="button" onClick={() => updateDraft({ welcomeAttachmentUrl: "" })} className="text-xs text-red-600 hover:underline">הסרה</button>
+                            </>
+                        ) : (
+                            <span className="text-xs text-gray-500">אין קובץ מצורף</span>
+                        )}
+                    </div>
+                    {attachmentError && <p className="text-xs text-red-600 mt-1">{attachmentError}</p>}
                 </div>
                 <div>
                     <label className="block text-sm font-bold text-gray-700">טקסט צ'קבוקס:</label>

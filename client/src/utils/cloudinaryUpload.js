@@ -115,3 +115,26 @@ export async function uploadImageToCloudinary(file) {
     const { url } = await uploadImageDetailed(file);
     return url;
 }
+
+/** מסמך (PDF) – Cloudinary מקבל אותו באותו preset; מוחזר קישור ישיר להורדה */
+export async function uploadDocumentToCloudinary(file) {
+    if (file?.type !== 'application/pdf') {
+        throw new Error('יש לבחור קובץ PDF');
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('הקובץ גדול מדי (מעל 10MB).');
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const response = await fetch(CLOUDINARY_UPLOAD_URL.replace('/image/upload', '/auto/upload'), {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(parseCloudinaryError(data));
+    }
+    return data.secure_url;
+}
