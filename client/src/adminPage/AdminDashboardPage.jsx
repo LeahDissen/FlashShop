@@ -1,4 +1,4 @@
-import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
+import { FaBoxOpen, FaBullhorn, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -69,6 +69,13 @@ export default function AdminDashboardPage() {
       description: "מידות המסגרות, גופנים, צבעים והטקסטים שהלקוח רואה בעורך.",
       icon: <FaSlidersH className="text-3xl text-white" />,
       link: "/editorsettings",
+    },
+    {
+      id: 11,
+      title: "פופאפים באתר",
+      description: "הודעות קופצות ללקוחות: מבצעים, הודעות חשובות, קורסים — לפי עמוד, זמן ותאריכים.",
+      icon: <FaBullhorn className="text-3xl text-white" />,
+      link: "/popups",
     },
     {
       id: 9,

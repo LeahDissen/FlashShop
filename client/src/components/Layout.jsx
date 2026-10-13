@@ -2,6 +2,7 @@ import Club from "./Club";
 import Footer from "./Footer";
 import Header from "./Header";
 import NavBar from "./NavBar";
+import PopupHost from "./PopupHost";
 import Terms from "./Terms";
 
 export default function Layout({ children, compact = false }) {
@@ -9,6 +10,7 @@ export default function Layout({ children, compact = false }) {
         <div className={`flex flex-col font-sans ${compact ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
             <Terms />
             <Club />
+            {!compact && <PopupHost />}
 
             {/* בעורך: מסתירים את הניווט במובייל כדי לפנות מקום לקנבס */}
             <header

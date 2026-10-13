@@ -28,6 +28,7 @@ import DesignFramesManagement from "./adminPage/DesignFramesManagement";
 import EditorAssetsManagement from "./adminPage/EditorAssetsManagement";
 import EditorSettingsManagement from "./adminPage/EditorSettingsManagement";
 import ShopSettingsManagement from "./adminPage/ShopSettingsManagement";
+import PopupsManagement from "./adminPage/PopupsManagement";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
@@ -76,6 +77,7 @@ export default function AppRoutes() {
                 <Route path="/editorassets" element={<AdminRoute><Layout><EditorAssetsManagement /></Layout></AdminRoute>} />
                 <Route path="/editorsettings" element={<AdminRoute><Layout><EditorSettingsManagement /></Layout></AdminRoute>} />
                 <Route path="/shopsettings" element={<AdminRoute><Layout><ShopSettingsManagement /></Layout></AdminRoute>} />
+                <Route path="/popups" element={<AdminRoute><Layout><PopupsManagement /></Layout></AdminRoute>} />
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                 <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />
