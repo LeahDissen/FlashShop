@@ -71,6 +71,13 @@ export default function AdminDashboardPage() {
       link: "/editorsettings",
     },
     {
+      id: 10,
+      title: "מיילים ללקוחות",
+      description: "עריכת נוסח המיילים האוטומטיים שהלקוח מקבל בכל שלב בהזמנה.",
+      icon: <FaEnvelope className="text-3xl text-white" />,
+      link: "/orderemails",
+    },
+    {
       id: 9,
       title: "הגדרות תשלום",
       description: "עריכת קישור התשלום המאובטח שמופיע ללקוחות במסך הקופה.",

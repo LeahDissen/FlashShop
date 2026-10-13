@@ -6,6 +6,8 @@ router.post("/", auth, orderController.createOrder);
 router.get("/pending/user/:userId", auth, orderController.getPendingOrderForUser);
 router.put("/pending/user/:userId", auth, orderController.updateOrder);
 router.get("/user/:userId", auth, orderController.getOrdersByUserId);
+router.get("/email-templates", authAdmin, orderController.getOrderEmailTemplates);
+router.put("/email-templates/:status", authAdmin, orderController.updateOrderEmailTemplate);
 router.get("/", authAdmin, orderController.getOrders);
 router.delete("/", authAdmin, orderController.deleteOrders);
 router.get("/:id", auth, orderController.getOrderById);
