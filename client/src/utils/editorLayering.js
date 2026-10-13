@@ -108,12 +108,13 @@ export function partitionElementsByLayer(elements) {
         return { bottom: [], dropzoneImages: [], frames: [], texts: [] };
     }
 
-    const nonTextNonFrame = elements.filter((el) => el.type !== 'text' && !isGlobalFrame(el));
+    // מסגרת חופשית מצוירת יחד עם התמונות (לפי סדר השכבות ועם סיבוב); רק מסגרת מקובעת בשכבה הייעודית
+    const nonTextNonFrame = elements.filter((el) => el.type !== 'text' && !isPinnedFrame(el));
 
     return {
         bottom: nonTextNonFrame.filter((el) => !isDropzoneImage(el)),
         dropzoneImages: nonTextNonFrame.filter(isDropzoneImage),
-        frames: elements.filter(isGlobalFrame),
+        frames: elements.filter(isPinnedFrame),
         texts: elements.filter((el) => el.type === 'text'),
     };
 }
