@@ -29,6 +29,7 @@ import {
 } from '../utils/editorLayering';
 import { fitImageToDropzone, isMultiDropzoneFrame, resolveDropzones } from '../utils/dropzoneUtils';
 import { detectEmptyPhotoSlots } from '../utils/detectEmptyPhotoSlots';
+import { prepareFrameImageSrc, punchDropzoneHoles } from '../utils/frameImageProcessing';
 import {
     getCanvasOrientation,
     getFrameOrientation,

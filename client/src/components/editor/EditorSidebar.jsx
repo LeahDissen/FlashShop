@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
-import { BackgroundIcon, ChevronLeftIcon, GridIcon, ImageIcon, TextIcon, XIcon } from '../icons';
+import { useEffect, useRef, useState } from 'react';
+import { getDesignFrames } from '../../api/designFrames';
+import { BackgroundIcon, ChevronLeftIcon, CropIcon, GridIcon, ImageIcon, TextIcon, XIcon } from '../icons';
 import { DEFAULT_EDITOR_SETTINGS } from '../../constants/editorSettingsDefaults';
 import { useEditorAssets } from '../../hooks/useEditorAssets';
+import FrameSizeFolders from './FrameSizeFolders.jsx';
 
 const SidebarTab = ({ icon, label, isActive, onClick, compact = false }) => {
     return (
@@ -230,13 +232,6 @@ const graphics = [
     { id: 'cloud', alt: 'Cloud', src: svgToDataURL(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M25,60 a20,20 0 0,1 0,-40 a20,20 0 0,1 30,-10 a20,20 0 0,1 30,10 a20,20 0 0,1 0,40 z" fill="#E0F7FA" stroke="#B2EBF2" stroke-width="2"/></svg>`) },
 ];
 
-const frames = [
-    { id: 'circleFrame', alt: 'Circle Frame', src: svgToDataURL(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><mask id="hole"><rect width="100" height="100" fill="white"/><circle cx="50" cy="50" r="40" fill="black"/></mask></defs><rect width="100" height="100" fill="#F9A8D4" mask="url(#hole)"/></svg>`) },
-    { id: 'squareFrame', alt: 'Square Frame', src: svgToDataURL(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><mask id="sqhole"><rect width="100" height="100" fill="white"/><rect x="15" y="15" width="70" height="70" fill="black"/></mask></defs><rect width="100" height="100" fill="#FCA5A5" mask="url(#sqhole)"/></svg>`) },
-    { id: 'dashedFrame', alt: 'Dashed Frame', src: svgToDataURL(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="90" height="90" rx="10" fill="none" stroke="#FBBF24" stroke-width="5" stroke-dasharray="10,5"/></svg>`) },
-    { id: 'floralFrame', alt: 'Floral Frame', src: svgToDataURL(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="#A78BFA" stroke-width="8"/></svg>`) },
-    { id: 'heartFrame', alt: 'Heart Frame', src: svgToDataURL(`<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><mask id="hearthole"><rect width="100" height="100" fill="white"/><path d="M50 80L20 50C10 40 10 25 20 15s25 0 30 10c5-10 20-10 30 0s10 25 0 35L50 80z" fill="black"/></mask></defs><rect width="100" height="100" fill="#F43F5E" mask="url(#hearthole)"/></svg>`) },
-];
 
 const icons = [
     { id: 'user', alt: 'User', src: svgToDataURL(`<svg viewBox="0 0 24 24" fill="#1F2937" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`) },
@@ -522,6 +517,65 @@ const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage }) =>
     );
 };
 
+/**
+ * מסגרות גלובליות שהמנהלת מעלה בלוח הבקרה – אותו בורר תיקיות-מידה כמו בפיתוח תמונות.
+ * הטעינה מתבצעת רק כשהטאב נפתח.
+ */
+const FramesPanel = ({
+    editorSettings,
+    activeGlobalFrameId,
+    onApplyGlobalFrame,
+    onRemoveGlobalFrame,
+    onSelectGlobalFrame,
+}) => {
+    const [frames, setFrames] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        getDesignFrames()
+            .then((data) => {
+                if (!cancelled) setFrames(Array.isArray(data) ? data : []);
+            })
+            .catch((err) => {
+                console.error('Failed to load global design frames', err);
+                if (!cancelled) setFrames([]);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, []);
+
+    return (
+        <div className="p-4 overflow-y-auto h-full">
+            <div className="flex items-center justify-between gap-2 mb-3">
+                <h3 className="font-bold text-gray-800 text-base">
+                    {editorSettings.frameFolders?.title || 'מסגרות עיצוב'}
+                </h3>
+                <button
+                    type="button"
+                    onClick={onRemoveGlobalFrame}
+                    disabled={!activeGlobalFrameId}
+                    className="text-xs font-bold text-gray-500 hover:text-red-600 disabled:opacity-40"
+                >
+                    הסר מסגרת
+                </button>
+            </div>
+            <FrameSizeFolders
+                frames={frames}
+                printSizes={editorSettings.framePrintSizes}
+                orientationLabels={editorSettings.orientationLabels}
+                folderTexts={editorSettings.frameFolders}
+                loading={loading}
+                activeGlobalFrameId={activeGlobalFrameId}
+                onApplyFrame={onApplyGlobalFrame}
+                onSelectFrame={onSelectGlobalFrame}
+            />
+        </div>
+    );
+};
+
 const EditorSidebar = ({
     addTextElement,
     addCaptionElement,
@@ -534,6 +588,10 @@ const EditorSidebar = ({
     uploadedBackgrounds,
     addUploadedBackground,
     deleteUploadedBackground,
+    onApplyGlobalFrame,
+    onRemoveGlobalFrame,
+    onSelectGlobalFrame,
+    activeGlobalFrameId,
     editorSettings = DEFAULT_EDITOR_SETTINGS,
 }) => {
     const { assets } = useEditorAssets(FALLBACK_EDITOR_ASSETS);
@@ -544,6 +602,7 @@ const EditorSidebar = ({
 
     const tabs = [
         { id: 'elements', label: 'אלמנטים', icon: <GridIcon className="w-6 h-6 md:w-7 md:h-7" /> },
+        { id: 'frames', label: 'מסגרות', icon: <CropIcon className="w-6 h-6 md:w-7 md:h-7" /> },
         { id: 'background', label: 'רקע', icon: <BackgroundIcon className="w-6 h-6 md:w-7 md:h-7" /> },
         { id: 'text', label: 'טקסט', icon: <TextIcon className="w-6 h-6 md:w-7 md:h-7" /> },
         { id: 'images', label: 'תמונות', icon: <ImageIcon className="w-6 h-6 md:w-7 md:h-7" /> },
@@ -580,6 +639,15 @@ const EditorSidebar = ({
                     backgroundAssets={assets.backgroundAssets}
                     graphics={assets.graphics}
                     icons={assets.icons}
+                />
+            )}
+            {activeTab === 'frames' && (
+                <FramesPanel
+                    editorSettings={editorSettings}
+                    activeGlobalFrameId={activeGlobalFrameId}
+                    onApplyGlobalFrame={onApplyGlobalFrame}
+                    onRemoveGlobalFrame={onRemoveGlobalFrame}
+                    onSelectGlobalFrame={onSelectGlobalFrame}
                 />
             )}
             {activeTab === 'text' && (
