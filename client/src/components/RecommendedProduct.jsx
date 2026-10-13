@@ -1,3 +1,5 @@
+import SalePrice from './SalePrice';
+
 export default function RecommendedProduct({ product, onAddToCart }) {
   return (
     <article className="flex flex-col items-center text-center group">
@@ -16,8 +18,8 @@ export default function RecommendedProduct({ product, onAddToCart }) {
       <p className="mt-3 text-sm sm:text-base font-bold text-gray-800">
         {product.name}
       </p>
-      <p className="mt-1 text-sm font-medium text-[#f2665e]">
-        {product.price.toFixed(2)} ₪
+      <p className="mt-1 text-sm">
+        <SalePrice product={product} priceClassName="font-medium text-[#f2665e]" />
       </p>
       <button
         type="button"

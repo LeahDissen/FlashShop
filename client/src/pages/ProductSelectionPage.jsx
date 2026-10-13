@@ -15,6 +15,7 @@ import {
     hasTieredPricing,
     formatPrice,
 } from '../utils/productQuantityPricing';
+import SalePrice from '../components/SalePrice';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -414,7 +415,7 @@ const ProductSelectionPage = () => {
                                             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                                                 {magnetProduct ? (
                                                     <>
-                                                        <span className="text-xl font-semibold text-gray-900">{product.price} ₪</span>
+                                                        <SalePrice product={product} priceClassName="text-xl font-semibold text-gray-900" />
                                                         {product.size && (
                                                             <span className="text-xs text-[#f2665e]/80">גודל {product.size} ס&quot;מ</span>
                                                         )}
@@ -430,7 +431,7 @@ const ProductSelectionPage = () => {
                                                         </span>
                                                     </>
                                                 ) : (
-                                                    <span className="text-xl font-semibold text-gray-900">{product.price} ₪</span>
+                                                    <SalePrice product={product} priceClassName="text-xl font-semibold text-gray-900" />
                                                 )}
                                             </div>
 
