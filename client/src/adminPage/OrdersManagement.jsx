@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaStore, FaTimes, FaTimesCircle, FaTrash } from "react-icons/fa";
+import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEnvelope, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaStore, FaTimes, FaTimesCircle, FaTrash } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { deleteOrders, getOrders, updateOrderStatus } from "../api/orders";
@@ -158,13 +158,22 @@ export default function OrdersManagement() {
                     </h1>
                     <p className="text-gray-500 mt-1">צפייה בכל ההזמנות, עדכון סטטוסים ומעקב משלוחים</p>
                 </div>
-                <Link
-                    to="/admindashboard"
-                    className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
-                >
-                    <span>חזרה ללוח הבקרה</span>
-                    <FiArrowLeft className="text-xl" />
-                </Link>
+                <div className="flex items-center gap-2">
+                    <Link
+                        to="/orderemails"
+                        className="text-gray-600 font-bold px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 flex items-center gap-2 no-underline text-sm"
+                    >
+                        <FaEnvelope />
+                        <span>מיילים ללקוחות</span>
+                    </Link>
+                    <Link
+                        to="/admindashboard"
+                        className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
+                    >
+                        <span>חזרה ללוח הבקרה</span>
+                        <FiArrowLeft className="text-xl" />
+                    </Link>
+                </div>
             </div>
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">

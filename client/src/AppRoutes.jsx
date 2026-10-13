@@ -3,6 +3,7 @@ import AdminDashboardPage from "./adminPage/AdminDashboardPage";
 import EditPages from "./adminPage/EditPages";
 import OrderDetailPage from "./adminPage/OrderDetailPage";
 import OrdersManagement from "./adminPage/OrdersManagement";
+import OrderEmailsManagement from "./adminPage/OrderEmailsManagement";
 import ProductsManagement from "./adminPage/ProductsManagement";
 import SendMailToClub from "./adminPage/SendMailToClub";
 import UpdateCatalog from "./adminPage/UpdateCatalog";
@@ -68,6 +69,7 @@ export default function AppRoutes() {
                 <Route path="/editpages" element={<AdminRoute><Layout><EditPages /></Layout></AdminRoute>} />
                 <Route path="/ordersmanagement" element={<AdminRoute><Layout><OrdersManagement /></Layout></AdminRoute>} />
                 <Route path="/ordersmanagement/:orderId" element={<AdminRoute><Layout><OrderDetailPage /></Layout></AdminRoute>} />
+                <Route path="/orderemails" element={<AdminRoute><Layout><OrderEmailsManagement /></Layout></AdminRoute>} />
                 <Route path="/productsmanagement" element={<AdminRoute><Layout><ProductsManagement /></Layout></AdminRoute>} />
                 <Route path="/sendmail" element={<AdminRoute><Layout><SendMailToClub /></Layout></AdminRoute>} />
                 <Route path="/updatecatalog" element={<AdminRoute><Layout><UpdateCatalog /></Layout></AdminRoute>} />

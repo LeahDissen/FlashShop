@@ -14,6 +14,8 @@ const {
 } = require("../services/googleDriveService");
 const { loadEditorSettings } = require("./editorSettingsController");
 const { validateCheckoutDetails, firstCheckoutValidationMessage } = require("../utils/checkoutValidation");
+const { sendOrderStatusEmail, loadOrderEmailTemplates } = require("../services/orderEmailService");
+const { OrderEmailTemplateModel, ORDER_EMAIL_STATUSES, ORDER_EMAIL_PLACEHOLDERS } = require("../models/orderEmailTemplateModel");
 
 const DELIVERY_FEE = 25;
 
@@ -556,6 +558,14 @@ exports.updateOrderStatus = async (req, res) => {
 
         const { id } = req.params;
         const { status } = req.body;
+        if (!ORDER_EMAIL_STATUSES.includes(status)) {
+            return res.status(400).json({ msg: "סטטוס לא תקין" });
+        }
+
+        const previous = await OrderModel.findById(id).select("status").lean();
+        if (!previous) {
+            return res.status(404).json({ msg: "הזמנה לא נמצאה" });
+        }
 
         const order = await OrderModel.findOneAndUpdate(
             { _id: id },
@@ -563,8 +573,9 @@ exports.updateOrderStatus = async (req, res) => {
             { new: true }
         );
 
-        if (!order) {
-            return res.status(404).json({ msg: "הזמנה לא נמצאה" });
+        // הלקוח מקבל מייל בכל שינוי סטטוס (לפי הנוסח שהמנהלת הגדירה)
+        if (previous.status !== status) {
+            await sendOrderStatusEmail(order, status);
         }
 
         res.json(order);
@@ -829,6 +840,9 @@ exports.createOrder = async (req, res) => {
             await markCouponAsUsed(couponCode, userId);
         }
 
+        // אישור קבלת ההזמנה ללקוח
+        await sendOrderStatusEmail(saved, "processing");
+
         // איפוס וניקוי עגלת הקניות הזמנית (pending) של המשתמש
         await OrderModel.findOneAndUpdate(
             { user_id: userId, status: "pending" },
@@ -872,5 +886,41 @@ exports.getOrderById = async (req, res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({ msg: "שגיאה בטעינת ההזמנה" });
+    }
+};
+// --- נוסחי המיילים האוטומטיים (מנהלת) ---
+exports.getOrderEmailTemplates = async (req, res) => {
+    try {
+        const templates = await loadOrderEmailTemplates();
+        res.json({ templates, placeholders: ORDER_EMAIL_PLACEHOLDERS });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "שגיאה בטעינת נוסחי המיילים" });
+    }
+};
+
+exports.updateOrderEmailTemplate = async (req, res) => {
+    try {
+        const { status } = req.params;
+        if (!ORDER_EMAIL_STATUSES.includes(status)) {
+            return res.status(404).json({ msg: "סטטוס לא קיים" });
+        }
+
+        const subject = sanitizeText(req.body?.subject, 200);
+        const body = String(req.body?.body || "").trim().slice(0, 5000);
+        const enabled = req.body?.enabled !== false;
+        if (!subject || !body) {
+            return res.status(400).json({ msg: "יש למלא נושא וגוף למייל" });
+        }
+
+        const template = await OrderEmailTemplateModel.findOneAndUpdate(
+            { status },
+            { $set: { subject, body, enabled } },
+            { new: true, upsert: true, setDefaultsOnInsert: true },
+        );
+        res.json(template);
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "שגיאה בשמירת נוסח המייל" });
     }
 };
