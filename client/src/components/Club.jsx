@@ -36,10 +36,10 @@ export default function Club() {
 
             inputDatePlaceholder: "",
 
+
             checkboxText: "",
-
-            btnText: ""
-
+            btnText: "",
+            successText: "הצטרפת בהצלחה למועדון!"
         }, "club");
 
 
@@ -54,9 +54,12 @@ export default function Club() {
 
         birthdate: "",
 
-        agreed: false
 
+        agreed: false
     });
+    /** תוצאת ההרשמה מוצגת בתוך הפופ-אפ: success (עם קוד ההטבה) או error */
+    const [joinResult, setJoinResult] = useState(null);
+    const [isJoining, setIsJoining] = useState(false);
 
 
 
@@ -128,34 +131,25 @@ export default function Club() {
 
         }
 
+        setIsJoining(true);
+        setJoinResult(null);
         try {
-
             const payload = {
-
                 user_id: userId || null,
-
                 email: formData.email,
-
                 name: formData.name,
-
                 birthDate: formData.birthdate
-
             };
-
             const data = await joinClubRequest(payload);
-
-            alert(`${data.msg}\nקוד ההטבה שלך הוא: ${data.code}`);
-
-            closeClub();
-
+            setJoinResult({ type: "success", code: data.code });
         } catch (error) {
-
             console.error("Club join error:", error);
-
-            const errorMsg = error.response?.data?.msg || "אירעה שגיאה בהצטרפות למועדון";
-
-            alert(errorMsg);
-
+            setJoinResult({
+                type: "error",
+                message: error.response?.data?.msg || "אירעה שגיאה בהצטרפות למועדון",
+            });
+        } finally {
+            setIsJoining(false);
         }
 
     };
@@ -222,8 +216,12 @@ export default function Club() {
 
                 </div>
 
-                <div>
 
+                <div>
+                    <label className="block text-sm font-bold text-gray-700">הודעה אחרי הרשמה מוצלחת:</label>
+                    <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.successText} onChange={(e) => updateDraft({ successText: e.target.value })} />
+                </div>
+                <div>
                     <label className="block text-sm font-bold text-gray-700">טקסט צ'קבוקס:</label>
 
                     <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.checkboxText} onChange={(e) => updateDraft({ checkboxText: e.target.value })} />
@@ -264,10 +262,27 @@ export default function Club() {
 
                 <h3 className="text-lg font-medium mb-4 opacity-90 whitespace-pre-line">{draft.subtitle}</h3>
 
+
                 <p className="text-sm mb-6 px-4 font-light whitespace-pre-line">{draft.description}</p>
-
-
-
+                {joinResult?.type === "success" ? (
+                    <div className="w-full max-w-xs flex flex-col items-center gap-3 z-20" role="status">
+                        <p className="text-xl font-bold whitespace-pre-line drop-shadow-md">
+                            {draft.successText || "הצטרפת בהצלחה למועדון!"}
+                        </p>
+                        {joinResult.code && (
+                            <p className="text-sm font-light">
+                                קוד ההטבה שלך: <span className="font-mono font-bold tracking-wider" dir="ltr">{joinResult.code}</span>
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={closeClub}
+                            className="bg-white text-[#f0645a] font-bold py-2 px-6 rounded-full mt-2 hover:bg-gray-100 transition-colors shadow-lg"
+                        >
+                            סגירה
+                        </button>
+                    </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-3 z-20">
 
                     <input type="text" name="name" placeholder={draft.inputNamePlaceholder} value={formData.name} onChange={handleInputChange} required className="w-full px-4 py-2 rounded-md text-gray-700 bg-white/90 text-right" />
@@ -298,13 +313,17 @@ export default function Club() {
 
 
 
-                    <button type="submit" className="bg-white text-[#f0645a] font-bold py-2 px-6 rounded-full mt-4 mx-auto hover:bg-gray-100 transition-colors shadow-lg">
 
-                        {draft.btnText}
-
+                    {joinResult?.type === "error" && (
+                        <p className="text-sm font-bold bg-white/90 text-[#a93636] rounded-md px-3 py-2" role="alert">
+                            {joinResult.message}
+                        </p>
+                    )}
+                    <button type="submit" disabled={isJoining} className="bg-white text-[#f0645a] font-bold py-2 px-6 rounded-full mt-4 mx-auto hover:bg-gray-100 transition-colors shadow-lg disabled:opacity-60">
+                        {isJoining ? "רגע..." : draft.btnText}
                     </button>
-
                 </form>
+                )}
 
 
 

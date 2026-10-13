@@ -10,13 +10,15 @@ const generateGiftCode = () => {
 
 exports.joinClub = async (req, res) => {
     try {
-        const { user_id, email, name, birthDate } = req.body;
+        const { user_id, name, birthDate } = req.body;
+        const email = String(req.body.email || "").trim().toLowerCase();
+        if (!email || !name) {
+            return res.status(400).json({ msg: "יש למלא שם וכתובת מייל" });
+        }
+        // הרשמה כפולה נדחית – לא שולחים שוב מייל ולא חושפים את קוד ההטבה הקיים
         const existingMember = await ClubModel.findOne({ email });
         if (existingMember) {
-            return res.status(200).json({
-                msg: "המייל הזה כבר רשום למועדון",
-                code: existingMember.giftCode
-            });
+            return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
         }
         const newCode = generateGiftCode();
         const newMember = new ClubModel({
@@ -42,7 +44,7 @@ exports.joinClub = async (req, res) => {
         res.status(201).json({ msg: "הצטרפת בהצלחה!", code: newCode });
     } catch (err) {
         if (err.code === 11000) {
-            return res.status(400).json({ msg: "אתה כבר חבר מועדון" });
+            return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
         }
         res.status(500).json({ msg: "שגיאה בהצטרפות" });
     }
