@@ -5,7 +5,8 @@ const { config } = require("../config/secret");
 const { Token } = require("../models/tokenModel");
 const { UserModel, createToken, validateUser, validateLogin } = require("../models/userModel");
 const { sendEmail, hasEmailCredentials } = require("../utils/sendEmail");
-const clientURL = process.env.CLIENT_URL || "http://localhost:5173";
+const { getClientUrl } = require("../utils/clientUrl");
+const clientURL = getClientUrl();
 
 const setAuthCookie = (res, token) => {
   const isProduction = process.env.NODE_ENV === 'production';
