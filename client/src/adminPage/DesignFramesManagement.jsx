@@ -72,7 +72,7 @@ const emptyForm = {
     aspectRatio: '1:1',
     printSizeKey: '',
     orientation: 'any',
-    isFixedOverlay: true,
+    isFixedOverlay: false,
     layoutType: 'single_overlay',
     dropzones: [],
     isActive: true,

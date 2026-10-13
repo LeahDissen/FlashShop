@@ -26,7 +26,7 @@ const designFrameSchema = new mongoose.Schema(
         /** כיוון המסגרת בתוך התיקייה */
         orientation: { type: String, enum: ["landscape", "portrait", "any"], default: "any" },
         /** מסגרת קבועה: נפרסת על כל המשטח ואינה ניתנת להזזה על ידי הלקוח */
-        isFixedOverlay: { type: Boolean, default: true },
+        isFixedOverlay: { type: Boolean, default: false },
         layoutType: { type: String, enum: ["single_overlay", "multi_dropzone"], default: "single_overlay" },
         dropzones: { type: [dropzoneSchema], default: [] },
         isActive: { type: Boolean, default: true },
