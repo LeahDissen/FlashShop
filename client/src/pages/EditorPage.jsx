@@ -590,9 +590,7 @@ const EditorPage = ({ onNavigateToHome }) => {
             }, typeof selectedProduct === 'object' ? selectedProduct : null);
 
             // ה. הזרקה לסל הקניות (תמונה ממוזערת/URL קל לתצוגה בעגלה)
-            await addToCart([cartItem]);
-
-            alert('המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!');
+            await addToCart([cartItem], { successMessage: 'המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!' });
             setShowPreviewModal(false);
             clearDraft();
 
@@ -662,9 +660,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                 }
             }, typeof proj.selectedProduct === 'object' ? proj.selectedProduct : null);
 
-            await addToCart([cartItem]);
-            
-            alert(`הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!`);
+            await addToCart([cartItem], { successMessage: `הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!` });
             setShowLoadModal(false);
             
             if (onNavigateToHome) {

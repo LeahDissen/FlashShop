@@ -4,12 +4,14 @@ import Header from "./Header";
 import NavBar from "./NavBar";
 import PopupHost from "./PopupHost";
 import Terms from "./Terms";
+import ToastHost from "./ToastHost";
 
 export default function Layout({ children, compact = false }) {
     return (
         <div className={`flex flex-col font-sans ${compact ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'}`}>
             <Terms />
             <Club />
+            <ToastHost />
             {!compact && <PopupHost />}
 
             {/* בעורך: מסתירים את הניווט במובייל כדי לפנות מקום לקנבס */}

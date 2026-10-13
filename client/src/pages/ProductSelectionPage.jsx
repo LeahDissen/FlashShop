@@ -163,10 +163,7 @@ const ProductSelectionPage = () => {
     // לאחר ההוספה לסל חוזרים לעמוד המוצרים כדי שהלקוח יוכל להמשיך לקנות
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
-            await addToCart(items);
-            if (successMessage) {
-                alert(successMessage);
-            }
+            await addToCart(items, { successMessage });
             navigate('/products');
         } catch (error) {
             console.error('Failed to add to cart:', error);
