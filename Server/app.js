@@ -25,10 +25,10 @@ const PORT = Number(process.env.PORT || config.PORT) || 10000;
 const HOST = process.env.HOST || "0.0.0.0";
 const app = express();
 app.set('trust proxy', 1);
+// מקורות מורשים ל-CORS: כתובות הלקוח בפרודקשן מגיעות מ-CLIENT_URL (מופרדות בפסיק)
 const allowedOrigins = Array.from(new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://lustrous-speculoos-e2f3a6.netlify.app",
   ...(process.env.CLIENT_URL || "")
     .split(",")
     .map((origin) => origin.trim())

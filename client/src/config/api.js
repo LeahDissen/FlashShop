@@ -1,12 +1,11 @@
-const MONGO_RENDER_API = "https://flashshop-ghi0.onrender.com";
-const REDIS_RENDER_API = "https://flashshop-redis.onrender.com";
-
 const stripSlash = (url = "") => url.replace(/\/$/, "");
 
-export const MONGO_API = import.meta.env.PROD
-    ? MONGO_RENDER_API
-    : stripSlash(import.meta.env.VITE_MONGO_API || "http://localhost:5000");
-
-export const REDIS_API = import.meta.env.PROD
-    ? REDIS_RENDER_API
-    : stripSlash(import.meta.env.VITE_REDIS_API || "http://localhost:4000");
+/**
+ * כתובות השרתים נקבעות בזמן build ממשתני סביבה (VITE_*) –
+ * ראי client/.env.development / .env.production / .env.example.
+ */
+export const MONGO_API = stripSlash(import.meta.env.VITE_MONGO_API || "http://localhost:10000");
+export const REDIS_API = stripSlash(import.meta.env.VITE_REDIS_API || "http://localhost:4000");
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+export const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
+export const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "ml_default";

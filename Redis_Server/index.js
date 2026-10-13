@@ -7,13 +7,13 @@ import pageRoutes from "./routes/pageRoutes.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT;
-const HOST_NAME = process.env.HOST_NAME;
+const PORT = Number(process.env.PORT) || 4000;
+const HOST_NAME = process.env.HOST_NAME || "0.0.0.0";
 
+// מקורות מורשים ל-CORS: כתובות הלקוח בפרודקשן מגיעות מ-CLIENT_URL (מופרדות בפסיק)
 const allowedOrigins = Array.from(new Set([
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://lustrous-speculoos-e2f3a6.netlify.app",
     ...(process.env.CLIENT_URL || "")
         .split(",")
         .map((origin) => origin.trim())
