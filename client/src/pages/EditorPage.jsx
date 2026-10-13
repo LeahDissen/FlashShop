@@ -90,7 +90,7 @@ const safeStorageSetItem = (key, value) => {
 const resolveDraftProductKey = (product, fallbackProductId) =>
     product?._id || product?.id || fallbackProductId || 'no-product';
 
-const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
+const EditorPage = ({ onNavigateToHome }) => {
     const { productId } = useParams();
     const location = useLocation();
 
@@ -585,8 +585,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             setShowPreviewModal(false);
             clearDraft();
 
-            if (onNavigateToCart) {
-                onNavigateToCart();
+            if (onNavigateToHome) {
+                onNavigateToHome();
             }
         } catch (error) {
             console.error("Failed to order project", error);
@@ -594,7 +594,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions, orderQuantity, frameSelection, collectCaptions, uploadFinalDesignToDrive]);
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToHome, captureCanvasImage, canvasDimensions, orderQuantity, frameSelection, collectCaptions, uploadFinalDesignToDrive]);
 
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
@@ -656,14 +656,14 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             alert(`הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!`);
             setShowLoadModal(false);
             
-            if (onNavigateToCart) {
-                onNavigateToCart();
+            if (onNavigateToHome) {
+                onNavigateToHome();
             }
         } catch (error) {
             console.error("Error adding project to cart", error);
             alert("שגיאה בהוספת הפרויקט לסל");
         }
-    }, [addToCart, onNavigateToCart]);
+    }, [addToCart, onNavigateToHome]);
 
     const handleOpenLoadModal = useCallback(async () => {
         setShowLoadModal(true);
