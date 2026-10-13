@@ -10,6 +10,8 @@ const isValidEmail = (email) => EMAIL_PATTERN.test(String(email || ""));
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 /** כמה מיילים נשלחים במקביל בדיוור – Gmail לא אוהב מאות חיבורים בבת אחת */
 const BROADCAST_CONCURRENCY = 5;
+// מונע שתי שליחות דיוור במקביל (למשל לחיצה כפולה או טאב נוסף)
+let broadcastInProgress = false;
 
 /** קישור ההסרה מצביע לשרת ה-API (שם הנתיב), לפי הכתובת שבה הבקשה הגיעה */
 const unsubscribeUrlFor = (req, member) =>
@@ -138,6 +140,10 @@ exports.getClubMembers = async (req, res) => {
 };
 
 exports.sendBroadcastEmail = async (req, res) => {
+    if (broadcastInProgress) {
+        return res.status(409).json({ msg: "שליחת דיוור אחרת עדיין מתבצעת. נא להמתין לסיומה." });
+    }
+    broadcastInProgress = true;
     try {
         const subject = req.body?.subject?.trim();
         const message = req.body?.message?.trim();
@@ -198,6 +204,15 @@ exports.sendBroadcastEmail = async (req, res) => {
                 if (result.status === "fulfilled") sent += 1;
                 else failed.push(batch[idx].email);
             });
+            // אם כל הקבוצה הראשונה נכשלה, שירות המייל עצמו לא זמין — אין טעם להמשיך ולהמתין
+            if (sent === 0 && failed.length === batch.length && i === 0) {
+                return res.status(503).json({
+                    msg: "שירות המייל לא זמין כרגע ולכן ההודעה לא נשלחה לאף אחד. נא לנסות שוב מאוחר יותר.",
+                    sent: 0,
+                    failed: valid.map((m) => m.email),
+                    skipped,
+                });
+            }
         }
 
         res.json({
@@ -209,6 +224,8 @@ exports.sendBroadcastEmail = async (req, res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({ msg: "שגיאה בשליחת המיילים" });
+    } finally {
+        broadcastInProgress = false;
     }
 };
 

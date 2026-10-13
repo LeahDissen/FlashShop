@@ -66,6 +66,7 @@ export default function SendMailToClub() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (loading) return; // שליחה כבר בדרך — לא שולחים פעמיים
         if (!formData.subject || !formData.message) {
             alert("נא למלא כותרת ותוכן הודעה");
             return;
