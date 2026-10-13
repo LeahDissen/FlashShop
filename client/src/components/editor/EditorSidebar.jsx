@@ -593,6 +593,7 @@ const EditorSidebar = ({
     onSelectGlobalFrame,
     activeGlobalFrameId,
     editorSettings = DEFAULT_EDITOR_SETTINGS,
+    colors,
 }) => {
     const { assets } = useEditorAssets(FALLBACK_EDITOR_ASSETS);
     const [activeTab, setActiveTab] = useState('background');
@@ -627,7 +628,7 @@ const EditorSidebar = ({
                     uploadedBackgrounds={uploadedBackgrounds}
                     addUploadedBackground={addUploadedBackground}
                     deleteUploadedBackground={deleteUploadedBackground}
-                    colors={assets.colors}
+                    colors={colors?.length ? colors : assets.colors}
                     backgroundImages={assets.canvasBackgrounds}
                 />
             )}
