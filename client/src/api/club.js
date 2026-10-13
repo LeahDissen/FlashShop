@@ -30,3 +30,13 @@ export const sendBroadcastEmail = async (formData) => {
     });
     return response.data;
 };
+
+export const addClubMember = async (member) => {
+    const response = await axios.post(`${API_URL}/members`, member, { withCredentials: true });
+    return response.data;
+};
+
+export const deleteClubMember = async (id) => {
+    const response = await axios.delete(`${API_URL}/members/${id}`, { withCredentials: true });
+    return response.data;
+};
