@@ -95,9 +95,12 @@ const sendViaHttpProvider = async (message) => {
   const buildRequest = HTTP_PROVIDERS[config.EMAIL_PROVIDER];
   if (!buildRequest) throw new Error(`Unknown EMAIL_PROVIDER: ${config.EMAIL_PROVIDER}`);
 
+  const from = config.EMAIL_FROM || config.EMAIL_USER;
   const { url, headers, body } = buildRequest({
     ...message,
-    from: config.EMAIL_FROM || config.EMAIL_USER,
+    // כמו ב-SMTP: במשלוח BCC הנמען הגלוי הוא השולח (הספקים דורשים נמען אחד לפחות)
+    to: message.to.length ? message.to : [from],
+    from,
     fromName: config.EMAIL_FROM_NAME || "FlashShop",
   });
   const response = await fetch(url, {
