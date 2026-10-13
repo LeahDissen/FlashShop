@@ -2,6 +2,8 @@
  * שמירת בחירת התמונות בפיתוח תמונות לאורך הביקור (sessionStorage),
  * כדי שלקוחה שיוצאת לבחור אלבום תחזור ותמצא את התמונות שבחרה.
  */
+import { ALBUM_CATEGORY } from './photoQuantityPricing';
+
 const PHOTO_DRAFT_KEY = 'flashshop_photo_order_draft';
 const ALBUM_DETOUR_KEY = 'flashshop_album_detour';
 export const PHOTO_DEVELOPMENT_PATH = '/photo-development';
@@ -50,16 +52,22 @@ export function startAlbumDetour() {
     write(ALBUM_DETOUR_KEY, '1');
 }
 
-/**
- * לאן לחזור אחרי הוספה לסל: לפיתוח התמונות אם הגיעו משם לבחירת אלבום, אחרת לברירת המחדל.
- * הסימון נמחק בקריאה, כך שהחזרה קורית פעם אחת בלבד.
- */
-export function consumeReturnPath(defaultPath) {
-    const isDetour = readJson(ALBUM_DETOUR_KEY) === 1;
+/** הלקוחה חזרה לפיתוח התמונות בעצמה – אין צורך להחזיר אותה לשם אחר כך */
+export function endAlbumDetour() {
     try {
         sessionStorage.removeItem(ALBUM_DETOUR_KEY);
     } catch {
         // אין סימון
     }
-    return isDetour ? PHOTO_DEVELOPMENT_PATH : defaultPath;
+}
+
+/**
+ * לאן לחזור אחרי הוספה לסל: לפיתוח התמונות אם הגיעו משם לבחירת אלבום והמוצר שנוסף הוא אלבום,
+ * אחרת לברירת המחדל. החזרה קורית פעם אחת בלבד.
+ */
+export function getReturnPathAfterAdd(product, defaultPath) {
+    const isAlbumDetour = readJson(ALBUM_DETOUR_KEY) === 1 && product?.category === ALBUM_CATEGORY;
+    if (!isAlbumDetour) return defaultPath;
+    endAlbumDetour();
+    return PHOTO_DEVELOPMENT_PATH;
 }
