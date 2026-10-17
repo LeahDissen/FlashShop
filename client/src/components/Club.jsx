@@ -14,6 +14,8 @@ import useAuthStore from '../store/authStore.js';
 
 
 
+const EMPTY_JOIN_FORM = { name: "", email: "", birthdate: "", agreed: false };
+
 export default function Club() {
 
     const { isClubOpen, setClubOpen, setTermsOpen, termsAgreed } = useAppStore();
@@ -46,17 +48,7 @@ export default function Club() {
 
     const { draft, updateDraft, editMode } = adminControls;
 
-    const [formData, setFormData] = useState({
-
-        name: "",
-
-        email: "",
-
-        birthdate: "",
-
-
-        agreed: false
-    });
+    const [formData, setFormData] = useState(EMPTY_JOIN_FORM);
     /** תוצאת ההרשמה מוצגת בתוך הפופ-אפ: success (עם קוד ההטבה) או error */
     const [joinResult, setJoinResult] = useState(null);
     const [isJoining, setIsJoining] = useState(false);
@@ -64,11 +56,13 @@ export default function Club() {
 
 
     const closeClub = () => {
-
         setClubOpen(false);
-
+        // הפתיחה הבאה מתחילה טופס נקי (למשל בן משפחה שנרשם מאותו דפדפן)
+        if (joinResult?.type === "success") {
+            setFormData(EMPTY_JOIN_FORM);
+        }
+        setJoinResult(null);
         sessionStorage.setItem("club-popup-dismissed", "1");
-
     };
 
 
