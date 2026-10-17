@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { getActivePopups } from "../api/popups";
 import useAppStore from "../store/appStore";
+import { useIsAdminPage } from "./adminPageContext";
 
 const dismissedKey = (id) => `popup-dismissed-${id}`;
 
@@ -33,8 +34,10 @@ export default function PopupHost() {
     const { isClubOpen, isTermsOpen } = useAppStore();
     const [popup, setPopup] = useState(null);
     const [visible, setVisible] = useState(false);
+    const isAdminPage = useIsAdminPage();
 
     useEffect(() => {
+        if (isAdminPage) return undefined;
         let cancelled = false;
         let timer = null;
         setVisible(false);
@@ -56,9 +59,9 @@ export default function PopupHost() {
             cancelled = true;
             if (timer) clearTimeout(timer);
         };
-    }, [pathname]);
+    }, [pathname, isAdminPage]);
 
-    if (!popup || !visible || isClubOpen || isTermsOpen) return null;
+    if (isAdminPage || !popup || !visible || isClubOpen || isTermsOpen) return null;
 
     const close = () => {
         markDismissed(popup);
