@@ -239,7 +239,8 @@ exports.addClubMember = async (req, res) => {
         if (!name || !isValidEmail(email)) {
             return res.status(400).json({ msg: "יש להזין שם וכתובת מייל תקינה" });
         }
-        if (await ClubModel.exists({ email })) {
+        // בלי תלות באותיות גדולות/קטנות: חברים ותיקים נשמרו לפני שהמייל נורמל
+        if (await ClubModel.exists({ email }).collation({ locale: "en", strength: 2 })) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון" });
         }
 
