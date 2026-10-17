@@ -62,6 +62,8 @@ const sendWelcomeEmail = async ({ email, name, code }) => {
     return sendEmail(email, subject, vars, "./template/clubWelcome.handlebars", attachments);
 };
 
+const CASE_INSENSITIVE = { locale: "en", strength: 2 };
+
 const generateGiftCode = () => {
     const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase();
     return `GIFT-${randomPart}`;
@@ -75,7 +77,8 @@ exports.joinClub = async (req, res) => {
             return res.status(400).json({ msg: "יש למלא שם וכתובת מייל" });
         }
         // הרשמה כפולה נדחית – לא שולחים שוב מייל ולא חושפים את קוד ההטבה הקיים
-        const existingMember = await ClubModel.findOne({ email });
+        // השוואה בלי תלות באותיות גדולות/קטנות – חברים ותיקים נשמרו לפני שהמייל נורמל
+        const existingMember = await ClubModel.findOne({ email }).collation(CASE_INSENSITIVE);
         if (existingMember) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
         }
