@@ -78,7 +78,9 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                 {loadError && (
                     <div className="py-12 px-4 text-center">
                         <p className="text-red-600 font-medium mb-2">{loadError}</p>
-                        <p className="text-gray-500 text-sm">אם הבעיה נמשכת, בדקי שהשרת בענן פעיל ושאין חסימת רשת לכתובת Render.</p>
+                        <button type="button" onClick={() => window.location.reload()} className="text-sm font-bold text-[#f2665e] hover:underline">
+                            לרענן את הדף
+                        </button>
                     </div>
                 )}
 
