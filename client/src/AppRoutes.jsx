@@ -30,6 +30,7 @@ import EditorAssetsManagement from "./adminPage/EditorAssetsManagement";
 import EditorSettingsManagement from "./adminPage/EditorSettingsManagement";
 import ShopSettingsManagement from "./adminPage/ShopSettingsManagement";
 import OrderConfirmationPage from "./pages/OrderConfirmationPage";
+import PaymentResultPage from "./pages/PaymentResultPage";
 import CheckoutPage from "./pages/CheckoutPage";
 
 const ProductsPageWrapper = () => {
@@ -81,6 +82,7 @@ export default function AppRoutes() {
                 <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                 <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                 <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />
+                <Route path="/payment/result" element={<Layout><PaymentResultPage /></Layout>} />
                 <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
                 <Route path="/editor/:productId" element={<Layout compact><EditorPageWrapper /></Layout>} />
                 <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />

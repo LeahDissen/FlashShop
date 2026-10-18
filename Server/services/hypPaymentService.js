@@ -1,0 +1,75 @@
+const axios = require("axios");
+const { config } = require("../config/secret");
+
+/** דף התשלום וה-API של Hyp Pay (https://developers.hyp.co.il/pay) */
+const HYP_URL = "https://pay.hyp.co.il/p/";
+const REQUEST_TIMEOUT_MS = 15_000;
+
+exports.isHypConfigured = () => Boolean(config.HYP_MASOF && config.HYP_KEY && config.HYP_PASSP);
+
+const credentials = () => ({ KEY: config.HYP_KEY, PassP: config.HYP_PASSP, Masof: config.HYP_MASOF });
+
+const toQuery = (params) => Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&");
+
+const readCode = (responseText) => new URLSearchParams(String(responseText)).get("CCode");
+
+const splitName = (fullName = "") => {
+    const [first, ...rest] = String(fullName).trim().split(/\s+/);
+    return { first: first || "", last: rest.join(" ") };
+};
+
+/**
+ * מבקש מ-Hyp קישור חתום לדף התשלום של ההזמנה.
+ * @returns {Promise<string>} הכתובת שאליה מעבירים את הלקוחה
+ */
+exports.createPaymentUrl = async (order) => {
+    const { first, last } = splitName(order.customer?.name);
+    const query = toQuery({
+        action: "APISign",
+        What: "SIGN",
+        Sign: "True",
+        ...credentials(),
+        Amount: Number(order.total_price).toFixed(2),
+        Order: String(order._id),
+        Info: `הזמנה ${String(order._id).slice(-8).toUpperCase()}`,
+        ClientName: first,
+        ClientLName: last,
+        email: order.customer?.email,
+        cell: String(order.customer?.phone || "").replace(/\D/g, ""),
+        PageLang: "HEB",
+    });
+
+    const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });
+    const response = String(data).trim();
+    if (!/(^|&)signature=/.test(response)) {
+        throw new Error(`Hyp SIGN failed (CCode=${readCode(response) ?? "?"})`);
+    }
+    // התשובה מוצמדת כמו שהיא, באותו סדר, לכתובת דף התשלום
+    return `${HYP_URL}?${response}`;
+};
+
+/**
+ * מאמת מול Hyp שהחזרה לדף ההצלחה אמיתית ולא זויפה.
+ * @param {string} redirectQuery מחרוזת הפרמטרים שהגיעה לדף ההצלחה, כמו שהיא ובאותו סדר
+ * @returns {Promise<boolean>}
+ */
+exports.verifyPaymentRedirect = async (redirectQuery) => {
+    const params = String(redirectQuery || "").replace(/^\?/, "");
+    const query = `${toQuery({ action: "APISign", What: "VERIFY", ...credentials() })}&${params}`;
+    const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });
+    return readCode(data) === "0";
+};
+
+/**
+ * בדיקת חיבור בלי חיוב: מבקש חתימה על סכום של 1 ₪ ולא מעביר לקוח לתשלום.
+ * @returns {Promise<{ ok: boolean, code: string | null }>}
+ */
+exports.checkConnection = async () => {
+    const query = toQuery({ action: "APISign", What: "SIGN", Sign: "True", ...credentials(), Amount: "1.00", Order: "connection-check" });
+    const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });
+    const response = String(data);
+    return { ok: /(^|&)signature=/.test(response), code: readCode(response) };
+};

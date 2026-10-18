@@ -15,6 +15,7 @@ const {
 const { loadEditorSettings } = require("./editorSettingsController");
 const { validateCheckoutDetails, firstCheckoutValidationMessage } = require("../utils/checkoutValidation");
 const { sendOrderStatusEmail, loadOrderEmailTemplates } = require("../services/orderEmailService");
+const { isHypConfigured, createPaymentUrl, verifyPaymentRedirect, checkConnection } = require("../services/hypPaymentService");
 const { OrderEmailTemplateModel, ORDER_EMAIL_STATUSES, ORDER_EMAIL_PLACEHOLDERS } = require("../models/orderEmailTemplateModel");
 
 const DELIVERY_FEE = 25;
@@ -490,7 +491,7 @@ exports.getOrders = async (req, res) => {
         if (req.tokenData.role !== "admin") {
             return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
         }
-        const orders = await OrderModel.find({ status: { $ne: "pending" } })
+        const orders = await OrderModel.find({ status: { $nin: ["pending", AWAITING_PAYMENT] } })
             .populate("user_id", "name email createdAt")
             .sort({ date_created: -1 });
         res.json(orders);
@@ -655,6 +656,20 @@ exports.syncOrderDrive = async (req, res) => {
 };
 
 // יצירת הזמנה חדשה וסגירת עגלת הקניות (מאובטח לחלוטין מפני זיוף מחירים)
+const AWAITING_PAYMENT = "awaiting_payment";
+
+/** מה שקורה כשהזמנה נכנסת לטיפול: מימוש הקופון, ניקוי הסל ומייל אישור ללקוח */
+async function completeOrder(order, userId) {
+    if (order.coupon_code) {
+        await markCouponAsUsed(order.coupon_code, userId);
+    }
+    await OrderModel.findOneAndUpdate(
+        { user_id: userId, status: "pending" },
+        { $set: { items: [], total_price: 0, subtotal: 0, discount: 0, coupon_code: null } },
+    );
+    sendOrderStatusEmail(order, "processing"); // ברקע, לא מעכב את התשובה
+}
+
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.tokenData._id;
@@ -823,7 +838,10 @@ exports.createOrder = async (req, res) => {
             customer: customerDetails,
             shipping_address: method === "delivery" ? shippingDetails : undefined,
             total_price,
-            status: "processing",
+            // כשהסליקה מחוברת, ההזמנה נכנסת לטיפול רק אחרי שהתשלום אומת
+            ...(isHypConfigured()
+                ? { status: AWAITING_PAYMENT, payment: { provider: "hyp", status: "pending" } }
+                : { status: "processing" }),
         });
 
         const saved = await newOrder.save();
@@ -836,28 +854,18 @@ exports.createOrder = async (req, res) => {
             console.warn("Drive: photo prints were not uploaded because Google Drive is not configured");
         }
 
-        // מימוש הקופון במידה וקיים
-        if (couponCode) {
-            await markCouponAsUsed(couponCode, userId);
+        if (saved.status === AWAITING_PAYMENT) {
+            // הקופון, המייל והסל מטופלים רק אחרי תשלום (confirmPayment)
+            try {
+                const paymentUrl = await createPaymentUrl(saved);
+                return res.status(201).json({ ...saved.toObject(), paymentUrl });
+            } catch (paymentErr) {
+                console.error(`[Payment][order=${saved._id}] could not create payment page:`, paymentErr.message);
+                return res.status(502).json({ msg: "לא הצלחנו לפתוח את דף התשלום. נסי שוב בעוד רגע." });
+            }
         }
 
-        // אישור קבלת ההזמנה ללקוח (ברקע, לא מעכב את סיום ההזמנה)
-        sendOrderStatusEmail(saved, "processing");
-
-        // איפוס וניקוי עגלת הקניות הזמנית (pending) של המשתמש
-        await OrderModel.findOneAndUpdate(
-            { user_id: userId, status: "pending" },
-            {
-                $set: {
-                    items: [],
-                    total_price: 0,
-                    subtotal: 0,
-                    discount: 0,
-                    coupon_code: null,
-                },
-            }
-        );
-
+        await completeOrder(saved, userId);
         res.status(201).json(saved);
     } catch (err) {
         console.log(err);
@@ -925,3 +933,65 @@ exports.updateOrderEmailTemplate = async (req, res) => {
         res.status(500).json({ msg: "שגיאה בשמירת נוסח המייל" });
     }
 };
+
+// --- סליקה (Hyp Pay) ---
+
+/**
+ * הלקוחה חזרה מדף התשלום לדף ההצלחה. מאמתים מול Hyp שהחזרה אמיתית ושהסכום וההזמנה תואמים,
+ * ואז ההזמנה נכנסת לטיפול. בטוח לקרוא שוב (רענון הדף) – הזמנה ששולמה לא מעובדת פעמיים.
+ */
+exports.confirmPayment = async (req, res) => {
+    try {
+        const order = await OrderModel.findById(req.params.id);
+        if (!order) return res.status(404).json({ msg: "הזמנה לא נמצאה" });
+        if (!ensureSelfOrAdmin(req, res, order.user_id)) return;
+        if (order.payment?.status === "paid") return res.json(order);
+
+        const query = String(req.body?.query || "").replace(/^\?/, "");
+        const params = new URLSearchParams(query);
+        const amountMatches = Math.abs(Number(params.get("Amount")) - Number(order.total_price)) <= 0.01;
+        if (params.get("Order") !== String(order._id) || params.get("CCode") !== "0" || !amountMatches) {
+            return res.status(400).json({ msg: "התשלום לא הושלם" });
+        }
+        if (!(await verifyPaymentRedirect(query))) {
+            console.warn(`[Payment][order=${order._id}] Hyp verification failed`);
+            return res.status(400).json({ msg: "לא הצלחנו לאמת את התשלום. אם חויבת – צרי איתנו קשר." });
+        }
+
+        // עדכון אטומי: רק בקשה אחת מעבירה את ההזמנה למצב "שולם"
+        const paid = await OrderModel.findOneAndUpdate(
+            { _id: order._id, "payment.status": { $ne: "paid" } },
+            {
+                $set: {
+                    status: "processing",
+                    "payment.status": "paid",
+                    "payment.transactionId": params.get("Id"),
+                    "payment.approvalCode": params.get("ACode"),
+                    "payment.paidAt": new Date(),
+                },
+            },
+            { new: true },
+        );
+        if (!paid) return res.json(await OrderModel.findById(order._id));
+
+        await completeOrder(paid, paid.user_id);
+        res.json(paid);
+    } catch (err) {
+        console.error(`[Payment][order=${req.params.id}] confirm error:`, err.message);
+        res.status(500).json({ msg: "שגיאה באימות התשלום" });
+    }
+};
+
+/** בדיקה למנהלת: האם פרטי Hyp ב-Railway נכונים (בלי חיוב) */
+exports.checkPaymentConnection = async (req, res) => {
+    if (!isHypConfigured()) {
+        return res.json({ configured: false, ok: false, msg: "חסרים HYP_MASOF / HYP_KEY / HYP_PASSP" });
+    }
+    try {
+        const { ok, code } = await checkConnection();
+        res.json({ configured: true, ok, code, msg: ok ? "החיבור ל-Hyp תקין" : `Hyp דחו את הבקשה (קוד ${code})` });
+    } catch (err) {
+        res.status(502).json({ configured: true, ok: false, msg: `אין תשובה מ-Hyp: ${err.message}` });
+    }
+};
+

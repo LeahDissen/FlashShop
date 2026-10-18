@@ -752,6 +752,12 @@ export default function OrderDetailPage() {
                                 <span className="font-semibold text-gray-700">סה״כ לתשלום</span>
                                 <span className="text-2xl font-bold text-[#f2665e]">₪{Number(order.total_price).toFixed(2)}</span>
                             </div>
+                            {order.payment?.status === 'paid' && (
+                                <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                                    שולם באשראי (Hyp) · מספר עסקה {order.payment.transactionId}
+                                    {order.payment.approvalCode && ` · אישור ${order.payment.approvalCode}`}
+                                </p>
+                            )}
                         </div>
                     </section>
 
