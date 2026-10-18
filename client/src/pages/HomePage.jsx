@@ -24,12 +24,18 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
+/** כמה ריבועי מוצרים אפשר להגדיר בדף הבית (4 בשורה בדסקטופ, 2 במובייל) */
+const HOME_TILE_COUNT = 8;
+const PHOTO_DEVELOPMENT_PATH = '/photo-development';
+const DEFAULT_UPLOAD_BADGE_TEXT = 'להעלאת תמונות להדפסה';
+
 /** Stable initial data — defined outside component to prevent recreation on every render */
 const INITIAL_DATA = {
     title: "",
     mainImg: "",
     products: [],
     goToAll: "",
+    uploadBadgeText: "",
     goToAbout: "",
     titleAbout: "",
     textAbout: "",
@@ -136,14 +142,19 @@ export default function HomePage() {
         return name ? `/products?category=${encodeURIComponent(name)}` : '/products';
     };
 
-    /** Always 6 grid slots — real products or empty placeholders */
-    const gridItems = useMemo(() => {
+    const uploadBadgeText = (draft.uploadBadgeText || '').trim() || DEFAULT_UPLOAD_BADGE_TEXT;
+
+    /** משבצות העריכה באדמין: תמיד HOME_TILE_COUNT, כולל ריקות */
+    const editTiles = useMemo(() => {
         const list = Array.isArray(draft.products) ? draft.products : [];
         return [
-            ...list.slice(0, 6),
-            ...Array(Math.max(0, 6 - list.length)).fill(null)
+            ...list.slice(0, HOME_TILE_COUNT),
+            ...Array(Math.max(0, HOME_TILE_COUNT - list.length)).fill(null),
         ];
     }, [draft.products]);
+
+    /** בחנות מוצגים רק ריבועים שיש להם תמונה – בלי משבצות ריקות */
+    const visibleTiles = useMemo(() => editTiles.filter((prod) => prod?.image), [editTiles]);
 
     // ─── Admin Edit Panel ─────────────────────────────────────────────────────
     const EditContent = (
@@ -167,9 +178,9 @@ export default function HomePage() {
                 />
             </div>
             <div>
-                <label className="font-bold block mb-2">6 מוצרים — תמונה + שם + קישור:</label>
+                <label className="font-bold block mb-2">{HOME_TILE_COUNT} מוצרים — תמונה + שם + קישור (4 בשורה):</label>
                 <div className="grid grid-cols-2 gap-3">
-                    {gridItems.map((prod, index) => (
+                    {editTiles.map((prod, index) => (
                         <div key={index} className="border rounded-xl p-3 bg-gray-50 space-y-2">
                             <p className="font-bold text-xs" style={{ color: '#ff5a5a' }}>מוצר {index + 1}</p>
                             <input
@@ -199,6 +210,16 @@ export default function HomePage() {
                 </div>
             </div>
             <div>
+                <label className="font-bold block mb-1">טקסט העיגול שמוביל להעלאת תמונות:</label>
+                <input
+                    type="text"
+                    value={draft.uploadBadgeText || ''}
+                    placeholder={DEFAULT_UPLOAD_BADGE_TEXT}
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ uploadBadgeText: e.target.value })}
+                />
+            </div>
+            <div>
                 <label className="font-bold block mb-1">כפתור "לכל המוצרים":</label>
                 <input
                     type="text"
@@ -218,8 +239,9 @@ export default function HomePage() {
                 />
             </div>
             <div>
-                <label className="font-bold block mb-1">טקסט "הסיפור שלנו":</label>
+                <label className="font-bold block mb-1">טקסט "הסיפור שלנו" (3–4 שורות על החנות):</label>
                 <textarea
+                    placeholder="כמה שורות על החנות: מי אנחנו, מה אנחנו עושות ולמה"
                     className="w-full border rounded p-2 h-28"
                     value={draft.textAbout || ''}
                     onChange={(e) => updateDraft({ textAbout: e.target.value })}
@@ -313,49 +335,44 @@ export default function HomePage() {
                     </h1>
 
                     <div className="home-products">
-                        <div className="home-products__badge" aria-label="משלוחים לכל הארץ">
+                        <Link
+                            to={PHOTO_DEVELOPMENT_PATH}
+                            className="home-products__badge"
+                            aria-label={uploadBadgeText}
+                        >
                             <svg className="home-products__badge-ring" viewBox="0 0 100 100" aria-hidden="true">
                                 <defs>
-                                    <path id="shipRing" d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
+                                    <path id="uploadRing" d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
                                 </defs>
-                                <text fill="#F2665E" fontSize="9.5" fontWeight="700" letterSpacing="1.2">
-                                    <textPath xlinkHref="#shipRing" href="#shipRing" startOffset="0%">
-                                        משלוחים לכל הארץ · משלוחים לכל הארץ ·
+                                <text fill="#F2665E" fontSize="9" fontWeight="700">
+                                    <textPath href="#uploadRing" startOffset="0%" textLength="232" lengthAdjust="spacing">
+                                        {`${uploadBadgeText} · `}
                                     </textPath>
                                 </text>
                             </svg>
-                            <div className="home-products__badge-inner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
-                                    viewBox="0 0 24 24" fill="none" stroke="#F2665E"
-                                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                    aria-hidden="true">
-                                    <rect x="1" y="3" width="15" height="13" rx="1" />
-                                    <path d="M16 8h4l3 5v3h-7V8z" />
-                                    <circle cx="5.5" cy="18.5" r="2.5" />
-                                    <circle cx="18.5" cy="18.5" r="2.5" />
+                            <span className="home-products__badge-inner" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"
+                                    viewBox="0 0 24 24" fill="none" stroke="#fff"
+                                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 19V5" />
+                                    <path d="M5 12l7-7 7 7" />
                                 </svg>
-                            </div>
-                        </div>
+                            </span>
+                        </Link>
 
                         <div className="home-products__grid">
-                            {gridItems.map((prod, index) => (
-                                prod?.image ? (
-                                    <Link
-                                        key={index}
-                                        to={tileLink(prod)}
-                                        aria-label={prod.name || `קטגוריה ${index + 1}`}
-                                        className="home-products__tile"
-                                    >
-                                        <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
-                                        {prod.name ? (
-                                            <span className="home-products__tile-label">{prod.name}</span>
-                                        ) : null}
-                                    </Link>
-                                ) : (
-                                    <div key={index} className="home-products__empty">
-                                        {prod?.name || `מוצר ${index + 1}`}
-                                    </div>
-                                )
+                            {visibleTiles.map((prod, index) => (
+                                <Link
+                                    key={index}
+                                    to={tileLink(prod)}
+                                    aria-label={prod.name || `קטגוריה ${index + 1}`}
+                                    className="home-products__tile"
+                                >
+                                    <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
+                                    {prod.name ? (
+                                        <span className="home-products__tile-label">{prod.name}</span>
+                                    ) : null}
+                                </Link>
                             ))}
                         </div>
                     </div>
