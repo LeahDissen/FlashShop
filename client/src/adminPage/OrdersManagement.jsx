@@ -132,15 +132,16 @@ export default function OrdersManagement() {
     };
 
     const stats = {
-        total: orders.length,
+        total: orders.filter(o => o.status !== 'awaiting_payment').length,
         pending: orders.filter(o => o.status === 'processing' || o.status === 'pending').length,
-        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' ? sum + (o.total_price || 0) : sum, 0)
+        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' && o.status !== 'awaiting_payment' ? sum + (o.total_price || 0) : sum, 0)
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
             case 'processing': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> בטיפול</span>;
             case 'pending': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
+            case 'awaiting_payment': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 flex items-center gap-1 w-fit"><FaClock /> ממתין לתשלום</span>;
             case 'shipped': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 w-fit"><FaShippingFast /> נשלח</span>;
             case 'delivered': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1 w-fit"><FaCheckCircle /> ההזמנה מוכנה</span>;
             case 'cancelled': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 flex items-center gap-1 w-fit"><FaTimesCircle /> בוטל</span>;
@@ -212,7 +213,7 @@ export default function OrdersManagement() {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar items-center">
-                    {['all', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
+                    {['all', 'processing', 'shipped', 'delivered', 'cancelled', 'awaiting_payment'].map(status => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
@@ -224,7 +225,8 @@ export default function OrdersManagement() {
                             {status === 'all' ? 'הכל' :
                                 status === 'processing' ? 'בטיפול' :
                                     status === 'shipped' ? 'נשלח' :
-                                        status === 'delivered' ? 'ההזמנה מוכנה' : 'בוטל'}
+                                        status === 'delivered' ? 'ההזמנה מוכנה' :
+                                            status === 'cancelled' ? 'בוטל' : 'ממתין לתשלום'}
                         </button>
                     ))}
                     {selectedIds.length > 0 && (

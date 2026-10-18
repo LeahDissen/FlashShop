@@ -491,7 +491,7 @@ exports.getOrders = async (req, res) => {
         if (req.tokenData.role !== "admin") {
             return res.status(403).json({ msg: "גישה מורשית למנהלים בלבד" });
         }
-        const orders = await OrderModel.find({ status: { $nin: ["pending", AWAITING_PAYMENT] } })
+        const orders = await OrderModel.find({ status: { $ne: "pending" } })
             .populate("user_id", "name email createdAt")
             .sort({ date_created: -1 });
         res.json(orders);
@@ -936,6 +936,9 @@ exports.updateOrderEmailTemplate = async (req, res) => {
 
 // --- סליקה (Hyp Pay) ---
 
+/** פרמטרים שהשרת מוסיף בעצמו לבקשת האימות – אסור שיגיעו מהדפדפן */
+const RESERVED_PAYMENT_PARAMS = new Set(["action", "what", "key", "passp", "masof"]);
+
 /**
  * הלקוחה חזרה מדף התשלום לדף ההצלחה. מאמתים מול Hyp שהחזרה אמיתית ושהסכום וההזמנה תואמים,
  * ואז ההזמנה נכנסת לטיפול. בטוח לקרוא שוב (רענון הדף) – הזמנה ששולמה לא מעובדת פעמיים.
@@ -949,6 +952,14 @@ exports.confirmPayment = async (req, res) => {
 
         const query = String(req.body?.query || "").replace(/^\?/, "");
         const params = new URLSearchParams(query);
+        const keys = [...params.keys()];
+        // פרמטר כפול או פרטי מסוף בתוך החזרה = ניסיון לגרום ל-Hyp לאמת ערכים אחרים ממה שבדקנו כאן
+        const tampered = new Set(keys).size !== keys.length
+            || keys.some((key) => RESERVED_PAYMENT_PARAMS.has(key.toLowerCase()));
+        if (tampered) {
+            console.warn(`[Payment][order=${order._id}] rejected redirect with duplicate or reserved params`);
+            return res.status(400).json({ msg: "התשלום לא הושלם" });
+        }
         const amountMatches = Math.abs(Number(params.get("Amount")) - Number(order.total_price)) <= 0.01;
         if (params.get("Order") !== String(order._id) || params.get("CCode") !== "0" || !amountMatches) {
             return res.status(400).json({ msg: "התשלום לא הושלם" });
