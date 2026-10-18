@@ -9,12 +9,12 @@
 * **שרת תוכן (CMS):** שירות נוסף מבוסס Redis לניהול תכנים דינמיים באתר (כמו טקסטים בדף הבית).
 
 
-# הפעלה
-האתר רץ ב-Cloudflare (לקוח) ו-Railway (שרת). פריסה של הלקוח:
+# Running
+The site runs on Cloudflare (client) and Railway (server). Deploying the client:
 ```
-cd client && npm run deploy        # vite build + wrangler deploy (דורש wrangler login)
+cd client && npm run deploy        # vite build + wrangler deploy (requires wrangler login)
 ```
-פריסה של השרת: `railway up` מתיקיית הריפו (או חיבור ל-GitHub ב-Railway).
+Deploying the server: `railway up` from the repo folder (or connecting GitHub in Railway).
 
 
 # הוראות שימוש
