@@ -5,7 +5,7 @@ const DEFAULT_RETRIES = 2;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** ניסיון חוזר רק לכשלים זמניים (רשת / שרת); קובץ פגום או גדול מדי לא ייעזר מזה */
+/** Retry only transient failures (network / server); a corrupt or oversized file won't benefit from it */
 const uploadWithRetry = async (file, retries) => {
     let lastError;
     for (let attempt = 0; attempt <= retries; attempt += 1) {
@@ -21,9 +21,9 @@ const uploadWithRetry = async (file, retries) => {
 };
 
 /**
- * מעלה הרבה קבצים במקביל (כמה בבת אחת, לא הכל) עם התקדמות וניסיון חוזר.
- * הזמנת פיתוח תמונות טיפוסית היא מאות תמונות, אז כל תמונה שהסתיימה
- * מדווחת מיד דרך onUploaded כדי שהגלריה תתמלא תוך כדי.
+ * Uploads many files in parallel (a few at a time, not all at once) with progress and retries.
+ * A typical photo development order is hundreds of photos, so each finished photo
+ * is reported right away through onUploaded so the gallery fills up as it goes.
  */
 export async function uploadFilesInParallel(files, {
     concurrency = DEFAULT_CONCURRENCY,
@@ -58,7 +58,7 @@ export async function uploadFilesInParallel(files, {
     report();
     await Promise.all(Array.from({ length: Math.min(concurrency, total) }, worker));
 
-    // שומרים על סדר הבחירה המקורי בלי קשר לסדר הסיום
+    // Keep the original selection order regardless of the completion order
     uploaded.sort((a, b) => a.index - b.index);
     failed.sort((a, b) => a.index - b.index);
     return { uploaded, failed };

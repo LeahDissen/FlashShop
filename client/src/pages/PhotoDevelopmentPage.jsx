@@ -30,9 +30,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [priceList, setPriceList] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
-    /** התקדמות העלאה מרובה: { done, total, failed } */
+    /** Multi-upload progress: { done, total, failed } */
     const [uploadProgress, setUploadProgress] = useState(null);
-    /** קבצים שנכשלו בהעלאה האחרונה – הלקוח יכול לנסות אותם שוב בלי לבחור מחדש */
+    /** Files that failed in the last upload – the customer can retry them without choosing again */
     const [failedUploads, setFailedUploads] = useState([]);
     const [adjustImageId, setAdjustImageId] = useState(null);
     const [isCropSaving, setIsCropSaving] = useState(false);
@@ -95,7 +95,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         setUploadStatus('');
 
         try {
-            // כמה תמונות במקביל, כל אחת מצטרפת לגלריה ברגע שהיא מוכנה
+            // A few photos in parallel, each joins the gallery as soon as it is ready
             const { failed } = await uploadFilesInParallel(fileList, {
                 onProgress: setUploadProgress,
                 onUploaded: (result) => setImages((prev) => [...prev, toGalleryImage(result)]),
