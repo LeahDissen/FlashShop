@@ -17,7 +17,7 @@ const FIELD_WEIGHTS = [
 
 /** שורש פשוט לעברית: "תמונה" ו"תמונות" מוצאים זה את זה (מוריד סיומת יחיד/רבים נפוצה) */
 const toStem = (word) => {
-    const stem = word.replace(/(ות|ים|ה|ת)$/, '');
+    const stem = word.replace(/(ות|ימ|ה|ת)$/, ''); // אחרי הנרמול ם הופכת ל-מ
     return stem.length >= 3 ? stem : word;
 };
 
