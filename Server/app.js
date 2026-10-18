@@ -26,7 +26,7 @@ const PORT = Number(process.env.PORT || config.PORT) || 10000;
 const HOST = process.env.HOST || "0.0.0.0";
 const app = express();
 app.set('trust proxy', 1);
-// מקורות מורשים ל-CORS: כתובות הלקוח בפרודקשן מגיעות מ-CLIENT_URL (מופרדות בפסיק)
+// Origins allowed by CORS: the production client URLs come from CLIENT_URL (comma-separated)
 const allowedOrigins = Array.from(new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",

@@ -1,7 +1,7 @@
 /**
- * הרצה חד-פעמית: CMS_URL=https://flashshop-redis.onrender.com node importPagesFromCms.js
- * מעתיק את תוכן הדפים משרת ה-CMS הישן (Redis) לקולקציית pages ב-Mongo.
- * בטוח להריץ שוב — כל הרצה דורסת את הדפים בערכים הנוכחיים מה-CMS.
+ * One-time run: CMS_URL=https://flashshop-redis.onrender.com node importPagesFromCms.js
+ * Copies the page content from the old CMS server (Redis) into the Mongo pages collection.
+ * Safe to run again — every run overwrites the pages with the current CMS values.
  */
 const axios = require("axios");
 const mongoose = require("mongoose");
