@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getEditorSettings } from '../api/editorSettings';
 import { DEFAULT_EDITOR_SETTINGS, mergeEditorSettings } from '../constants/editorSettingsDefaults';
+import { registerCustomFonts } from '../utils/customFonts';
 
 let cachedSettings = null;
 let inflightRequest = null;
@@ -11,6 +12,8 @@ const fetchSettingsOnce = () => {
         inflightRequest = getEditorSettings()
             .then((data) => {
                 cachedSettings = mergeEditorSettings(data);
+                // גופנים שהמנהלת העלתה זמינים בכל מקום שמשתמש בהגדרות (עורך המוצרים ועורך התמונות)
+                registerCustomFonts(cachedSettings.textToolbar?.fonts);
                 return cachedSettings;
             })
             .finally(() => {

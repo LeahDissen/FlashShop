@@ -138,3 +138,31 @@ export async function uploadDocumentToCloudinary(file) {
     }
     return data.secure_url;
 }
+
+const FONT_EXTENSIONS = ['otf', 'ttf', 'woff', 'woff2'];
+const MAX_FONT_BYTES = 5 * 1024 * 1024;
+
+/** מעלה קובץ גופן (OTF/TTF/WOFF/WOFF2) כקובץ גולמי ומחזיר את כתובתו */
+export async function uploadFontToCloudinary(file) {
+    const extension = String(file?.name || '').split('.').pop().toLowerCase();
+    if (!FONT_EXTENSIONS.includes(extension)) {
+        throw new Error('אפשר להעלות רק קובצי גופן: OTF, TTF, WOFF או WOFF2');
+    }
+    if (file.size > MAX_FONT_BYTES) {
+        throw new Error('קובץ הגופן גדול מדי (מעל 5MB)');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(parseCloudinaryError(data));
+    }
+    return data.secure_url;
+}
