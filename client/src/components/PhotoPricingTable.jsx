@@ -20,7 +20,7 @@ export const PhotoPricingTableContent = ({ pricing, printsBySize = {} }) => {
                         {getSizePriceRows(pricing, size, printsBySize[normalizeSize(size)] || 0).map((row) => (
                             <tr key={row.key} className={row.isActive ? 'bg-[#fff5f4]' : ''}>
                                 <td className="py-1.5 px-2 text-right border-b border-gray-100 text-gray-800">
-                                    {row.rangeLabel} תמונות
+                                    <bdi className="whitespace-nowrap">{row.rangeLabel}</bdi> תמונות
                                     {row.isActive && <span className="mr-1 text-[10px] font-bold text-[#f2665e]">✓</span>}
                                 </td>
                                 <td className={`w-20 py-1.5 px-2 text-left border-b border-gray-100 font-semibold whitespace-nowrap ${
