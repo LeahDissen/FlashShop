@@ -152,24 +152,6 @@ exports.checkGiftCode = async (req, res) => {
     }
 };
 
-exports.redeemGift = async (req, res) => {
-    try {
-        const { user_id } = req.body;
-        const updatedMember = await ClubModel.findOneAndUpdate(
-            { user_id, isUsed: false },
-            { isUsed: true },
-            { new: true }
-        );
-        if (!updatedMember) {
-            return res.status(400).json({ msg: "לא נמצא קופון פעיל למשתמש זה" });
-        }
-        res.json({ msg: "המתנה נוצלה בהצלחה!", data: updatedMember });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ msg: "שגיאה במימוש המתנה" });
-    }
-};
-
 exports.getClubMembers = async (req, res) => {
     try {
         const members = await ClubModel.find({})
