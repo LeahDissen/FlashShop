@@ -8,7 +8,7 @@ import { lazyWithReload } from "./utils/lazyWithReload";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { GOOGLE_CLIENT_ID } from "./config/api";
 
-// עמודים שלא נדרשים בטעינה הראשונה נטענים רק כשנכנסים אליהם (חבילת JS קטנה יותר לדף הבית)
+// Pages not needed on the first load are loaded only when visited (a smaller JS bundle for the home page)
 const AdminDashboardPage = lazyWithReload(() => import("./adminPage/AdminDashboardPage"));
 const EditPages = lazyWithReload(() => import("./adminPage/EditPages"));
 const OrderDetailPage = lazyWithReload(() => import("./adminPage/OrderDetailPage"));
@@ -37,12 +37,12 @@ const ShopSettingsManagement = lazyWithReload(() => import("./adminPage/ShopSett
 const OrderConfirmationPage = lazyWithReload(() => import("./pages/OrderConfirmationPage"));
 const CheckoutPage = lazyWithReload(() => import("./pages/CheckoutPage"));
 
-/** סקריפט ההתחברות של Google (כ-100KB) נטען רק בעמודי ההתחברות וההרשמה */
+/** The Google sign-in script (~100KB) loads only on the login and signup pages */
 const GoogleAuth = ({ children }) => (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>
 );
 
-/** מוצג לרגע בזמן שקוד העמוד נטען */
+/** Shown briefly while the page's code loads */
 const PageLoader = () => (
     <div className="flex justify-center items-center min-h-[50vh]" role="status" aria-label="טוען">
         <div className="w-10 h-10 rounded-full border-4 border-[#f2665e]/20 border-t-[#f2665e] animate-spin" />
