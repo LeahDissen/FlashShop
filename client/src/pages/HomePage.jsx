@@ -502,7 +502,7 @@ export default function HomePage() {
                                     className="home-tips__card"
                                 >
                                     <div className="home-tips__img">
-                                        <img src={tip.img} alt={tip.title} />
+                                        <img src={optimizeImageUrl(tip.img, { width: 600 })} alt={tip.title} loading="lazy" decoding="async" />
                                     </div>
                                     <div className="home-tips__body">
                                         <h4 className="line-clamp-1">
