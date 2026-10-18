@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ALBUM_CATEGORY } from '../utils/photoQuantityPricing';
+import { ALBUM_CATEGORY, formatShekel } from '../utils/photoQuantityPricing';
+import { formatPrintSizeCm } from '../utils/printSizes';
 import PhotoPricingInfo from './PhotoPricingInfo';
 import { startAlbumDetour } from '../utils/photoOrderDraft';
 
@@ -7,7 +8,7 @@ const PhotoOrderSummary = ({
     pricing,
     totalPrints,
     grandTotal,
-    discountPercent,
+    sizes,
     nextTierHint,
     albumDiscount,
 }) => {
@@ -18,12 +19,19 @@ const PhotoOrderSummary = ({
             <div className="bg-[#fff5f4] border border-[#f2665e]/30 rounded-xl p-4 text-center shadow-sm">
                 <div className="flex items-center justify-center gap-3 mb-1 flex-wrap">
                     <p className="text-sm text-gray-600">סיכום הזמנת פיתוח תמונות</p>
-                    <PhotoPricingInfo pricing={pricing} totalPrints={totalPrints} />
+                    <PhotoPricingInfo
+                        pricing={pricing}
+                        printsBySize={Object.fromEntries(sizes.map(({ size, count }) => [size, count]))}
+                    />
                 </div>
                 <p className="text-lg font-bold text-gray-800">{totalPrints} הדפסות</p>
-                {discountPercent > 0 && (
-                    <p className="text-sm text-green-700 mt-1">הנחת כמות: {discountPercent}% על כל התמונות</p>
-                )}
+                <ul className="text-sm text-gray-600 mt-1 space-y-0.5">
+                    {sizes.map(({ size, count, unitPrice }) => (
+                        <li key={size}>
+                            {formatPrintSizeCm(size)}: {count} × {formatShekel(unitPrice)}
+                        </li>
+                    ))}
+                </ul>
                 <p className="text-2xl font-bold text-[#f2665e] mt-2">
                     סה״כ: {grandTotal.toFixed(2)} ₪
                 </p>
