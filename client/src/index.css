@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* סמן יד על כל אלמנט לחיץ */
+/* Pointer cursor on every clickable element */
 button:not(:disabled),
 [role='button']:not([aria-disabled='true']),
 input[type='button']:not(:disabled),

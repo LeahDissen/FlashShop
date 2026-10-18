@@ -20,7 +20,7 @@ const PRODUCT_URLS = {
     default: 'https://plus.unsplash.com/premium_photo-1718913931807-4da5b5dd27fa?q=80&w=872&auto=format&fit=crop',
 };
 
-/** אזור הדפסה ברירת מחדל (אחוזים) לפי סוג מוצר */
+/** Default print area (percent) by product type */
 const PRINT_AREAS = {
     'Phone Case': { top: 25, left: 20, width: 60, height: 55 },
     'Mug': { top: 35, left: 25, width: 50, height: 45 },

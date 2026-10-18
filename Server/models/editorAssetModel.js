@@ -12,8 +12,8 @@ const CATEGORIES = [
 const TYPES = ["shape", "image", "color"];
 
 /**
- * פריט בספריית עורך העיצוב העצמי (צורות, רקעים, גרפיקות, אייקונים, צבעים).
- * seedKey משמש רק לזריעה ראשונית כדי לא לשכפל פריטים קיימים.
+ * An item in the self-design editor library (shapes, backgrounds, graphics, icons, colors).
+ * seedKey is used only by the initial seed, to avoid duplicating existing items.
  */
 const editorAssetSchema = new mongoose.Schema(
     {

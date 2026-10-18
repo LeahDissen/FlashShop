@@ -21,11 +21,11 @@ const designFrameSchema = new mongoose.Schema(
         thumbnailUrl: { type: String, trim: true, default: "" },
         category: { type: String, default: "כללי", trim: true },
         aspectRatio: { type: String, required: true, trim: true },
-        /** מזהה מידת ההדפסה (תיקייה) שאליה שייכת המסגרת – ריק = זמינה לכל המידות */
+        /** Id of the print size (folder) the frame belongs to – empty = available for all sizes */
         printSizeKey: { type: String, default: "", trim: true },
-        /** כיוון המסגרת בתוך התיקייה */
+        /** The frame's orientation within the folder */
         orientation: { type: String, enum: ["landscape", "portrait", "any"], default: "any" },
-        /** מסגרת קבועה: נפרסת על כל המשטח ואינה ניתנת להזזה על ידי הלקוח */
+        /** Fixed frame: spans the whole canvas and cannot be moved by the customer */
         isFixedOverlay: { type: Boolean, default: true },
         layoutType: { type: String, enum: ["single_overlay", "multi_dropzone"], default: "single_overlay" },
         dropzones: { type: [dropzoneSchema], default: [] },

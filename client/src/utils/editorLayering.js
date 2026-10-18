@@ -2,7 +2,7 @@ export function isGlobalFrame(el) {
     return el?.type === 'globalFrame';
 }
 
-/** מסדר אלמנטים: תמונות/צורות למטה, מסגרת גלובלית באמצע, טקסט למעלה */
+/** Orders elements: photos/shapes at the bottom, the global frame in the middle, text on top */
 export function enforceLayerOrder(elements) {
     if (!Array.isArray(elements)) return [];
 
@@ -21,7 +21,7 @@ export function getActiveGlobalFrame(elements) {
     return elements.find(isGlobalFrame) || null;
 }
 
-/** מוסיף אלמנט מתחת למסגרת הגלובלית */
+/** Adds an element below the global frame */
 export function insertBelowGlobalFrame(elements, newElement) {
     const frameIdx = getGlobalFrameIndex(elements);
     if (frameIdx === -1) {
@@ -59,7 +59,7 @@ export function getDropzoneImageForSlot(elements, dropzoneId) {
     return elements.find((el) => isDropzoneImage(el) && el.dropzoneId === dropzoneId) || null;
 }
 
-/** מחליף/מוסיף תמונה לחלון קולאז׳ (שומר תמונה אחת לכל dropzoneId) */
+/** Replaces/adds a photo in a collage window (keeps one photo per dropzoneId) */
 export function replaceDropzoneImage(elements, dropzoneId, newImageElement) {
     if (!Array.isArray(elements) || !dropzoneId || !newImageElement) return elements || [];
     const withoutSlot = elements.filter(
@@ -72,7 +72,7 @@ export function replaceDropzoneImage(elements, dropzoneId, newImageElement) {
     });
 }
 
-/** מסיר קישור dropzone מתמונות שלא אמורות להיות בקולאז׳ (מסגרת רגילה / הסרה) */
+/** Removes the dropzone link from photos that should not be in the collage (regular frame / removal) */
 export function stripLegacyDropzoneFields(elements) {
     if (!Array.isArray(elements)) return [];
     return elements.map((el) => {
@@ -82,7 +82,7 @@ export function stripLegacyDropzoneFields(elements) {
     });
 }
 
-/** מחלק אלמנטים לשכבות רינדור: תוכן חופשי, תמונות קולאז׳, מסגרת, טקסט */
+/** Splits elements into render layers: free content, collage photos, frame, text */
 export function partitionElementsByLayer(elements) {
     if (!Array.isArray(elements)) {
         return { bottom: [], dropzoneImages: [], frames: [], texts: [] };

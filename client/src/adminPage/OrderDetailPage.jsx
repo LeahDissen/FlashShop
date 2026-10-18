@@ -142,7 +142,7 @@ const copyText = async (value) => {
     }
 };
 
-/** בחירת המסגרת שהלקוח עשה בעורך – מידה, כיוון והאם התמונה סובבה */
+/** The frame the customer chose in the editor – size, orientation and whether the photo was rotated */
 const FrameSelectionSummary = ({ selection, orientationLabels }) => {
     if (!selection) return null;
 
@@ -173,7 +173,7 @@ const FrameSelectionSummary = ({ selection, orientationLabels }) => {
     );
 };
 
-/** הכתוביות שהלקוח הוסיף, עם הגופן, הגודל והצבע שנבחרו */
+/** The captions the customer added, with the chosen font, size and color */
 const CaptionsSummary = ({ captions }) => {
     if (!Array.isArray(captions) || captions.length === 0) return null;
 
@@ -248,7 +248,7 @@ const DesignerRequestBox = ({ contact }) => {
     );
 };
 
-/** בחירות הלקוח בעורך: מסגרת, מידה, כיוון וכתוביות – כפי שנשמרו עם ההזמנה */
+/** The customer's editor choices: frame, size, orientation and captions – as saved with the order */
 const DesignSelectionDetails = ({ customDesign, orientationLabels }) => {
     const frame = customDesign?.frameSelection;
     const captions = customDesign?.captions;

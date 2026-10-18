@@ -6,22 +6,22 @@ let productSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     image: {type:String,required:true},
     category: { type: String, required: true },
-    /** design = עיצוב מלא | simple = תמונה+מחיר | magnet = מגנטים (העלאת תמונה) */
+    /** design = full design | simple = image + price | magnet = magnets (photo upload) */
     displayType: { type: String, enum: ['design', 'simple', 'magnet'], default: 'design' },
-    /** גודל המגנט כשדה של המוצר הבודד — לא וריאציה בתוך אותו מוצר */
+    /** The magnet size as a field of the individual product — not a variant inside the same product */
     size: { type: String, default: "", trim: true },
     stock: { type: Number, required: true },
-    /** מידות אזור ההדפסה בס"מ – משמשות לגודל משטח העבודה בעורך */
+    /** Print area dimensions in cm – used for the editor canvas size */
     printWidth: { type: Number, default: 12 },
     printHeight: { type: Number, default: 18 },
-    /** האם הלקוח רשאי להפוך כיוון משטח (אורך/רוחב) בעורך */
+    /** Whether the customer may flip the canvas orientation (portrait/landscape) in the editor */
     allowOrientationToggle: { type: Boolean, default: false },
-    /** משפטים מתאימים לכיתוב על המוצר – מוצגים ללקוח בעמוד רעיונות לכיתובים */
+    /** Sentences that fit as a caption on the product – shown to the customer on the caption ideas page */
     captionIdeas: [{
         text: { type: String, required: true, trim: true },
         category: { type: String, default: "כללי", trim: true },
     }],
-    /** מדרגות מחיר לפי כמות — ריק = מחיר קבוע בלבד */
+    /** Price tiers by quantity — empty = fixed price only */
     priceTiers: [{
         minQuantity: { type: Number, required: true, min: 1 },
         maxQuantity: { type: Number, default: null },

@@ -28,8 +28,8 @@ export const invalidateEditorAssetsCache = () => {
 };
 
 /**
- * טוען את ספריית העורך מה-API.
- * עד שהבקשה חוזרת, ואם היא נכשלת או ריקה, מוחזרות ברירות המחדל לפי קטגוריה.
+ * Loads the editor library from the API.
+ * Until the request returns, and if it fails or is empty, the per-category defaults are returned.
  */
 export const useEditorAssets = (fallbacks) => {
     const [assets, setAssets] = useState(fallbacks);

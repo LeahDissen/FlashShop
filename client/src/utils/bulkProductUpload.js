@@ -7,11 +7,11 @@ import { parseMagnetSize } from './magnetSize';
 
 const CONCURRENCY = 3;
 
-/** שורת כותרות העמודות באקסל (מספר שורה 1-based) */
+/** The column header row in Excel (1-based row number) */
 const EXCEL_HEADER_ROW = 5;
-/** שורת נתונים ראשונה באקסל */
+/** First data row in Excel */
 const EXCEL_FIRST_DATA_ROW = 6;
-/** אינדקס שורת הכותרות ב-xlsx (0-based) */
+/** Index of the header row in the xlsx (0-based) */
 const HEADER_ROW_INDEX = EXCEL_HEADER_ROW - 1;
 
 function excelDataRowNumber(dataRowIndex) {
@@ -63,7 +63,7 @@ const COLUMN_ALIASES = {
     רעיונותלכיתובים: 'captions',
 };
 
-/** סדר עמודות ברירת מחדל כשכותרות חסרות/לא מזוהות */
+/** Default column order when headers are missing/unrecognized */
 const POSITIONAL_FIELDS = [
     'category',
     'title',
@@ -79,7 +79,7 @@ const POSITIONAL_FIELDS = [
 function normalizeKey(key) {
     const raw = String(key ?? '').trim().replace(/^\ufeff/, '');
 
-    // כותרות בפורמט: "שם המוצר (title)" — משתמשים בשם באנגלית שבסוגריים
+    // Headers in the format: "<Hebrew name> (title)" — the English name in parentheses is used
     const parenMatch = raw.match(/\(([^)]+)\)/);
     if (parenMatch?.[1]) {
         const inner = parenMatch[1].trim().toLowerCase().replace(/[\s_-]+/g, '');

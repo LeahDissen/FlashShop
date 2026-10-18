@@ -20,14 +20,14 @@ const fetchSettingsOnce = () => {
     return inflightRequest;
 };
 
-/** מאפס את המטמון אחרי שמירה בלוח הבקרה */
+/** Clears the cache after saving in the dashboard */
 export const invalidateEditorSettingsCache = () => {
     cachedSettings = null;
 };
 
 /**
- * טוען את הגדרות העורך שהמנהלת מגדירה (מידות, גופנים, צבעים וטקסטים).
- * עד שהבקשה חוזרת, מוחזרות ברירות המחדל כדי שהעורך יעבוד תמיד.
+ * Loads the editor settings the admin defines (sizes, fonts, colors and texts).
+ * Until the request returns, the defaults are returned so the editor always works.
  */
 export const useEditorSettings = () => {
     const [settings, setSettings] = useState(cachedSettings || DEFAULT_EDITOR_SETTINGS);

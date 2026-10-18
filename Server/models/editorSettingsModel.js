@@ -21,8 +21,8 @@ const fontOptionSchema = new mongoose.Schema(
 );
 
 /**
- * מסמך הגדרות יחיד (singleton) לעורך התמונות.
- * כל הטקסטים והאפשרויות שהמנהלת יכולה לשנות נשמרים כאן ולא בקוד.
+ * Single settings document (singleton) for the photo editor.
+ * All the texts and options the admin can change are stored here, not in the code.
  */
 const editorSettingsSchema = new mongoose.Schema(
     {

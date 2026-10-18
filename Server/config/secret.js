@@ -13,7 +13,7 @@ exports.config = {
     PASS: process.env.EMAIL_PASS || process.env.PASS,
     BCRYPT_SALT: process.env.BCRYPT_SALT,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    // Google Drive (אופציונלי) – שמירת קבצי העיצוב הסופיים לפי הזמנה
+    // Google Drive (optional) – stores the final design files per order
     GOOGLE_DRIVE_CLIENT_EMAIL: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
     GOOGLE_DRIVE_PRIVATE_KEY: process.env.GOOGLE_DRIVE_PRIVATE_KEY,
     GOOGLE_DRIVE_ROOT_FOLDER_ID: process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID,

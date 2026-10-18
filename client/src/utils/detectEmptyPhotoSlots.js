@@ -1,6 +1,6 @@
 /**
- * מזהה ריבועים/מלבנים ריקים (לבנים) בתמונת מסגרת קולאז׳
- * ומחזיר dropzones באחוזים (0–100) מוכנים לשימוש.
+ * Detects empty (white) squares/rectangles in a collage frame image
+ * and returns dropzones in percent (0–100), ready to use.
  */
 export async function detectEmptyPhotoSlots(imageUrl, options = {}) {
     const {
@@ -53,7 +53,7 @@ export async function detectEmptyPhotoSlots(imageUrl, options = {}) {
             const start = y * w + x;
             if (visited[start] || !isWhite(start)) continue;
 
-            // BFS לרכיב מחובר של פיקסלים לבנים
+            // BFS for a connected component of white pixels
             let minX = x;
             let maxX = x;
             let minY = y;
@@ -83,7 +83,7 @@ export async function detectEmptyPhotoSlots(imageUrl, options = {}) {
                     if (ni < 0 || ni >= w * h || visited[ni]) continue;
                     const nx = ni % w;
                     const ny = (ni - nx) / w;
-                    // מניעת מעבר לשורה אחרת בחיבור אופקי
+                    // Prevent wrapping to another row when joining horizontally
                     if (Math.abs(nx - cx) + Math.abs(ny - cy) !== 1) continue;
                     if (!isWhite(ni)) continue;
                     visited[ni] = 1;
@@ -101,7 +101,7 @@ export async function detectEmptyPhotoSlots(imageUrl, options = {}) {
             const fillRatio = count / boxArea;
             if (fillRatio < minFillRatio) continue;
 
-            // יחס גובה-רוחב סביר לחלון תמונה (לא פס דק)
+            // A reasonable aspect ratio for a photo window (not a thin strip)
             const aspect = boxW / boxH;
             if (aspect < 0.35 || aspect > 3.2) continue;
 
@@ -118,7 +118,7 @@ export async function detectEmptyPhotoSlots(imageUrl, options = {}) {
 
     if (!components.length) return [];
 
-    // מיזוג רכיבים חופפים/קרובים (למשל פיצול בגלל עיטור מעל החלון)
+    // Merge overlapping/nearby components (e.g. a split caused by a decoration over the window)
     const merged = mergeNearbyBoxes(components, Math.max(4, Math.round(Math.min(w, h) * 0.02)));
 
     const slots = merged
@@ -165,7 +165,7 @@ function loadImage(src) {
         const finish = (img) => resolve(img);
         const fail = () => reject(new Error('Failed to load image for slot detection'));
 
-        // data:/blob: – טעינה ישירה
+        // data:/blob: – load directly
         if (typeof src === 'string' && (src.startsWith('data:') || src.startsWith('blob:'))) {
             const img = new Image();
             img.onload = () => finish(img);
@@ -174,7 +174,7 @@ function loadImage(src) {
             return;
         }
 
-        // ניסיון דרך fetch כדי להתמודד עם CORS כשאפשר
+        // Try through fetch to handle CORS when possible
         fetch(src, { mode: 'cors' })
             .then((res) => {
                 if (!res.ok) throw new Error('fetch failed');

@@ -1,6 +1,6 @@
 import { getPricingTableDisplay } from '../utils/photoQuantityPricing';
 
-/** תוכן הטבלה בלבד — לשימוש במודאל או בתצוגה מקומית */
+/** The table content only — for use in a modal or inline */
 export const PhotoPricingTableContent = ({ totalPrints = 0 }) => {
     const rows = getPricingTableDisplay(totalPrints);
 

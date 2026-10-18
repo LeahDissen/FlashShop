@@ -70,7 +70,7 @@ export default function CheckoutPage() {
                     phone: prev.phone || user?.phone || '',
                 }));
             } catch {
-                // אין פרופיל מזוהה — השדות נשארים למילוי ידני
+                // No recognized profile — the fields stay for manual entry
             }
         };
 

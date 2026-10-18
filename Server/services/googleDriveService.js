@@ -22,8 +22,8 @@ let cachedClient = null;
 let loggedAuthOk = false;
 
 /**
- * האינטגרציה עם Drive היא אופציונלית: אם המשתני סביבה לא מוגדרים,
- * המערכת ממשיכה לעבוד רגיל וההזמנה נשמרת בלי תיקיית Drive.
+ * The Drive integration is optional: if the environment variables are not set,
+ * the system keeps working as usual and the order is saved without a Drive folder.
  */
 const isDriveConfigured = () => Boolean(
     config.GOOGLE_DRIVE_CLIENT_EMAIL
@@ -92,7 +92,7 @@ const getDriveClient = () => {
 
     const auth = new google.auth.JWT({
         email: config.GOOGLE_DRIVE_CLIENT_EMAIL,
-        // מפתחות ב-.env נשמרים עם \n מילולי
+        // Keys in .env are saved with a literal \n
         key: config.GOOGLE_DRIVE_PRIVATE_KEY.replace(/\\n/g, "\n"),
         scopes: DRIVE_SCOPES,
     });
@@ -214,7 +214,7 @@ const uploadBufferToStaging = async ({ buffer, mimeType, fileName }) => {
     };
 };
 
-/** מעלה תמונת data-URL לתיקיית ההמתנה, לפני שההזמנה נוצרה */
+/** Uploads a data-URL image to the pending folder, before the order is created */
 const uploadDesignToStaging = async ({ dataUrl, fileName }) => {
     const parsed = parseDataUrl(dataUrl);
     if (!parsed) throw new Error("קובץ העיצוב אינו בפורמט data-URL תקין");
@@ -225,7 +225,7 @@ const uploadDesignToStaging = async ({ dataUrl, fileName }) => {
     });
 };
 
-/** מעלה תמונה מכתובת (למשל Cloudinary) לתיקיית ההמתנה ב-Drive */
+/** Uploads an image from a URL (e.g. Cloudinary) to the pending folder in Drive */
 const uploadRemoteImageToStaging = async ({ imageUrl, fileName }) => {
     const drive = getDriveClient();
     if (!drive || !imageUrl) return null;
@@ -367,7 +367,7 @@ const uploadBufferToFolder = async ({
 };
 
 /**
- * יוצר תיקייה להזמנה ומעביר אליה את קבצי העיצוב שהועלו בזמן העיצוב.
+ * Creates a folder for the order and moves into it the design files uploaded while designing.
  * @returns {Promise<{folderId: string, folderName: string, folderUrl: string, files: Array}|null>}
  */
 const moveDesignsToOrderFolder = async ({ orderId, orderLabel, files, folderTemplate }) => {

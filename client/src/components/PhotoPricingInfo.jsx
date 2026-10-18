@@ -3,7 +3,7 @@ import { Info } from 'lucide-react';
 import { PhotoPricingTableContent } from './PhotoPricingTable';
 
 /**
- * כפתור קטן + חלון קופץ עם מדרגות המחיר (פחות דרמטי מטבלה מלאה בעמוד)
+ * Small button + popup with the price tiers (less dramatic than a full table on the page)
  */
 const PhotoPricingInfo = ({ totalPrints = 0, className = '' }) => {
     const [open, setOpen] = useState(false);

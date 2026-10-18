@@ -1,4 +1,4 @@
-/** פרסור גודל מגנט מטקסט חופשי (למשל 15×10 / 15*10 / 15x10) */
+/** Parses a magnet size from free text (e.g. 15×10 / 15*10 / 15x10) */
 export function parseMagnetSize(raw) {
     if (raw == null) return null;
     const text = String(raw).trim();

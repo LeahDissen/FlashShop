@@ -264,18 +264,18 @@ const ProductSelectionPage = () => {
         navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity } });
     };
 
-    // שליחת טופס גרפיקאית עם וולידציות מורחבות
+    // Submit the designer form with extended validation
     const handleDesignerSubmit = async (e) => {
         e.preventDefault();
         
-        // וולידציית טלפון ישראלי בסיסית
+        // Basic Israeli phone validation
         const cleanPhone = designerDetails.phone.replace(/[-\s]/g, '');
         if (cleanPhone.length < 9 || cleanPhone.length > 10 || isNaN(cleanPhone)) {
             alert("אנא הזן מספר טלפון תקין");
             return;
         }
 
-        // וולידציית אימייל
+        // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(designerDetails.email)) {
             alert("אנא הזן כתובת אימייל תקינה");
@@ -299,7 +299,7 @@ const ProductSelectionPage = () => {
         });
     };
 
-    // טיפול בקובץ של מסלול העלאה ישירה
+    // Handle the file of the direct upload flow
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -308,7 +308,7 @@ const ProductSelectionPage = () => {
         try {
             const imageUrl = await uploadImageToCloudinary(file);
             setUploadedImage(imageUrl);
-            setShowDesignerForm(false); // סוגר את טופס הגרפיקאית למניעת בלבול
+            setShowDesignerForm(false); // Close the designer form to avoid confusion
             setTimeout(() => {
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }, 100);
@@ -320,13 +320,13 @@ const ProductSelectionPage = () => {
         }
     };
 
-    // ביטול ומחיקת התמונה המוכנה שהועלתה במסלול הישיר
+    // Cancel and delete the ready image uploaded in the direct flow
     const handleRemoveUploadedImage = () => {
         setUploadedImage(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    // טיפול בקובץ המצורף עבור הגרפיקאית
+    // Handle the attached file for the designer
     const handleDesignerFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -343,7 +343,7 @@ const ProductSelectionPage = () => {
         }
     };
 
-    // מחיקת התמונה שצורפה לגרפיקאית
+    // Delete the image attached for the designer
     const handleRemoveDesignerImage = () => {
         setDesignerDetails({ ...designerDetails, referenceImage: null });
         if (designerFileRef.current) designerFileRef.current.value = '';
@@ -390,7 +390,7 @@ const ProductSelectionPage = () => {
                     </button>
 
                     <div className="space-y-6 mt-4">
-                        {/* כרטיס מוצר ראשי */}
+                        {/* Main product card */}
                         <div className="bg-white rounded-2xl shadow-sm border border-[#f2665e]/15 p-6 sm:p-8">
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                                 <div className="shrink-0 flex justify-center md:justify-start self-start">
@@ -593,14 +593,14 @@ const ProductSelectionPage = () => {
                             </div>
                         </div>
 
-                        {/* תצוגה מקדימה - מסלול העלאה ישירה (כולל כפתור מחיקה חדש להתחרטות) */}
+                        {/* Preview - direct upload flow (including a new delete button to undo) */}
                         {uploadedImage && !simpleProduct && !magnetProduct && (
                             <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">הקובץ שהעלית להדפסה ישירה:</h3>
                                 <div className="flex flex-col items-center gap-4">
                                     <div className="relative group">
                                         <img src={uploadedImage} alt="Uploaded preview" className="max-w-xs w-full h-48 object-contain rounded-lg bg-gray-50 border p-2" />
-                                        {/* כפתור מחיקה קטן וצף על התמונה להתחרטות מהירה */}
+                                        {/* Small floating delete button on the image for a quick undo */}
                                         <button
                                             type="button"
                                             onClick={handleRemoveUploadedImage}
@@ -621,7 +621,7 @@ const ProductSelectionPage = () => {
                             </div>
                         )}
 
-                        {/* טופס בקשת עיצוב מהגרפיקאית */}
+                        {/* Design request form for the designer */}
                         {showDesignerForm && !simpleProduct && !magnetProduct && (
                             <div ref={designerFormRef} className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 scroll-mt-24">
                                 <div>
@@ -631,7 +631,7 @@ const ProductSelectionPage = () => {
                                 
                                 <form onSubmit={handleDesignerSubmit} className="space-y-5">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        {/* שם מלא */}
+                                        {/* Full name */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-1.5">שם מלא:</label>
                                             <div className="relative">
@@ -639,7 +639,7 @@ const ProductSelectionPage = () => {
                                                 <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                             </div>
                                         </div>
-                                        {/* מייל */}
+                                        {/* Email */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-1.5">כתובת מייל:</label>
                                             <div className="relative">
@@ -647,7 +647,7 @@ const ProductSelectionPage = () => {
                                                 <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                             </div>
                                         </div>
-                                        {/* טלפון */}
+                                        {/* Phone */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-1.5">טלפון ליצירת קשר:</label>
                                             <div className="relative">
@@ -657,7 +657,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* תיאור הבקשה */}
+                                    {/* Request description */}
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-1.5">תיאור העיצוב המבוקש:</label>
                                         <div className="relative">
@@ -666,7 +666,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* הוספת קובץ/תמונה עבור הגרפיקאית */}
+                                    {/* Attach a file/image for the designer */}
                                     <div className="bg-gray-50 rounded-xl p-4 border border-dashed border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                                         <div className="flex items-center gap-3 text-right">
                                             <div className="p-2.5 bg-white rounded-lg border shadow-sm text-gray-500">
@@ -692,7 +692,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* תצוגה מקדימה קטנה עם אייקון מחיקה */}
+                                    {/* Small preview with a delete icon */}
                                     {designerDetails.referenceImage && (
                                         <div className="flex items-center justify-between bg-green-50 text-green-800 p-3 rounded-xl border border-green-100 text-xs max-w-md">
                                             <div className="flex items-center gap-3">
@@ -710,7 +710,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     )}
 
-                                    {/* כפתור אישור סופי של הטופס */}
+                                    {/* Final form submit button */}
                                     <div className="text-left pt-2">
                                         <button type="submit" className="bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-8 rounded-full shadow-sm transition-all text-sm cursor-pointer">
                                             אישור ותוספת לסל (+15 ₪)

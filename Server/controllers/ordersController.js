@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const { OrderModel } = require("../models/ordersModel");
 const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
-const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
+const { ProductModel } = require("../models/productModel"); // Import the products model for price verification
 const { getUnitPriceByQuantity, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
 const {
@@ -56,7 +56,7 @@ const resolveProductId = (item) => {
     return null;
 };
 
-// פונקציית עזר להשוואת מזהים (ObjectIds) בצורה בטוחה
+// Helper for safely comparing ids (ObjectIds)
 const isSameUser = (a, b) => String(a) === String(b);
 
 const MAX_STORED_IMAGE_LENGTH = 500_000;
@@ -110,7 +110,7 @@ const compactDriveFile = (file) => {
     };
 };
 
-/** שומר את בחירות הלקוח בעורך (מסגרת, מידה, כיוון, כתוביות) לצורך ההפקה */
+/** Saves the customer's editor choices (frame, size, orientation, captions) for production */
 const compactFrameSelection = (frameSelection) => {
     if (!frameSelection || typeof frameSelection !== "object") return undefined;
     const compact = {
@@ -206,7 +206,7 @@ const sanitizeCartItem = (item) => {
     return sanitized;
 };
 
-// פונקציית עזר לבדיקת הרשאות (המשתמש עצמו או אדמין)
+// Helper for checking permissions (the user themselves or an admin)
 const ensureSelfOrAdmin = (req, res, userId) => {
     if (!isSameUser(req.tokenData._id, userId) && req.tokenData.role !== "admin") {
         res.status(403).json({ msg: "אין הרשאה לצפות במידע זה" });
@@ -215,13 +215,13 @@ const ensureSelfOrAdmin = (req, res, userId) => {
     return true;
 };
 
-// חישוב הנחת קופון (כללי או מועדון)
+// Calculate the coupon discount (general or club)
 async function calculateCouponDiscount(couponCode, userId, subtotal) {
     if (!couponCode) {
         return { discount: 0 };
     }
 
-    // 1. בדיקת קופון כללי במערכת
+    // 1. Check for a general coupon in the system
     const generalCoupon = await CouponModel.findOne({ code: couponCode });
 
     if (generalCoupon) {
@@ -245,20 +245,20 @@ async function calculateCouponDiscount(couponCode, userId, subtotal) {
         return { discount: Math.min(discount, subtotal), couponType: "general" };
     }
 
-    // 2. בדיקת קוד הטבה של חבר מועדון
+    // 2. Check a club member's benefit code
     const member = await ClubModel.findOne({ giftCode: couponCode });
     if (member) {
         if (member.isUsed) {
             return { error: "הקוד הזה כבר נוצל בעבר" };
         }
-        const discount = subtotal * 0.15; // 15% הנחת מועדון קבועה
+        const discount = subtotal * 0.15; // Fixed 15% club discount
         return { discount: Math.min(discount, subtotal), couponType: "club" };
     }
 
     return { error: "קופון לא תקין" };
 }
 
-// סימון קופון כמשומש לאחר רכישה מוצלחת
+// Mark the coupon as used after a successful purchase
 async function markCouponAsUsed(couponCode, userId) {
     if (!couponCode || !userId) return;
 
@@ -277,9 +277,9 @@ async function markCouponAsUsed(couponCode, userId) {
 const shortOrderLabel = (id) => String(id).slice(-8).toUpperCase();
 
 /**
- * מעלה תמונות פיתוח ל-Drive לפני סידור תיקיית ההזמנה.
- * מוצרים רגילים נשארים בניהול הזמנות בלבד.
- * @param {{ strict?: boolean }} [options] — strict=true מהכפתור באדמין; אחרת לא מפיל יצירת הזמנה.
+ * Uploads photo development images to Drive before organizing the order folder.
+ * Regular products stay in order management only.
+ * @param {{ strict?: boolean }} [options] — strict=true from the admin button; otherwise it never fails order creation.
  */
 async function uploadPhotoPrintsToDrive(order, { strict = false } = {}) {
     if (!isDriveConfigured()) return;
@@ -418,8 +418,8 @@ async function uploadPhotoPrintsToDrive(order, { strict = false } = {}) {
 }
 
 /**
- * מסדר את קבצי העיצוב של ההזמנה בתיקיית Google Drive ייחודית ושומר את הקישור.
- * כישלון כאן לא מפיל את ההזמנה – היא נשמרת גם בלי Drive.
+ * Organizes the order's design files in a unique Google Drive folder and saves the link.
+ * A failure here does not fail the order – it is saved without Drive too.
  */
 async function attachDriveFolderToOrder(order) {
     if (!isDriveConfigured()) return;
@@ -465,10 +465,10 @@ async function attachDriveFolderToOrder(order) {
 }
 
 // ============================================================================
-// ראוטים (Route Handlers)
+// Route handlers
 // ============================================================================
 
-// שליפת הזמנה זמנית (עגלת קניות) של משתמש ספציפי
+// Fetch a specific user's temporary order (shopping cart)
 exports.getPendingOrderForUser = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -482,7 +482,7 @@ exports.getPendingOrderForUser = async (req, res) => {
     }
 };
 
-// שליפת כל ההזמנות במערכת (לאדמין בלבד - יש לוודא חסימה גם ב-Router עצמו)
+// Fetch all the orders in the system (admin only - make sure the router blocks it too)
 exports.getOrders = async (req, res) => {
     try {
         if (req.tokenData.role !== "admin") {
@@ -498,7 +498,7 @@ exports.getOrders = async (req, res) => {
     }
 };
 
-// שליפת היסטוריית הזמנות (סגורות) של משתמש ספציפי
+// Fetch a specific user's order history (closed)
 exports.getOrdersByUserId = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -516,10 +516,10 @@ exports.getOrdersByUserId = async (req, res) => {
     }
 };
 
-// עדכון/סנכרון עגלת הקניות הזמנית של המשתמש מה-Frontend
+// Update/sync the user's temporary shopping cart from the frontend
 exports.updateOrder = async (req, res) => {
     try {
-        // עדיף להשתמש ב-ID מהטוקן המאובטח למניעת מניפולציות URL
+        // Prefer the id from the secure token to prevent URL manipulation
         const userId = req.tokenData._id; 
 
         const newItems = (req.body.items || []).map(sanitizeCartItem);
@@ -547,7 +547,7 @@ exports.updateOrder = async (req, res) => {
     }
 };
 
-// עדכון סטטוס הזמנה (מאובטח - אדמין בלבד!)
+// Update an order status (secured - admin only!)
 exports.updateOrderStatus = async (req, res) => {
     try {
         if (req.tokenData.role !== "admin") {
@@ -574,7 +574,7 @@ exports.updateOrderStatus = async (req, res) => {
     }
 };
 
-// מחיקת הזמנות שנבחרו (אדמין בלבד — רק מזהים שנשלחו, לא מחיקה גורפת)
+// Delete the selected orders (admin only — only the ids that were sent, no bulk delete)
 exports.deleteOrders = async (req, res) => {
     try {
         if (req.tokenData.role !== "admin") {
@@ -642,7 +642,7 @@ exports.syncOrderDrive = async (req, res) => {
     }
 };
 
-// יצירת הזמנה חדשה וסגירת עגלת הקניות (מאובטח לחלוטין מפני זיוף מחירים)
+// Create a new order and close the shopping cart (fully protected against price tampering)
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.tokenData._id;
@@ -665,7 +665,7 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ msg: checkoutErrorMessage });
         }
 
-        // --- אבטחה: חישוב מחיר אמין לפי סוג הפריט ---
+        // --- Security: trusted price calculation by item type ---
         let subtotal = 0;
         const verifiedItems = [];
 
@@ -789,7 +789,7 @@ exports.createOrder = async (req, res) => {
         }
         // ----------------==================================----------------
 
-        // חישוב הנחה על בסיס ה-subtotal המאומת
+        // Calculate the discount from the verified subtotal
         const couponResult = await calculateCouponDiscount(couponCode, userId, subtotal);
         if (couponResult.error) {
             return res.status(400).json({ msg: couponResult.error });
@@ -799,7 +799,7 @@ exports.createOrder = async (req, res) => {
         const shipping_fee = method === "delivery" ? DELIVERY_FEE : 0;
         const total_price = Math.max(0, subtotal - discount + shipping_fee);
 
-        // יצירת ההזמנה החדשה בסטטוס processing
+        // Create the new order with the processing status
         const newOrder = new OrderModel({
             user_id: userId,
             items: verifiedItems,
@@ -817,19 +817,19 @@ exports.createOrder = async (req, res) => {
         const saved = await newOrder.save();
 
         await uploadPhotoPrintsToDrive(saved);
-        // ארגון קבצי העיצוב בתיקיית Drive לפי הזמנה (לא חוסם במקרה של כשל)
+        // Organize the design files in a Drive folder per order (does not block on failure)
         await attachDriveFolderToOrder(saved);
 
         if (saved.items.some(isPhotoPrintItem) && !isDriveConfigured()) {
             console.warn("Drive: photo prints were not uploaded because Google Drive is not configured");
         }
 
-        // מימוש הקופון במידה וקיים
+        // Redeem the coupon if there is one
         if (couponCode) {
             await markCouponAsUsed(couponCode, userId);
         }
 
-        // איפוס וניקוי עגלת הקניות הזמנית (pending) של המשתמש
+        // Reset and clear the user's temporary (pending) cart
         await OrderModel.findOneAndUpdate(
             { user_id: userId, status: "pending" },
             {
@@ -850,7 +850,7 @@ exports.createOrder = async (req, res) => {
     }
 };
 
-// שליפת מידע על הזמנה ספציפית לפי ה-ID שלה
+// Fetch a specific order's details by its id
 exports.getOrderById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -860,7 +860,7 @@ exports.getOrderById = async (req, res) => {
             return res.status(404).json({ msg: "הזמנה לא נמצאה" });
         }
 
-        // בדיקה שרק בעל ההזמנה או אדמין יכולים לצפות בה
+        // Check that only the order owner or an admin can view it
         if (
             !isSameUser(req.tokenData._id, order.user_id?._id ?? order.user_id) &&
             req.tokenData.role !== "admin"

@@ -8,7 +8,7 @@ import {
 } from '../utils/printSizes';
 
 /**
- * תצוגת תמונה ביחס הדפסה (cover + זום/הזזה)
+ * Photo preview at the print ratio (cover + zoom/pan)
  */
 const PhotoCroppedPreview = ({
     src,

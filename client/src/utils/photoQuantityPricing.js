@@ -1,6 +1,6 @@
-/** תמחור פיתוח תמונות לפי סך כל ההדפסות (סכום quantity) */
+/** Photo development pricing by total prints (sum of quantity) */
 
-/** מדרגות מחיר — מקור אמת יחיד לתצוגה ולחישוב */
+/** Price tiers — single source of truth for display and calculation */
 export const PRICING_TABLE_ROWS = [
     { min: 1, max: 39, unitPrice: 1.8, label: 'עד 39 תמונות' },
     { min: 40, max: 99, unitPrice: 1.25, label: 'מ-40 תמונות' },
@@ -46,7 +46,7 @@ export function getOrderTotal(images = []) {
     return totalPrints * getUnitPriceByQuantity(totalPrints);
 }
 
-/** כמה עותקים חסרים למדרגת המחיר הבאה (זולה יותר) */
+/** How many more copies are needed for the next (cheaper) price tier */
 export function getNextPriceTierHint(totalPrints) {
     const count = Math.max(0, totalPrints);
     const tiersAsc = [...QUANTITY_TIERS].sort((a, b) => a.minQuantity - b.minQuantity);
@@ -79,7 +79,7 @@ export function formatPrice(amount) {
     return `${Number(amount).toFixed(2)} ₪`;
 }
 
-/** שם קטגוריה לקישור לאלבומים (מתאים ל-category במוצרים) */
+/** Category name for the albums link (matches the products' category) */
 export const ALBUM_CATEGORY = 'אלבום';
 
 export function getOrderPricing(images = []) {
@@ -119,7 +119,7 @@ export function isQuantityInRow(totalPrints, row) {
     return count <= row.max;
 }
 
-/** שורות לטבלת תמחור — עם סימון המדרגה הפעילה */
+/** Rows for the pricing table — marking the active tier */
 export function getPricingTableDisplay(totalPrints = 0) {
     return PRICING_TABLE_ROWS.map((row) => ({
         ...row,

@@ -1,4 +1,4 @@
-/** תמחור מוצר לפי מדרגות כמות — שרת */
+/** Product pricing by quantity tiers — server */
 
 function normalizeMaxQuantity(value) {
     if (value == null || value === '') return null;

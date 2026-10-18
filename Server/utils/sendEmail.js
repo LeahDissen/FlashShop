@@ -23,8 +23,8 @@ const createTransporter = async () => {
     return {
       transporter: nodemailer.createTransport({
         host: config.SMTP_HOST || "smtp.gmail.com",
-        port: 465,         // שונה ל-465 (פורט מאובטח של גוגל)
-        secure: true,      // שונה ל-true כי פורט 465 דורש חיבור SSL מאובטח
+        port: 465,         // Changed to 465 (Google's secure port)
+        secure: true,      // Changed to true because port 465 requires a secure SSL connection
         auth: {
           user: config.EMAIL_USER,
           pass: config.EMAIL_PASS,

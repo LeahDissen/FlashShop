@@ -1,6 +1,6 @@
 /**
- * הרצה חד-פעמית: node seedPhotoPrices.js
- * מזין את גדלי ההדפסה הסטנדרטיים ל-DB
+ * One-time run: node seedPhotoPrices.js
+ * Seeds the standard print sizes into the DB
  */
 require('dotenv').config();
 const mongoose = require('mongoose');

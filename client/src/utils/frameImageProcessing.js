@@ -75,9 +75,9 @@ const convertBlackCutoutToAlpha = (imageData) => {
 };
 
 /**
- * הופך אזורים לבנים בתוך חלונות הקולאז׳ לשקופים,
- * כדי שתמונות מתחת למסגרת יופיעו דרך הריבועים הריקים,
- * בלי למחוק עיטורים צבעוניים שחופפים לחלון.
+ * Makes white areas inside collage windows transparent,
+ * so photos under the frame show through the empty squares,
+ * without erasing colored decorations that overlap the window.
  */
 export async function punchDropzoneHoles(src, dropzones, options = {}) {
     if (!src || !Array.isArray(dropzones) || dropzones.length === 0) return src;
@@ -117,7 +117,7 @@ export async function punchDropzoneHoles(src, dropzones, options = {}) {
                     const b = data[i + 2];
                     const maxc = Math.max(r, g, b);
                     const minc = Math.min(r, g, b);
-                    // לבן / אוף-וויט בלבד – צהוב/אדום של העיטורים נשארים מעל התמונה
+                    // White / off-white only – the yellow/red of the decorations stays above the photo
                     if (minc >= whiteThreshold && (maxc - minc) <= chromaMax) {
                         data[i + 3] = 0;
                     }
@@ -136,7 +136,7 @@ export async function punchDropzoneHoles(src, dropzones, options = {}) {
 }
 
 /**
- * מכין תמונת מסגרת לשכבת overlay: שומר PNG עם אלפא, או ממיר אזורי שחור (cutout) לשקיפות.
+ * Prepares a frame image for the overlay layer: keeps a PNG with alpha, or converts black (cutout) areas to transparency.
  */
 export async function prepareFrameImageSrc(src) {
     if (!src) return src;
