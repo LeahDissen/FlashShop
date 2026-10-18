@@ -8,7 +8,7 @@ const inputClass = "w-full border border-gray-200 rounded-xl p-3 text-right focu
 
 const statusLabel = (status) => STATUS_OPTIONS.find((option) => option.value === status)?.label || status;
 
-/** עריכת נוסח המייל האוטומטי שהלקוח מקבל בכל סטטוס הזמנה */
+/** Edits the automatic email text the customer receives for each order status */
 export default function OrderEmailsManagement() {
     const [templates, setTemplates] = useState([]);
     const [placeholders, setPlaceholders] = useState([]);

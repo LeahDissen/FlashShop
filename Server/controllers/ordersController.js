@@ -573,8 +573,8 @@ exports.updateOrderStatus = async (req, res) => {
             { new: true }
         );
 
-        // הלקוח מקבל מייל בכל שינוי סטטוס (לפי הנוסח שהמנהלת הגדירה).
-        // נשלח ברקע: המנהלת לא מחכה לשרת המייל, וכשל נרשם בלוג בלבד.
+        // The customer gets an email on every status change (per the text the admin defined).
+        // Sent in the background: the admin does not wait for the mail server, and a failure is only logged.
         if (previous.status !== status) {
             sendOrderStatusEmail(order, status);
         }
@@ -841,7 +841,7 @@ exports.createOrder = async (req, res) => {
             await markCouponAsUsed(couponCode, userId);
         }
 
-        // אישור קבלת ההזמנה ללקוח (ברקע, לא מעכב את סיום ההזמנה)
+        // Order receipt confirmation to the customer (in the background, does not delay completing the order)
         sendOrderStatusEmail(saved, "processing");
 
         // איפוס וניקוי עגלת הקניות הזמנית (pending) של המשתמש
@@ -889,7 +889,7 @@ exports.getOrderById = async (req, res) => {
         res.status(500).json({ msg: "שגיאה בטעינת ההזמנה" });
     }
 };
-// --- נוסחי המיילים האוטומטיים (מנהלת) ---
+// --- Automatic email texts (admin) ---
 exports.getOrderEmailTemplates = async (req, res) => {
     try {
         const templates = await loadOrderEmailTemplates();
