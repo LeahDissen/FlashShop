@@ -11,7 +11,7 @@ let productSchema = new mongoose.Schema({
     /** גודל המגנט כשדה של המוצר הבודד — לא וריאציה בתוך אותו מוצר */
     size: { type: String, default: "", trim: true },
     stock: { type: Number, required: true },
-    /** תג "מבצע" על המוצר – המחיר עצמו מעודכן ידנית, אין לוגיקת הנחה */
+    /** "Sale" badge on the product – the price itself is updated manually, there is no discount logic */
     isOnSale: { type: Boolean, default: false },
     /** מידות אזור ההדפסה בס"מ – משמשות לגודל משטח העבודה בעורך */
     printWidth: { type: Number, default: 12 },
