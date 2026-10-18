@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const Hero = ({
   onStartEditor,
@@ -29,7 +30,7 @@ const Hero = ({
   return (
     <section
       className="relative bg-cover bg-center bg-no-repeat py-8 md:py-15"
-      style={{ backgroundImage: `url("${backgroundImage}")` }}
+      style={{ backgroundImage: `url("${optimizeImageUrl(backgroundImage, { width: screenWidthImageSize() })}")` }}
     >
       <div className="absolute inset-0 bg-black/10"></div>
 

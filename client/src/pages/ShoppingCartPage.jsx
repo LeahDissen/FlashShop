@@ -13,6 +13,7 @@ import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
 import { useCartStore } from "../store/cartStore";
 import { assignCartLineIds, withTieredPricingFields } from "../utils/cartItem";
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const DEFAULT_CART_HERO_IMG = "https://images.unsplash.com/photo-1515488042361-ee00e616997e?w=1600&q=80";
 const DEFAULT_RECOMMENDED_TITLE = "אולי תאהבו גם את אלה...";
@@ -174,7 +175,7 @@ export default function ShoppingCartPage() {
           <div
             className="relative h-[260px] sm:h-[320px] flex items-center justify-center overflow-hidden bg-[#f8dcdb]"
             style={{
-              backgroundImage: `url(${heroImage})`,
+              backgroundImage: `url(${optimizeImageUrl(heroImage, { width: screenWidthImageSize() })})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center center',
             }}
