@@ -9,7 +9,7 @@ import { searchProducts } from '../utils/productSearch';
  * @param {{ className?: string }} props
  */
 export default function ProductSearch({ className = '' }) {
-    const products = useProducts();
+    const { products } = useProducts();
     const navigate = useNavigate();
     const listId = useId();
     const [query, setQuery] = useState('');
