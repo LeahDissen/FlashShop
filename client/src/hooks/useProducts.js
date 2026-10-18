@@ -3,13 +3,13 @@ import { getProducts } from '../api/products';
 
 let productsRequest = null;
 
-/** רשימת המוצרים, נטענת פעם אחת לכל ביקור ומשותפת לכל מי שצריך אותה */
+/** The product list, loaded once per visit and shared with everyone who needs it */
 const loadProductsOnce = () => {
     if (!productsRequest) {
         productsRequest = getProducts()
             .then((data) => (Array.isArray(data) ? data : []))
             .catch((error) => {
-                productsRequest = null; // ניסיון חוזר בפעם הבאה
+                productsRequest = null; // Retry next time
                 throw error;
             });
     }
