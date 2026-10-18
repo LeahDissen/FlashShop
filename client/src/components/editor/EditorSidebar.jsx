@@ -518,8 +518,8 @@ const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage }) =>
 };
 
 /**
- * מסגרות גלובליות שהמנהלת מעלה בלוח הבקרה – אותו בורר תיקיות-מידה כמו בפיתוח תמונות.
- * הטעינה מתבצעת רק כשהטאב נפתח.
+ * Global frames the admin uploads in the dashboard – the same size-folder picker as in photo development.
+ * Loaded only when the tab is opened.
  */
 const FramesPanel = ({
     editorSettings,
