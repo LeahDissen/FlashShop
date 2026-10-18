@@ -27,7 +27,7 @@ const Gallery = ({
                         <p className="text-xl text-gray-400 font-medium text-center px-4">
                             לא נבחרו תמונות. אנא העלה תמונות באמצעות הכפתור למעלה.
                         </p>
-                        <PhotoPricingInfo pricing={pricing} totalPrints={0} />
+                        <PhotoPricingInfo pricing={pricing} />
                     </div>
                 ) : (
                     <>
@@ -35,7 +35,7 @@ const Gallery = ({
                             pricing={pricing}
                             totalPrints={orderPricing?.totalPrints ?? 0}
                             grandTotal={orderPricing?.grandTotal ?? 0}
-                            discountPercent={orderPricing?.discountPercent ?? 0}
+                            sizes={orderPricing?.sizes ?? []}
                             nextTierHint={nextTierHint}
                             albumDiscount={albumDiscount}
                         />

@@ -3,7 +3,7 @@ const { OrderModel } = require("../models/ordersModel");
 const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
 const { ProductModel } = require("../models/productModel"); // יבוא מודל המוצרים לאימות מחירים
-const { getPhotoUnitPrice, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
+const { getPhotoUnitPrice, countPrintsBySize, normalizeSize, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { loadPhotoPricing } = require("../services/photoPricingService");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
 const {
@@ -671,10 +671,8 @@ exports.createOrder = async (req, res) => {
         const verifiedItems = [];
 
         const photoItems = items.filter(isPhotoPrintItem);
-        const totalPhotoPrints = photoItems.reduce(
-            (sum, item) => sum + (Number(item.quantity) || 1),
-            0,
-        );
+        // מדרגת המחיר של כל גודל נקבעת לפי מספר ההדפסות מאותו גודל בהזמנה
+        const photoPrintsBySize = countPrintsBySize(photoItems, (item) => item.size, (item) => item.quantity);
         const photoPricing = photoItems.length > 0 ? await loadPhotoPricing() : null;
 
         for (const item of items) {
@@ -723,8 +721,8 @@ exports.createOrder = async (req, res) => {
             }
 
             if (isPhotoPrintItem(item)) {
-                // המחיר לתמונה תלוי בגודל ובכמות ההדפסות הכוללת – מחושב מחדש מהמחירון השמור
-                const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, totalPhotoPrints);
+                // המחיר לתמונה מחושב מחדש מהמחירון השמור, לפי הגודל וכמות ההדפסות באותו גודל
+                const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, photoPrintsBySize[normalizeSize(item.size)]);
                 const cartPrice = Number(item.price);
                 if (!cartPrice || Math.abs(cartPrice - photoUnitPrice) > 0.01) {
                     return res.status(400).json({ msg: "מחיר הדפסת תמונה אינו תקין" });

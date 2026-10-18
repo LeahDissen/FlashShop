@@ -5,7 +5,7 @@ import { PhotoPricingTableContent } from './PhotoPricingTable';
 /**
  * כפתור קטן + חלון קופץ עם מדרגות המחיר (פחות דרמטי מטבלה מלאה בעמוד)
  */
-const PhotoPricingInfo = ({ pricing, totalPrints = 0, className = '' }) => {
+const PhotoPricingInfo = ({ pricing, printsBySize = {}, className = '' }) => {
     const [open, setOpen] = useState(false);
 
     return (
@@ -26,7 +26,7 @@ const PhotoPricingInfo = ({ pricing, totalPrints = 0, className = '' }) => {
                     role="presentation"
                 >
                     <div
-                        className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 text-right"
+                        className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[85vh] overflow-y-auto p-5 text-right"
                         dir="rtl"
                         role="dialog"
                         aria-modal="true"
@@ -50,7 +50,7 @@ const PhotoPricingInfo = ({ pricing, totalPrints = 0, className = '' }) => {
                             </button>
                         </div>
 
-                        <PhotoPricingTableContent pricing={pricing} totalPrints={totalPrints} />
+                        <PhotoPricingTableContent pricing={pricing} printsBySize={printsBySize} />
 
                         <button
                             type="button"

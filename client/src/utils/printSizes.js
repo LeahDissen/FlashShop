@@ -53,6 +53,12 @@ export function getPhotoSizeCatalogEntry(sizeStr) {
     );
 }
 
+/** גודל קצר בס"מ להצגה, למשל "10×15" */
+export function formatPrintSizeCm(sizeStr) {
+    const entry = getPhotoSizeCatalogEntry(sizeStr);
+    return `${entry.widthCm}×${entry.heightCm}`;
+}
+
 /** תווית לתפריט בחירת גודל — ס"מ בלבד (ללקוח) */
 export function formatPhotoSizeOptionLabel(entry) {
     const cm = `${entry.widthCm}×${entry.heightCm} ס"מ`;

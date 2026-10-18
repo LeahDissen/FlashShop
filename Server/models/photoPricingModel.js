@@ -1,13 +1,16 @@
 const mongoose = require("mongoose");
 
-const sizePriceSchema = new mongoose.Schema(
-    { size: { type: String, required: true }, price: { type: Number, required: true, min: 0 } },
-    { _id: false },
-);
-const quantityTierSchema = new mongoose.Schema(
+const priceTierSchema = new mongoose.Schema(
     {
         minQuantity: { type: Number, required: true, min: 1 },
-        discountPercent: { type: Number, required: true, min: 0, max: 100 },
+        price: { type: Number, required: true, min: 0 },
+    },
+    { _id: false },
+);
+const sizePricingSchema = new mongoose.Schema(
+    {
+        size: { type: String, required: true },
+        tiers: { type: [priceTierSchema], default: [] },
     },
     { _id: false },
 );
@@ -23,8 +26,7 @@ const albumTierSchema = new mongoose.Schema(
 const photoPricingSchema = new mongoose.Schema(
     {
         key: { type: String, default: "default", unique: true },
-        sizes: { type: [sizePriceSchema], default: [] },
-        quantityTiers: { type: [quantityTierSchema], default: [] },
+        sizes: { type: [sizePricingSchema], default: [] },
         albumDiscountTiers: { type: [albumTierSchema], default: [] },
     },
     { timestamps: true },

@@ -15,6 +15,7 @@ import {
     DEFAULT_CROP,
     DEFAULT_PHOTO_PRINT_SIZE,
     getDefaultOrientation,
+    formatPrintSizeCm,
     mergePhotoPricesWithCatalog,
 } from '../utils/printSizes';
 import PhotoPrintAdjustModal from '../components/PhotoPrintAdjustModal';
@@ -23,6 +24,8 @@ import {
     getNextPricingTierHint,
     getOrderPricing,
     getPhotoUnitPrice,
+    getPrintsBySize,
+    normalizeSize,
 } from '../utils/photoQuantityPricing';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
@@ -66,14 +69,14 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         loadPricing();
     }, []);
 
-    const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(pricing?.sizes), [pricing]);
+    const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(), []);
     const orderPricing = useMemo(
         () => getOrderPricing(images, pricing, DEFAULT_PHOTO_PRINT_SIZE),
         [images, pricing],
     );
     const nextTierHint = useMemo(
-        () => getNextPricingTierHint(orderPricing.totalPrints, pricing),
-        [orderPricing.totalPrints, pricing],
+        () => getNextPricingTierHint(orderPricing.sizes, pricing, formatPrintSizeCm),
+        [orderPricing.sizes, pricing],
     );
     const albumDiscount = useMemo(
         () => getAlbumDiscount(orderPricing.totalPrints, pricing),
@@ -207,10 +210,11 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             return;
         }
 
+        const printsBySize = getPrintsBySize(images, DEFAULT_PHOTO_PRINT_SIZE);
         const cartItems = images.map((img) => {
             const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
             const qty = Math.max(1, img.quantity);
-            const unitPrice = getPhotoUnitPrice(activePricing, size, orderPricing.totalPrints);
+            const unitPrice = getPhotoUnitPrice(activePricing, size, printsBySize[normalizeSize(size)]);
             return {
                 id: img.id,
                 itemType: 'photo-print',
