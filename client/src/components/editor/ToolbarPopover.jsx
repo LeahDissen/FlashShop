@@ -4,10 +4,10 @@ import { createPortal } from 'react-dom';
 const VIEWPORT_MARGIN = 8;
 
 /**
- * חלונית שנפתחת מתחת לכפתור בסרגל הכלים.
- * מרונדרת ב-portal עם מיקום fixed כי סרגל הכלים גולל אופקית (overflow-x: auto),
- * מה שגורם לדפדפן לחתוך כל אלמנט absolute שחורג מגובה הסרגל.
- * האלמנט מסומן ב-data-toolbar-popover כדי שלחיצה בתוכו לא תיחשב "לחיצה בחוץ".
+ * Panel that opens below a toolbar button.
+ * Rendered in a portal with fixed positioning because the toolbar scrolls horizontally (overflow-x: auto),
+ * which makes the browser clip any absolute element taller than the toolbar.
+ * The element is marked with data-toolbar-popover so a click inside it is not treated as an "outside click".
  */
 const ToolbarPopover = ({ anchorRef, width = 288, align = 'start', className = '', children }) => {
     const [position, setPosition] = useState(null);

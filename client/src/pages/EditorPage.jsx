@@ -58,7 +58,7 @@ import { withTieredPricingFields } from '../utils/cartItem';
 import { withMagnetPrintDimensions } from '../utils/magnetSize';
 import { EMPTY_EDITOR_ASSETS } from '../utils/mapEditorAssets';
 
-/** העמוד צריך מהספרייה רק את הצבעים; שאר הקטגוריות נטענות בסרגל הצד */
+/** The page needs only the colors from the library; the other categories load in the sidebar */
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';

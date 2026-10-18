@@ -271,7 +271,7 @@ const PrintImageEditor = ({
     );
 };
 
-/** צבעי רקע בסיסיים; אליהם מתווספים כל הצבעים שהמנהלת הגדירה בהגדרות העורך ובספריית הצבעים */
+/** Base background colors; all the colors the admin defined in the editor settings and the color library are added to them */
 const BASE_BACKGROUND_COLORS = [
     '#FFFFFF',
     '#000000',
@@ -551,7 +551,7 @@ const PhotoPrintAdjustModal = ({
         ).map((color) => color.value),
         [editorSettings.textToolbar?.colorPresets, editorAssets.colors],
     );
-    // הפלטה באותיות גדולות; צבע שנשמר באותיות קטנות (למשל #ffffff) עדיין מזוהה
+    // The palette is uppercase; a color saved in lowercase (e.g. #ffffff) is still recognized
     const activeBackground = String(backgroundColor || '').toUpperCase();
     const [orientation, setOrientation] = useState(image?.orientation ?? 'landscape');
     const [printSize, setPrintSize] = useState(image?.size ?? DEFAULT_PHOTO_PRINT_SIZE);

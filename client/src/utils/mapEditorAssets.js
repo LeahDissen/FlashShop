@@ -46,7 +46,7 @@ export const mapEditorAssets = (raw) => {
     };
 };
 
-/** ספרייה ריקה – ברירת מחדל כשאין צורך בנכסי ברירת מחדל קבועים בקוד */
+/** Empty library – the default when no hard-coded default assets are needed */
 export const EMPTY_EDITOR_ASSETS = Object.freeze({ shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] });
 
 export const mergeEditorAssetsWithFallback = (mapped, fallbacks) => ({
