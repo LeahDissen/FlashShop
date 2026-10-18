@@ -96,7 +96,7 @@ export async function uploadImageToCloudinary(file) {
     return data.secure_url;
 }
 
-/** מסמך (PDF) – Cloudinary מקבל אותו באותו preset; מוחזר קישור ישיר להורדה */
+/** Document (PDF) – Cloudinary accepts it with the same preset; returns a direct download link */
 export async function uploadDocumentToCloudinary(file) {
     if (file?.type !== 'application/pdf') {
         throw new Error('יש לבחור קובץ PDF');

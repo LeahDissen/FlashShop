@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-/** הדפים שהמנהלת עורכת מלוח הבקרה (טקסטים, תמונות, באנרים) */
+/** The pages the admin edits from the dashboard (texts, images, banners) */
 const PAGE_KEYS = [
     "header",
     "home",
@@ -16,8 +16,8 @@ const PAGE_KEYS = [
 ];
 
 /**
- * תוכן דף יחיד: אוסף שדות שטוח (מחרוזות; רשימות נשמרות כ-JSON string),
- * כפי שהלקוח שולח ומצפה לקבל.
+ * Content of a single page: a flat set of fields (strings; lists are stored as a JSON string),
+ * as the client sends and expects to receive.
  */
 const pageSchema = new mongoose.Schema(
     {

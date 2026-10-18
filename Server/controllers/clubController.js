@@ -7,13 +7,13 @@ const { PageModel } = require("../models/pageModel");
 
 const DEFAULT_WELCOME_SUBJECT = "ברוכים הבאים למועדון! 🎁";
 
-/** {{name}} / {{code}} בנוסח שהמנהלת כותבת; מפתח לא מוכר נשאר גלוי */
+/** {{name}} / {{code}} in the text the admin writes; an unknown key is left visible */
 const renderWelcomeText = (text, vars) =>
     String(text || "").replace(/{{\s*(\w+)\s*}}/g, (match, key) =>
         Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : match,
     );
 
-/** מוריד את קובץ המתנה (PDF) כדי לצרף אותו למייל; כשל לא מונע את המייל עצמו */
+/** Downloads the gift file (PDF) to attach it to the email; a failure does not block the email itself */
 const fetchWelcomeAttachment = async (url) => {
     if (!url) return [];
     try {
@@ -27,7 +27,7 @@ const fetchWelcomeAttachment = async (url) => {
     }
 };
 
-/** שולח את מייל ההצטרפות לפי ההגדרות בדף 'club' (נושא, גוף, קובץ מצורף) */
+/** Sends the join email per the settings on the 'club' page (subject, body, attachment) */
 const sendWelcomeEmail = async ({ email, name, code }) => {
     const page = await PageModel.findOne({ key: "club" }).lean();
     const settings = page?.data || {};
@@ -72,7 +72,7 @@ exports.joinClub = async (req, res) => {
             isUsed: false
         });
         await newMember.save();
-        // המייל נשלח ברקע: ההרשמה כבר נשמרה, והלקוחה לא צריכה לחכות לשרת המייל
+        // The email is sent in the background: the signup is already saved, and the customer does not need to wait for the mail server
         sendWelcomeEmail({ email, name, code: newCode })
             .then(() => console.log("Welcome email sent to " + email))
             .catch((emailErr) => console.error("Failed to send welcome email:", emailErr.message));
