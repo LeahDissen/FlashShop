@@ -3,17 +3,16 @@ import { MONGO_API } from '../config/api';
 
 const API_URL = `${MONGO_API}/products`;
 
+/** The AI mockup is turned off on the server for now; the error carries the message to show the customer */
 export async function generatePersonalizedProduct(productName, userDesignDataUrl) {
   try {
     const response = await axios.post(`${API_URL}/generate-mockup`, {
       productName,
       designImage: userDesignDataUrl
     });
-    console.log(response.data);
     return response.data.result;
   } catch (error) {
-    console.error("Error generating product mockup:", error);
-    throw error;
+    throw new Error(error.response?.data?.msg || 'יצירת הדמיה של המוצר עדיין לא פעילה. היא תהיה זמינה בקרוב.');
   }
 }
 
