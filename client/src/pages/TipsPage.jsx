@@ -7,6 +7,7 @@ import SmartImageInput from "../components/SmartImageInput";
 import { useAdminControl } from "../hooks/useAdminControl.jsx";
 import useAuthStore from "../store/authStore.js";
 import { useTipsStore } from "../store/tipsStore.js";
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 export default function TipsPage() {
     const isAdmin = useAuthStore(state => state.isAdmin());
@@ -111,7 +112,7 @@ export default function TipsPage() {
         <div className="w-full relative">
             <div
                 className="relative h-[240px] sm:h-[320px] bg-cover bg-center flex items-center justify-center text-white"
-                style={{ backgroundImage: `url(${draft.img})` }}
+                style={{ backgroundImage: `url(${optimizeImageUrl(draft.img, { width: screenWidthImageSize() })})` }}
             >
                 <div className="absolute inset-0 bg-black/20"></div>
 

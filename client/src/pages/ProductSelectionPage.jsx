@@ -19,6 +19,7 @@ import SalePrice from '../components/SalePrice';
 import PrintOptionButton from '../components/PrintOptionButton';
 import { getPrintOption } from '../constants/printOptions';
 import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -353,7 +354,7 @@ const ProductSelectionPage = () => {
             <div className="w-full relative">
                 <div
                     className="relative h-[160px] sm:h-[200px] bg-cover bg-center flex items-center justify-center text-white"
-                    style={{ backgroundImage: `url(${productsPageContent.img || ''})`, backgroundColor: '#a39589' }}
+                    style={{ backgroundImage: `url(${optimizeImageUrl(productsPageContent.img || '', { width: screenWidthImageSize() })})`, backgroundColor: '#a39589' }}
                 >
                     <div className="absolute inset-0 bg-black/15"></div>
                     <h1 className="relative z-10 text-3xl sm:text-4xl font-bold text-center text-white tracking-wide drop-shadow-sm" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>

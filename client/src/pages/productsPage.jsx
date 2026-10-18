@@ -8,6 +8,7 @@ import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
 import { PRINT_OPTIONS } from '../constants/printOptions';
 import ProductSearch from '../components/ProductSearch';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const ProductsPage = ({ onNavigate }) => {
     const [searchParams] = useSearchParams();
@@ -90,7 +91,7 @@ const ProductsPage = ({ onNavigate }) => {
                     className="relative h-[280px] sm:h-[320px] flex items-center justify-center text-white"
                     style={{ 
                         backgroundColor: '#f8dcdb', // בדיוק כמו הוורוד בעמוד העגלה
-                        backgroundImage: draft.img ? `url(${draft.img})` : 'none',
+                        backgroundImage: draft.img ? `url(${optimizeImageUrl(draft.img, { width: screenWidthImageSize() })})` : 'none',
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
                     }}
