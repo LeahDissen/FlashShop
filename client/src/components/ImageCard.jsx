@@ -7,7 +7,7 @@ import {
     DEFAULT_CROP,
     DEFAULT_PHOTO_PRINT_SIZE,
     getCompactPrintSizeLabel,
-    mergePhotoPricesWithCatalog,
+    getPhotoSizeOptions,
 } from '../utils/printSizes';
 
 const ImageCard = ({
@@ -27,7 +27,7 @@ const ImageCard = ({
 
     const sizes = (availableSizes && availableSizes.length > 0)
         ? availableSizes.map((s) => ({ value: s.size, label: s.label }))
-        : mergePhotoPricesWithCatalog([]).map((s) => ({ value: s.size, label: s.label }));
+        : getPhotoSizeOptions().map((s) => ({ value: s.size, label: s.label }));
 
     const currentSize = image.size || DEFAULT_PHOTO_PRINT_SIZE;
     const orientation = image.orientation ?? 'landscape';

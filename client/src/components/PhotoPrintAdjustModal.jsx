@@ -12,7 +12,7 @@ import {
     getCropWarning,
     getDefaultOrientation,
     getImageDimensions,
-    mergePhotoPricesWithCatalog,
+    getPhotoSizeOptions,
     resolvePrintDimensions,
 } from '../utils/printSizes';
 import FrameSizeFolders from './editor/FrameSizeFolders.jsx';
@@ -577,7 +577,7 @@ const PhotoPrintAdjustModal = ({
                 label: entry.label,
             }));
         }
-        return mergePhotoPricesWithCatalog([]).map((entry) => ({
+        return getPhotoSizeOptions().map((entry) => ({
             value: entry.size,
             label: entry.label,
         }));
