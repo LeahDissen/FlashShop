@@ -2,26 +2,46 @@ export function isGlobalFrame(el) {
     return el?.type === 'globalFrame';
 }
 
-/** מסדר אלמנטים: תמונות/צורות למטה, מסגרת גלובלית באמצע, טקסט למעלה */
+/**
+ * A "pinned" frame: a fixed overlay layer or a collage with photo windows.
+ * It stays above the photos and does not move. A free frame behaves like any other design element.
+ */
+export function isPinnedFrame(el) {
+    return isGlobalFrame(el) && (el.isFixedOverlay !== false || el.layoutType === 'multi_dropzone');
+}
+
+/** Orders elements: photos/shapes/free frames at the bottom, the pinned frame in the middle, text on top */
 export function enforceLayerOrder(elements) {
     if (!Array.isArray(elements)) return [];
 
-    const bottom = elements.filter((el) => el.type !== 'text' && !isGlobalFrame(el));
-    const frames = elements.filter(isGlobalFrame);
+    const bottom = elements.filter((el) => el.type !== 'text' && !isPinnedFrame(el));
+    const pinnedFrames = elements.filter(isPinnedFrame);
     const texts = elements.filter((el) => el.type === 'text');
 
-    return [...bottom, ...frames, ...texts];
+    return [...bottom, ...pinnedFrames, ...texts];
+}
+
+/**
+ * Moves an element to the front or back within its own layer (text stays above everything, a pinned frame does not move).
+ * @param {'front' | 'back'} direction
+ */
+export function moveElementToEdge(elements, elementId, direction) {
+    const target = elements.find((el) => el.id === elementId);
+    if (!target || isPinnedFrame(target)) return elements;
+
+    const others = elements.filter((el) => el.id !== elementId);
+    return enforceLayerOrder(direction === 'front' ? [...others, target] : [target, ...others]);
 }
 
 export function getGlobalFrameIndex(elements) {
-    return elements.findIndex(isGlobalFrame);
+    return elements.findIndex(isPinnedFrame);
 }
 
 export function getActiveGlobalFrame(elements) {
     return elements.find(isGlobalFrame) || null;
 }
 
-/** מוסיף אלמנט מתחת למסגרת הגלובלית */
+/** Adds an element below the pinned frame (if any), otherwise above the other photos */
 export function insertBelowGlobalFrame(elements, newElement) {
     const frameIdx = getGlobalFrameIndex(elements);
     if (frameIdx === -1) {
@@ -59,7 +79,7 @@ export function getDropzoneImageForSlot(elements, dropzoneId) {
     return elements.find((el) => isDropzoneImage(el) && el.dropzoneId === dropzoneId) || null;
 }
 
-/** מחליף/מוסיף תמונה לחלון קולאז׳ (שומר תמונה אחת לכל dropzoneId) */
+/** Replaces/adds a photo in a collage window (keeps one photo per dropzoneId) */
 export function replaceDropzoneImage(elements, dropzoneId, newImageElement) {
     if (!Array.isArray(elements) || !dropzoneId || !newImageElement) return elements || [];
     const withoutSlot = elements.filter(
@@ -72,7 +92,7 @@ export function replaceDropzoneImage(elements, dropzoneId, newImageElement) {
     });
 }
 
-/** מסיר קישור dropzone מתמונות שלא אמורות להיות בקולאז׳ (מסגרת רגילה / הסרה) */
+/** Removes the dropzone link from photos that should not be in the collage (regular frame / removal) */
 export function stripLegacyDropzoneFields(elements) {
     if (!Array.isArray(elements)) return [];
     return elements.map((el) => {
@@ -82,18 +102,19 @@ export function stripLegacyDropzoneFields(elements) {
     });
 }
 
-/** מחלק אלמנטים לשכבות רינדור: תוכן חופשי, תמונות קולאז׳, מסגרת, טקסט */
+/** Splits elements into render layers: free content, collage photos, frame, text */
 export function partitionElementsByLayer(elements) {
     if (!Array.isArray(elements)) {
         return { bottom: [], dropzoneImages: [], frames: [], texts: [] };
     }
 
-    const nonTextNonFrame = elements.filter((el) => el.type !== 'text' && !isGlobalFrame(el));
+    // A free frame is drawn together with the photos (by layer order and with rotation); only a pinned frame is in the dedicated layer
+    const nonTextNonFrame = elements.filter((el) => el.type !== 'text' && !isPinnedFrame(el));
 
     return {
         bottom: nonTextNonFrame.filter((el) => !isDropzoneImage(el)),
         dropzoneImages: nonTextNonFrame.filter(isDropzoneImage),
-        frames: elements.filter(isGlobalFrame),
+        frames: elements.filter(isPinnedFrame),
         texts: elements.filter((el) => el.type === 'text'),
     };
 }

@@ -26,6 +26,7 @@ import { getProductDirectLink } from "../utils/productDisplay";
 import { CAPTION_CATEGORIES } from "../constants/captionCategories";
 import { validatePriceTiers, serializePriceTiers } from "../utils/productQuantityPricing";
 import { parseMagnetSize } from "../utils/magnetSize";
+import SalePrice from '../components/SalePrice';
 
 const createEmptyTier = () => ({
     id: `tier-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -46,6 +47,8 @@ const INITIAL_FORM_DATA = {
     printHeight: 18,
     allowOrientationToggle: false,
     size: "",
+    isOnSale: false,
+    originalPrice: "",
 };
 
 export default function ProductsManagement() {
@@ -255,6 +258,8 @@ export default function ProductsManagement() {
             displayType,
             stock: Number(formData.stock),
             image: formData.image.trim(),
+            isOnSale: Boolean(formData.isOnSale),
+            originalPrice: formData.isOnSale && formData.originalPrice !== "" ? Number(formData.originalPrice) : null,
             priceTiers: isMagnetCategory ? [] : serializedTiers,
             size: magnetSize,
             captionIdeas: isDesignCategory
@@ -317,6 +322,8 @@ export default function ProductsManagement() {
             printHeight: product.printHeight ?? 18,
             allowOrientationToggle: Boolean(product.allowOrientationToggle),
             size: product.size ?? "",
+            isOnSale: Boolean(product.isOnSale),
+            originalPrice: product.originalPrice ?? "",
         });
         setProductCaptions(
             displayType === DISPLAY_TYPES.DESIGN ? (product.captionIdeas ?? []) : [],
@@ -548,6 +555,34 @@ export default function ProductsManagement() {
                             <div className="w-1/2">
                                 <label className="block text-sm font-medium text-gray-700">מלאי</label>
                                 <input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full p-2 border rounded-lg" required />
+                                <label className="flex items-center gap-2 cursor-pointer mt-3">
+                                    <input
+                                        type="checkbox"
+                                        name="isOnSale"
+                                        checked={Boolean(formData.isOnSale)}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, isOnSale: e.target.checked }))}
+                                        className="rounded border-gray-300 text-[#f2665e] focus:ring-[#f2665e]"
+                                    />
+                                    <span className="text-sm text-gray-700">מוצר במבצע (מציג תג "מבצע" בחנות)</span>
+                                </label>
+                                {formData.isOnSale && (
+                                    <div className="mt-2">
+                                        <label className="block text-sm font-medium text-gray-700">מחיר לפני המבצע (יוצג מחוק)</label>
+                                        <input
+                                            type="number"
+                                            name="originalPrice"
+                                            min="0"
+                                            step="0.01"
+                                            value={formData.originalPrice}
+                                            onChange={handleChange}
+                                            className="w-full p-2 border rounded-lg"
+                                            placeholder="למשל 100"
+                                        />
+                                        {formData.originalPrice !== "" && Number(formData.originalPrice) <= Number(formData.price) && (
+                                            <p className="text-xs text-amber-600 mt-1">המחיר הקודם צריך להיות גבוה מהמחיר הנוכחי, אחרת הוא לא יוצג.</p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -851,7 +886,10 @@ export default function ProductsManagement() {
                                         </div>
                                         <div className="mt-2 flex justify-between items-end">
                                             <div>
-                                                <span className="font-bold text-[#f2665e]">₪{product.price}</span>
+                                                <SalePrice product={product} priceClassName="font-bold text-[#f2665e]" />
+                                                {product.isOnSale && (
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#f2665e] text-white">מבצע</span>
+                                                )}
                                                 {product.priceTiers?.length > 0 && (
                                                     <p className="text-[10px] text-gray-400 mt-0.5">
                                                         + {product.priceTiers.length} מדרגות מחיר

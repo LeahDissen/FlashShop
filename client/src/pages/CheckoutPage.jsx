@@ -70,7 +70,7 @@ export default function CheckoutPage() {
                     phone: prev.phone || user?.phone || '',
                 }));
             } catch {
-                // אין פרופיל מזוהה — השדות נשארים למילוי ידני
+                // No recognized profile — the fields stay for manual entry
             }
         };
 
@@ -150,6 +150,13 @@ export default function CheckoutPage() {
             });
 
             paymentSubmittedRef.current = true;
+
+            // Payment connected: go to the secure payment page. The cart is kept until the payment is verified (PaymentResultPage)
+            if (order.paymentUrl) {
+                window.location.assign(order.paymentUrl);
+                return;
+            }
+
             saveLastOrder(order);
             clearCheckoutDraft();
             clearCart();
@@ -400,13 +407,8 @@ export default function CheckoutPage() {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                         <h2 className="text-xl font-bold text-gray-800">פרטי תשלום</h2>
                         <p className="text-sm text-gray-500">
-                            ההזמנה תישמר במערכת, ואז תועברו לתשלום מאובטח בקישור חיצוני.
+                            ההזמנה תישמר, ותועברו לדף תשלום מאובטח. פרטי האשראי לא נשמרים באתר.
                         </p>
-                        {!paymentLinkUrl && (
-                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                                קישור התשלום עדיין לא הוגדר במסך ההגדרות. ההזמנה תישמר, אבל לא ייפתח מסך תשלום חיצוני.
-                            </p>
-                        )}
                         <p className="text-sm text-gray-600">
                             {fulfillmentMethod === 'delivery' ? 'משלוח לבית' : 'איסוף עצמי'} · {customer.name}
                         </p>

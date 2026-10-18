@@ -1,130 +1,90 @@
-/** תמחור פיתוח תמונות לפי סך כל ההדפסות (סכום quantity) */
+/**
+ * Photo development pricing from the price list the admin defines (loaded from the server):
+ * each size has shekel price tiers by the number of prints of that size, plus an album discount by total prints.
+ * The same calculation runs on the server when the order is created (Server/utils/photoQuantityPricing.js).
+ */
 
-/** מדרגות מחיר — מקור אמת יחיד לתצוגה ולחישוב */
-export const PRICING_TABLE_ROWS = [
-    { min: 1, max: 39, unitPrice: 1.8, label: 'עד 39 תמונות' },
-    { min: 40, max: 99, unitPrice: 1.25, label: 'מ-40 תמונות' },
-    { min: 100, max: 199, unitPrice: 1.1, label: 'מ-100 תמונות' },
-    { min: 200, max: 499, unitPrice: 0.9, label: 'מ-200 תמונות' },
-    { min: 500, max: null, unitPrice: 0.8, label: 'מ-500 תמונות' },
-];
-
-const QUANTITY_TIERS = [...PRICING_TABLE_ROWS]
-    .map((row) => ({
-        minQuantity: row.min,
-        unitPrice: row.unitPrice,
-        label: row.label,
-    }))
-    .sort((a, b) => b.minQuantity - a.minQuantity);
-
-const ALBUM_DISCOUNT_TIERS = [
-    { minQuantity: 400, percent: 20 },
-    { minQuantity: 200, percent: 15 },
-    { minQuantity: 100, percent: 10 },
-];
-
-export function getTotalPrintCount(images = []) {
-    return images.reduce(
-        (sum, img) => sum + Math.max(1, Number(img.quantity) || 1),
-        0,
-    );
-}
-
-export function getUnitPriceByQuantity(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    const tier = QUANTITY_TIERS.find((t) => count >= t.minQuantity);
-    return tier ? tier.unitPrice : 1.8;
-}
-
-export function getActiveQuantityTier(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    return QUANTITY_TIERS.find((t) => count >= t.minQuantity) ?? QUANTITY_TIERS.at(-1);
-}
-
-export function getOrderTotal(images = []) {
-    const totalPrints = getTotalPrintCount(images);
-    return totalPrints * getUnitPriceByQuantity(totalPrints);
-}
-
-/** כמה עותקים חסרים למדרגת המחיר הבאה (זולה יותר) */
-export function getNextPriceTierHint(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    const tiersAsc = [...QUANTITY_TIERS].sort((a, b) => a.minQuantity - b.minQuantity);
-
-    for (const tier of tiersAsc) {
-        if (count < tier.minQuantity) {
-            return {
-                remaining: tier.minQuantity - count,
-                nextUnitPrice: tier.unitPrice,
-                nextLabel: tier.label,
-            };
-        }
-    }
-    return null;
-}
-
-export function getAlbumDiscountPercent(totalPrints) {
-    const count = Math.max(0, totalPrints);
-    const tier = ALBUM_DISCOUNT_TIERS.find((t) => count >= t.minQuantity);
-    return tier ? tier.percent : 0;
-}
-
-export function getAlbumDiscountMessage(totalPrints) {
-    const percent = getAlbumDiscountPercent(totalPrints);
-    if (percent === 0) return null;
-    return `בחרת ${totalPrints} הדפסות — מגיעה לך ${percent}% הנחה על אלבומי תמונות!`;
-}
-
-export function formatPrice(amount) {
-    return `${Number(amount).toFixed(2)} ₪`;
-}
-
-/** שם קטגוריה לקישור לאלבומים (מתאים ל-category במוצרים) */
+/** The albums category name in products (for the "choose an album" link) */
 export const ALBUM_CATEGORY = 'אלבום';
 
-export function getOrderPricing(images = []) {
-    const totalPrints = getTotalPrintCount(images);
-    const unitPrice = getUnitPriceByQuantity(totalPrints);
-    const tier = getActiveQuantityTier(totalPrints);
+const roundToAgora = (value) => Math.round(value * 100) / 100;
+export const normalizeSize = (size) => String(size || '').toLowerCase().replace(/×/g, 'x').trim();
+const byMinAsc = (a, b) => a.minQuantity - b.minQuantity;
+const quantityOf = (img) => Math.max(1, Number(img.quantity) || 1);
+
+export const formatShekel = (amount) => `${Number(amount).toFixed(2)} ₪`;
+
+const findSizeEntry = (pricing, size) => {
+    const sizes = pricing?.sizes || [];
+    return sizes.find((s) => normalizeSize(s.size) === normalizeSize(size)) || sizes[0];
+};
+
+const sortedTiers = (pricing, size) => [...(findSizeEntry(pricing, size)?.tiers || [])].sort(byMinAsc);
+
+export function getTotalPrintCount(images = []) {
+    return images.reduce((sum, img) => sum + quantityOf(img), 0);
+}
+
+/** How many prints of each size: { '10x15': 45, ... } */
+export function getPrintsBySize(images = [], defaultSize) {
+    return images.reduce((counts, img) => {
+        const key = normalizeSize(img.size || defaultSize);
+        counts[key] = (counts[key] || 0) + quantityOf(img);
+        return counts;
+    }, {});
+}
+
+/** Price per photo of a given size when ordering `quantity` prints of that size */
+export function getPhotoUnitPrice(pricing, size, quantity) {
+    const count = Math.max(1, Number(quantity) || 0);
+    const tier = sortedTiers(pricing, size).reverse().find((t) => count >= t.minQuantity);
+    return tier ? Number(tier.price) : 0;
+}
+
+/** Order summary: total quantity, total to pay, and a breakdown per size */
+export function getOrderPricing(images, pricing, defaultSize) {
+    const printsBySize = getPrintsBySize(images, defaultSize);
+    const sizes = Object.entries(printsBySize).map(([size, count]) => {
+        const unitPrice = getPhotoUnitPrice(pricing, size, count);
+        return { size, count, unitPrice, total: roundToAgora(unitPrice * count) };
+    });
     return {
-        totalPrints,
-        unitPrice,
-        grandTotal: totalPrints * unitPrice,
-        tier,
+        totalPrints: getTotalPrintCount(images),
+        grandTotal: roundToAgora(sizes.reduce((sum, s) => sum + s.total, 0)),
+        sizes,
     };
 }
 
-export function getNextPricingTierHint(totalPrints) {
-    const next = getNextPriceTierHint(totalPrints);
-    if (!next) return null;
-    return `עוד ${next.remaining} הדפסות ותקבלי ${next.nextUnitPrice.toFixed(2)} ₪ לתמונה (${next.nextLabel})`;
+/** "X more prints of size Y and the price drops to Z" – for the size closest to its next tier; null if none */
+export function getNextPricingTierHint(orderSizes, pricing, formatSize = (size) => size) {
+    const candidates = (orderSizes || [])
+        .map(({ size, count }) => {
+            const next = sortedTiers(pricing, size).find((t) => count < t.minQuantity);
+            return next ? { size, remaining: next.minQuantity - count, price: next.price } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.remaining - b.remaining);
+    const best = candidates[0];
+    if (!best) return null;
+    return `עוד ${best.remaining} הדפסות בגודל ${formatSize(best.size)} והמחיר יורד ל-${formatShekel(best.price)} לתמונה`;
 }
 
-export function getAlbumDiscount(totalPrints) {
-    const percent = getAlbumDiscountPercent(totalPrints);
-    if (!percent) return null;
-    return { percent };
+export function getAlbumDiscount(totalPrints, pricing) {
+    const tier = [...(pricing?.albumDiscountTiers || [])].sort(byMinAsc).reverse()
+        .find((t) => totalPrints >= t.minQuantity);
+    return tier?.percent ? { percent: tier.percent } : null;
 }
 
-export function formatQuantityRange(row) {
-    if (row.max == null) return `${row.min} הדפסות ומעלה`;
-    if (row.min === 1) return `1–${row.max} הדפסות`;
-    return `${row.min}–${row.max} הדפסות`;
-}
-
-export function isQuantityInRow(totalPrints, row) {
-    const count = Math.max(0, totalPrints);
-    if (count < row.min) return false;
-    if (row.max == null) return true;
-    return count <= row.max;
-}
-
-/** שורות לטבלת תמחור — עם סימון המדרגה הפעילה */
-export function getPricingTableDisplay(totalPrints = 0) {
-    return PRICING_TABLE_ROWS.map((row) => ({
-        ...row,
-        rangeLabel: formatQuantityRange(row),
-        priceLabel: `${row.unitPrice.toFixed(2)} ₪`,
-        isActive: isQuantityInRow(totalPrints, row),
-    }));
+/** One size's price tiers for display, marking the active tier by the number of prints of that size */
+export function getSizePriceRows(pricing, size, count = 0) {
+    const tiers = sortedTiers(pricing, size);
+    return tiers.map((tier, index) => {
+        const next = tiers[index + 1];
+        return {
+            key: tier.minQuantity,
+            rangeLabel: next ? `${tier.minQuantity}–${next.minQuantity - 1}` : `${tier.minQuantity}+`,
+            price: Number(tier.price),
+            isActive: count >= tier.minQuantity && (!next || count < next.minQuantity),
+        };
+    });
 }

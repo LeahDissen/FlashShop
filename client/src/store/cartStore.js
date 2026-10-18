@@ -2,8 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
 import useAuthStore from './authStore';
+import useToastStore from './toastStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
 import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart } from '../utils/cartItem';
+
+export const CART_ADDED_MESSAGE = 'המוצר נוסף לסל בהצלחה!';
 
 const compactCartItem = (item) => {
   const compactCustomDesign = compactCustomDesignForCart(item?.customDesign);
@@ -40,7 +43,8 @@ export const useCartStore = create(
           set({ cartItems: [] });
       },
 
-      addToCart: async (newItems) => {
+      /** Adds items to the cart and shows the customer a confirmation. The confirmation text can be replaced with successMessage */
+      addToCart: async (newItems, { successMessage = CART_ADDED_MESSAGE } = {}) => {
           const preparedItems = await prepareCartItems(newItems);
           set((state) => {
               const updatedCart = assignCartLineIds([...state.cartItems, ...preparedItems]);
@@ -49,6 +53,26 @@ export const useCartStore = create(
                   saveCartToDB(userId, updatedCart);
               }
               
+              return { cartItems: updatedCart };
+          });
+          useToastStore.getState().showToast(successMessage);
+      },
+
+      /** Updates the price of items already in the cart (e.g. the photo price tier after more were added). getPrice returning undefined = no change */
+      repriceItems: (getPrice) => {
+          set((state) => {
+              let changed = false;
+              const updatedCart = state.cartItems.map((item) => {
+                  const price = getPrice(item);
+                  if (price === undefined || price === item.price) return item;
+                  changed = true;
+                  return { ...item, price };
+              });
+              if (!changed) return state;
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
               return { cartItems: updatedCart };
           });
       },

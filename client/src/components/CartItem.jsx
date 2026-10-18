@@ -11,7 +11,7 @@ export default function CartItem({ item, onRemove, onSetQuantity }) {
 
   return (
     <div className="flex flex-col gap-3 px-3 sm:px-6 py-4 border-b border-gray-200 last:border-b-0 hover:bg-gray-50/80 sm:grid sm:grid-cols-12 sm:items-center sm:gap-2">
-      {/* פריט */}
+      {/* Item */}
       <div className="sm:col-span-6">
         <div className="flex items-center gap-3">
           <button
@@ -48,7 +48,7 @@ export default function CartItem({ item, onRemove, onSetQuantity }) {
         </div>
       </div>
 
-      {/* כמות + מחיר במובייל בשורה אחת; בדסקטופ בעמודות נפרדות */}
+      {/* Quantity + price in one row on mobile; separate columns on desktop */}
       <div className="flex items-center justify-between gap-3 sm:contents px-1">
         <div className="flex items-center gap-2 sm:col-span-3 sm:flex sm:justify-center">
           <span className="text-xs text-gray-500 sm:hidden">כמות</span>

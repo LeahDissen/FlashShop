@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { joinClubRequest } from "../api/club";
+import { uploadDocumentToCloudinary } from "../utils/cloudinaryUpload";
 
 import { getPage } from "../api/pages";
 
@@ -13,6 +14,8 @@ import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore.js';
 
 
+
+const EMPTY_JOIN_FORM = { name: "", email: "", birthdate: "", agreed: false };
 
 export default function Club() {
 
@@ -36,36 +39,54 @@ export default function Club() {
 
             inputDatePlaceholder: "",
 
+
             checkboxText: "",
-
-            btnText: ""
-
+            btnText: "",
+            successText: "הצטרפת בהצלחה למועדון!",
+            welcomeSubject: "",
+            welcomeBody: "",
+            welcomeAttachmentUrl: ""
         }, "club");
 
 
 
     const { draft, updateDraft, editMode } = adminControls;
 
-    const [formData, setFormData] = useState({
-
-        name: "",
-
-        email: "",
-
-        birthdate: "",
-
-        agreed: false
-
-    });
+    const [formData, setFormData] = useState(EMPTY_JOIN_FORM);
+    /** The signup result is shown inside the popup: success (with the benefit code) or error */
+    const [joinResult, setJoinResult] = useState(null);
+    const [isJoining, setIsJoining] = useState(false);
 
 
+
+
+    const [attachmentUploading, setAttachmentUploading] = useState(false);
+    const [attachmentError, setAttachmentError] = useState("");
+
+    const handleAttachmentFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        setAttachmentUploading(true);
+        setAttachmentError("");
+        try {
+            const url = await uploadDocumentToCloudinary(file);
+            updateDraft({ welcomeAttachmentUrl: url });
+        } catch (error) {
+            setAttachmentError(error.message || "העלאת הקובץ נכשלה");
+        } finally {
+            setAttachmentUploading(false);
+        }
+    };
 
     const closeClub = () => {
-
         setClubOpen(false);
-
+        // The next opening starts with a clean form (e.g. a family member signing up from the same browser)
+        if (joinResult?.type === "success") {
+            setFormData(EMPTY_JOIN_FORM);
+        }
+        setJoinResult(null);
         sessionStorage.setItem("club-popup-dismissed", "1");
-
     };
 
 
@@ -128,34 +149,25 @@ export default function Club() {
 
         }
 
+        setIsJoining(true);
+        setJoinResult(null);
         try {
-
             const payload = {
-
                 user_id: userId || null,
-
                 email: formData.email,
-
                 name: formData.name,
-
                 birthDate: formData.birthdate
-
             };
-
             const data = await joinClubRequest(payload);
-
-            alert(`${data.msg}\nקוד ההטבה שלך הוא: ${data.code}`);
-
-            closeClub();
-
+            setJoinResult({ type: "success", code: data.code });
         } catch (error) {
-
             console.error("Club join error:", error);
-
-            const errorMsg = error.response?.data?.msg || "אירעה שגיאה בהצטרפות למועדון";
-
-            alert(errorMsg);
-
+            setJoinResult({
+                type: "error",
+                message: error.response?.data?.msg || "אירעה שגיאה בהצטרפות למועדון",
+            });
+        } finally {
+            setIsJoining(false);
         }
 
     };
@@ -222,8 +234,38 @@ export default function Club() {
 
                 </div>
 
-                <div>
 
+                <div>
+                    <label className="block text-sm font-bold text-gray-700">הודעה אחרי הרשמה מוצלחת:</label>
+                    <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.successText} onChange={(e) => updateDraft({ successText: e.target.value })} />
+                </div>
+                <div className="border-t pt-4 mt-2">
+                    <h4 className="font-bold text-gray-800 mb-1">מייל ההצטרפות האוטומטי</h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                        נשלח לכל מי שנרשם/ת. אפשר להשתמש ב-<code dir="ltr">{"{{name}}"}</code> (שם) ו-<code dir="ltr">{"{{code}}"}</code> (קוד ההטבה). ריק = הנוסח הקבוע של האתר.
+                    </p>
+                    <label className="block text-sm font-bold text-gray-700">נושא המייל:</label>
+                    <input type="text" className="w-full border border-gray-300 p-2 rounded mb-3" value={draft.welcomeSubject || ""} onChange={(e) => updateDraft({ welcomeSubject: e.target.value })} placeholder="ברוכים הבאים למועדון! 🎁" />
+                    <label className="block text-sm font-bold text-gray-700">תוכן המייל:</label>
+                    <textarea className="w-full border border-gray-300 p-2 rounded min-h-[120px] mb-3" value={draft.welcomeBody || ""} onChange={(e) => updateDraft({ welcomeBody: e.target.value })} placeholder={"היי {{name}}, איזה כיף שהצטרפת!\nקוד ההטבה שלך: {{code}}"} />
+                    <label className="block text-sm font-bold text-gray-700">מדריך PDF במתנה (מצורף למייל):</label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <label className="cursor-pointer text-sm px-3 py-1.5 rounded border border-gray-300 bg-gray-50 hover:bg-gray-100">
+                            {attachmentUploading ? "מעלה..." : "העלאת PDF"}
+                            <input type="file" accept="application/pdf" className="hidden" onChange={handleAttachmentFile} disabled={attachmentUploading} />
+                        </label>
+                        {draft.welcomeAttachmentUrl ? (
+                            <>
+                                <a href={draft.welcomeAttachmentUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline truncate max-w-[220px]" dir="ltr">{draft.welcomeAttachmentUrl}</a>
+                                <button type="button" onClick={() => updateDraft({ welcomeAttachmentUrl: "" })} className="text-xs text-red-600 hover:underline">הסרה</button>
+                            </>
+                        ) : (
+                            <span className="text-xs text-gray-500">אין קובץ מצורף</span>
+                        )}
+                    </div>
+                    {attachmentError && <p className="text-xs text-red-600 mt-1">{attachmentError}</p>}
+                </div>
+                <div>
                     <label className="block text-sm font-bold text-gray-700">טקסט צ'קבוקס:</label>
 
                     <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.checkboxText} onChange={(e) => updateDraft({ checkboxText: e.target.value })} />
@@ -264,10 +306,27 @@ export default function Club() {
 
                 <h3 className="text-lg font-medium mb-4 opacity-90 whitespace-pre-line">{draft.subtitle}</h3>
 
+
                 <p className="text-sm mb-6 px-4 font-light whitespace-pre-line">{draft.description}</p>
-
-
-
+                {joinResult?.type === "success" ? (
+                    <div className="w-full max-w-xs flex flex-col items-center gap-3 z-20" role="status">
+                        <p className="text-xl font-bold whitespace-pre-line drop-shadow-md">
+                            {draft.successText || "הצטרפת בהצלחה למועדון!"}
+                        </p>
+                        {joinResult.code && (
+                            <p className="text-sm font-light">
+                                קוד ההטבה שלך: <span className="font-mono font-bold tracking-wider" dir="ltr">{joinResult.code}</span>
+                            </p>
+                        )}
+                        <button
+                            type="button"
+                            onClick={closeClub}
+                            className="bg-white text-[#f0645a] font-bold py-2 px-6 rounded-full mt-2 hover:bg-gray-100 transition-colors shadow-lg"
+                        >
+                            סגירה
+                        </button>
+                    </div>
+                ) : (
                 <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-3 z-20">
 
                     <input type="text" name="name" placeholder={draft.inputNamePlaceholder} value={formData.name} onChange={handleInputChange} required className="w-full px-4 py-2 rounded-md text-gray-700 bg-white/90 text-right" />
@@ -298,13 +357,17 @@ export default function Club() {
 
 
 
-                    <button type="submit" className="bg-white text-[#f0645a] font-bold py-2 px-6 rounded-full mt-4 mx-auto hover:bg-gray-100 transition-colors shadow-lg">
 
-                        {draft.btnText}
-
+                    {joinResult?.type === "error" && (
+                        <p className="text-sm font-bold bg-white/90 text-[#a93636] rounded-md px-3 py-2" role="alert">
+                            {joinResult.message}
+                        </p>
+                    )}
+                    <button type="submit" disabled={isJoining} className="bg-white text-[#f0645a] font-bold py-2 px-6 rounded-full mt-4 mx-auto hover:bg-gray-100 transition-colors shadow-lg disabled:opacity-60">
+                        {isJoining ? "רגע..." : draft.btnText}
                     </button>
-
                 </form>
+                )}
 
 
 

@@ -6,9 +6,11 @@ import AdminControls from '../components/AdminControls.jsx';
 import SmartImageInput from '../components/SmartImageInput';
 import Testimonials, { DEFAULT_TESTIMONIALS } from '../components/Testimonials';
 import WaveDivider from '../components/WaveDivider';
+import ProductSearch from '../components/ProductSearch';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import useAppStore from '../store/appStore';
 import { useTipsStore } from '../store/tipsStore';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 /** Parse a Redis field that may arrive as JSON string or already-parsed value */
 const parseJsonField = (value, fallback) => {
@@ -24,12 +26,48 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
+/** Hero image height by the admin's choice (on desktop; smaller on mobile by the same ratio) */
+const HERO_HEIGHTS = {
+    small: { label: "נמוכה", px: 240 },
+    medium: { label: "בינונית", px: 360 },
+    large: { label: "גבוהה", px: 480 },
+};
+const DEFAULT_HERO_HEIGHT = "medium";
+const DEFAULT_HERO_FOCUS = 50; // Vertical percent: 0 = top of the image, 100 = bottom
+/** How many product tiles can be set on the home page (4 per row on desktop, 2 on mobile) */
+const HOME_TILE_COUNT = 8;
+const PHOTO_DEVELOPMENT_PATH = '/photo-development';
+const DEFAULT_UPLOAD_BADGE_TEXT = 'להעלאת תמונות להדפסה';
+
+const HOME_CACHE_KEY = 'flashshop_home_page';
+
+/** Home page content from the previous visit – shown immediately, and updated when the fresh version arrives from the server */
+const readHomeCache = () => {
+    try {
+        const cached = JSON.parse(localStorage.getItem(HOME_CACHE_KEY) || 'null');
+        return cached && typeof cached === 'object' ? cached : null;
+    } catch {
+        return null;
+    }
+};
+
+const writeHomeCache = (data) => {
+    try {
+        localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data));
+    } catch {
+        // Storage full or blocked – just no cache
+    }
+};
+
 /** Stable initial data — defined outside component to prevent recreation on every render */
 const INITIAL_DATA = {
     title: "",
     mainImg: "",
+    heroHeight: DEFAULT_HERO_HEIGHT,
+    heroFocus: DEFAULT_HERO_FOCUS,
     products: [],
     goToAll: "",
+    uploadBadgeText: "",
     goToAbout: "",
     titleAbout: "",
     textAbout: "",
@@ -47,7 +85,10 @@ const INITIAL_DATA = {
  *  - Story, Testimonials, Tips
  */
 export default function HomePage() {
-    const adminControls = useAdminControl(INITIAL_DATA, "home");
+    const [cachedHome] = useState(readHomeCache);
+    // Don't draw the page until the content arrives, so it does not "jump" when the image and tiles load
+    const [isLoaded, setIsLoaded] = useState(Boolean(cachedHome));
+    const adminControls = useAdminControl(cachedHome ? { ...INITIAL_DATA, ...cachedHome } : INITIAL_DATA, "home");
     const { draft, updateDraft, editMode } = adminControls;
 
     const setClubOpen = useAppStore(state => state.setClubOpen);
@@ -78,6 +119,8 @@ export default function HomePage() {
             data.testimonials = parseJsonField(data.testimonials, DEFAULT_TESTIMONIALS);
             adminControls.setPage(data);
             adminControls.setDraft(data);
+            setIsLoaded(true);
+            writeHomeCache(data);
         });
 
         getAllTips(1, 2)
@@ -128,14 +171,30 @@ export default function HomePage() {
         updateDraft({ testimonials: list.filter((_, i) => i !== index) });
     };
 
-    /** Always 6 grid slots — real products or empty placeholders */
-    const gridItems = useMemo(() => {
+    /** A tile without an explicit link leads to the products page filtered by its category name */
+    const tileLink = (prod) => {
+        const link = (prod?.link || '').trim();
+        if (link) return link;
+        const name = (prod?.name || '').trim();
+        return name ? `/products?category=${encodeURIComponent(name)}` : '/products';
+    };
+
+    const heroHeightKey = HERO_HEIGHTS[draft.heroHeight] ? draft.heroHeight : DEFAULT_HERO_HEIGHT;
+    const heroFocus = Number.isFinite(Number(draft.heroFocus)) ? Number(draft.heroFocus) : DEFAULT_HERO_FOCUS;
+
+    const uploadBadgeText = (draft.uploadBadgeText || '').trim() || DEFAULT_UPLOAD_BADGE_TEXT;
+
+    /** The admin's edit slots: always HOME_TILE_COUNT, including empty ones */
+    const editTiles = useMemo(() => {
         const list = Array.isArray(draft.products) ? draft.products : [];
         return [
-            ...list.slice(0, 6),
-            ...Array(Math.max(0, 6 - list.length)).fill(null)
+            ...list.slice(0, HOME_TILE_COUNT),
+            ...Array(Math.max(0, HOME_TILE_COUNT - list.length)).fill(null),
         ];
     }, [draft.products]);
+
+    /** The shop shows only tiles that have an image – no empty slots */
+    const visibleTiles = useMemo(() => editTiles.filter((prod) => prod?.image), [editTiles]);
 
     // ─── Admin Edit Panel ─────────────────────────────────────────────────────
     const EditContent = (
@@ -158,10 +217,35 @@ export default function HomePage() {
                     previewClassName="h-[80px] w-[80px] rounded object-cover border border-gray-200"
                 />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                    <span className="font-bold block mb-1">גובה התמונה:</span>
+                    <select
+                        value={heroHeightKey}
+                        onChange={(e) => updateDraft({ heroHeight: e.target.value })}
+                        className="w-full border rounded p-2"
+                    >
+                        {Object.entries(HERO_HEIGHTS).map(([key, { label }]) => (
+                            <option key={key} value={key}>{label}</option>
+                        ))}
+                    </select>
+                </label>
+                <label className="block">
+                    <span className="font-bold block mb-1">איזה חלק מהתמונה יוצג: {heroFocus <= 20 ? "למעלה" : heroFocus >= 80 ? "למטה" : "אמצע"}</span>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={heroFocus}
+                        onChange={(e) => updateDraft({ heroFocus: Number(e.target.value) })}
+                        className="w-full accent-[#f2665e]"
+                    />
+                </label>
+            </div>
             <div>
-                <label className="font-bold block mb-2">6 מוצרים — תמונה + שם + קישור:</label>
+                <label className="font-bold block mb-2">{HOME_TILE_COUNT} מוצרים — תמונה + שם + קישור (4 בשורה):</label>
                 <div className="grid grid-cols-2 gap-3">
-                    {gridItems.map((prod, index) => (
+                    {editTiles.map((prod, index) => (
                         <div key={index} className="border rounded-xl p-3 bg-gray-50 space-y-2">
                             <p className="font-bold text-xs" style={{ color: '#ff5a5a' }}>מוצר {index + 1}</p>
                             <input
@@ -180,7 +264,7 @@ export default function HomePage() {
                             />
                             <input
                                 type="text"
-                                placeholder="קישור (e.g. /products)"
+                                placeholder="קישור (ריק = מוצרים לפי שם הקטגוריה)"
                                 value={prod?.link || ''}
                                 className="w-full border rounded p-1.5 text-xs ltr"
                                 dir="ltr"
@@ -189,6 +273,16 @@ export default function HomePage() {
                         </div>
                     ))}
                 </div>
+            </div>
+            <div>
+                <label className="font-bold block mb-1">טקסט העיגול שמוביל להעלאת תמונות:</label>
+                <input
+                    type="text"
+                    value={draft.uploadBadgeText || ''}
+                    placeholder={DEFAULT_UPLOAD_BADGE_TEXT}
+                    className="w-full border rounded p-2"
+                    onChange={(e) => updateDraft({ uploadBadgeText: e.target.value })}
+                />
             </div>
             <div>
                 <label className="font-bold block mb-1">כפתור "לכל המוצרים":</label>
@@ -210,8 +304,9 @@ export default function HomePage() {
                 />
             </div>
             <div>
-                <label className="font-bold block mb-1">טקסט "הסיפור שלנו":</label>
+                <label className="font-bold block mb-1">טקסט "הסיפור שלנו" (3–4 שורות על החנות):</label>
                 <textarea
+                    placeholder="כמה שורות על החנות: מי אנחנו, מה אנחנו עושות ולמה"
                     className="w-full border rounded p-2 h-28"
                     value={draft.textAbout || ''}
                     onChange={(e) => updateDraft({ textAbout: e.target.value })}
@@ -279,7 +374,9 @@ export default function HomePage() {
     );
 
     // ─── View Content ─────────────────────────────────────────────────────────
-    const ViewContent = (
+    const ViewContent = !isLoaded ? (
+        <div className="w-full min-h-screen bg-white" aria-busy="true" />
+    ) : (
         <div className="w-full bg-white overflow-x-hidden">
 
             {/* ══ HERO WAVE + PRODUCTS ══════════════════════════════════════ */}
@@ -289,9 +386,10 @@ export default function HomePage() {
                         className="home-hero__banner-bg"
                         style={{
                             backgroundColor: '#f8dcdb',
-                            backgroundImage: draft.mainImg ? `url(${draft.mainImg})` : 'none',
+                            backgroundImage: draft.mainImg ? `url(${optimizeImageUrl(draft.mainImg, { width: screenWidthImageSize() })})` : 'none',
                             backgroundSize: 'cover',
-                            backgroundPosition: 'center',
+                            backgroundPosition: `center ${heroFocus}%`,
+                            '--hero-height': `${HERO_HEIGHTS[heroHeightKey].px}px`,
                         }}
                     >
                         {draft.mainImg ? <div className="home-hero__banner-overlay" /> : null}
@@ -304,50 +402,53 @@ export default function HomePage() {
                         {draft.title || (<>מה הסיפור<br />שלכם?</>)}
                     </h1>
 
+                    <ProductSearch className="mb-6" />
+
                     <div className="home-products">
-                        <div className="home-products__badge" aria-label="משלוחים לכל הארץ">
+                        <Link
+                            to={PHOTO_DEVELOPMENT_PATH}
+                            className="home-products__badge"
+                            aria-label={uploadBadgeText}
+                        >
                             <svg className="home-products__badge-ring" viewBox="0 0 100 100" aria-hidden="true">
                                 <defs>
-                                    <path id="shipRing" d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
+                                    <path id="uploadRing" d="M 50,50 m -38,0 a 38,38 0 1,1 76,0 a 38,38 0 1,1 -76,0" />
                                 </defs>
-                                <text fill="#F2665E" fontSize="9.5" fontWeight="700" letterSpacing="1.2">
-                                    <textPath xlinkHref="#shipRing" href="#shipRing" startOffset="0%">
-                                        משלוחים לכל הארץ · משלוחים לכל הארץ ·
+                                <text fill="#F2665E" fontSize="9" fontWeight="700">
+                                    <textPath href="#uploadRing" startOffset="0%" textLength="232" lengthAdjust="spacing">
+                                        {`${uploadBadgeText} · `}
                                     </textPath>
                                 </text>
                             </svg>
-                            <div className="home-products__badge-inner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"
-                                    viewBox="0 0 24 24" fill="none" stroke="#F2665E"
-                                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                    aria-hidden="true">
-                                    <rect x="1" y="3" width="15" height="13" rx="1" />
-                                    <path d="M16 8h4l3 5v3h-7V8z" />
-                                    <circle cx="5.5" cy="18.5" r="2.5" />
-                                    <circle cx="18.5" cy="18.5" r="2.5" />
+                            <span className="home-products__badge-inner" aria-hidden="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"
+                                    viewBox="0 0 24 24" fill="none" stroke="#fff"
+                                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 19V5" />
+                                    <path d="M5 12l7-7 7 7" />
                                 </svg>
-                            </div>
-                        </div>
+                            </span>
+                        </Link>
 
                         <div className="home-products__grid">
-                            {gridItems.map((prod, index) => (
-                                prod?.image ? (
-                                    <Link
-                                        key={index}
-                                        to={prod.link || '/products'}
-                                        aria-label={prod.name || `קטגוריה ${index + 1}`}
-                                        className="home-products__tile"
-                                    >
-                                        <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
-                                        {prod.name ? (
-                                            <span className="home-products__tile-label">{prod.name}</span>
-                                        ) : null}
-                                    </Link>
-                                ) : (
-                                    <div key={index} className="home-products__empty">
-                                        {prod?.name || `מוצר ${index + 1}`}
-                                    </div>
-                                )
+                            {visibleTiles.map((prod, index) => (
+                                <Link
+                                    key={index}
+                                    to={tileLink(prod)}
+                                    aria-label={prod.name || `קטגוריה ${index + 1}`}
+                                    className="home-products__tile"
+                                >
+                                    <img
+                                        src={optimizeImageUrl(prod.image, { width: 600 })}
+                                        alt={prod.name || `מוצר ${index + 1}`}
+                                        width="600"
+                                        height="600"
+                                        loading="lazy"
+                                    />
+                                    {prod.name ? (
+                                        <span className="home-products__tile-label">{prod.name}</span>
+                                    ) : null}
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -404,7 +505,7 @@ export default function HomePage() {
                                     className="home-tips__card"
                                 >
                                     <div className="home-tips__img">
-                                        <img src={tip.img} alt={tip.title} />
+                                        <img src={optimizeImageUrl(tip.img, { width: 600 })} alt={tip.title} loading="lazy" decoding="async" />
                                     </div>
                                     <div className="home-tips__body">
                                         <h4 className="line-clamp-1">

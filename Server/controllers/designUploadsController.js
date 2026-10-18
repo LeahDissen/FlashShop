@@ -21,8 +21,8 @@ exports.getDriveStatus = (req, res) => {
 };
 
 /**
- * מעלה את קובץ העיצוב הסופי ל-Drive לפני יצירת ההזמנה.
- * הקובץ נשמר בתיקיית המתנה ומועבר לתיקיית ההזמנה ברגע שההזמנה נוצרת.
+ * Uploads the final design file to Drive before the order is created.
+ * The file is kept in a pending folder and moved to the order's folder once the order is created.
  */
 exports.uploadDesign = async (req, res) => {
     try {

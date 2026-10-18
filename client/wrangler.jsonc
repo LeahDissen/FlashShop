@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers (static assets) – serves the Vite build as an SPA.
+  // deploy: npm run build && npx wrangler deploy
+  "name": "flaash",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "workers_dev": true
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaStore, FaTimes, FaTimesCircle, FaTrash } from "react-icons/fa";
+import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEnvelope, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaStore, FaTimes, FaTimesCircle, FaTrash } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { deleteOrders, getOrders, updateOrderStatus } from "../api/orders";
@@ -132,15 +132,16 @@ export default function OrdersManagement() {
     };
 
     const stats = {
-        total: orders.length,
+        total: orders.filter(o => o.status !== 'awaiting_payment').length,
         pending: orders.filter(o => o.status === 'processing' || o.status === 'pending').length,
-        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' ? sum + (o.total_price || 0) : sum, 0)
+        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' && o.status !== 'awaiting_payment' ? sum + (o.total_price || 0) : sum, 0)
     };
 
     const getStatusBadge = (status) => {
         switch (status) {
             case 'processing': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> בטיפול</span>;
             case 'pending': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
+            case 'awaiting_payment': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 flex items-center gap-1 w-fit"><FaClock /> ממתין לתשלום</span>;
             case 'shipped': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 w-fit"><FaShippingFast /> נשלח</span>;
             case 'delivered': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1 w-fit"><FaCheckCircle /> ההזמנה מוכנה</span>;
             case 'cancelled': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 flex items-center gap-1 w-fit"><FaTimesCircle /> בוטל</span>;
@@ -158,13 +159,22 @@ export default function OrdersManagement() {
                     </h1>
                     <p className="text-gray-500 mt-1">צפייה בכל ההזמנות, עדכון סטטוסים ומעקב משלוחים</p>
                 </div>
-                <Link
-                    to="/admindashboard"
-                    className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
-                >
-                    <span>חזרה ללוח הבקרה</span>
-                    <FiArrowLeft className="text-xl" />
-                </Link>
+                <div className="flex items-center gap-2">
+                    <Link
+                        to="/orderemails"
+                        className="text-gray-600 font-bold px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 flex items-center gap-2 no-underline text-sm"
+                    >
+                        <FaEnvelope />
+                        <span>מיילים ללקוחות</span>
+                    </Link>
+                    <Link
+                        to="/admindashboard"
+                        className="text-[#f2665e] transition-all font-bold p-2 gap-2 rounded-lg hover:bg-[#f2665e]/10 hover:-translate-y-1 flex items-center no-underline"
+                    >
+                        <span>חזרה ללוח הבקרה</span>
+                        <FiArrowLeft className="text-xl" />
+                    </Link>
+                </div>
             </div>
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
@@ -203,7 +213,7 @@ export default function OrdersManagement() {
                 </div>
 
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar items-center">
-                    {['all', 'processing', 'shipped', 'delivered', 'cancelled'].map(status => (
+                    {['all', 'processing', 'shipped', 'delivered', 'cancelled', 'awaiting_payment'].map(status => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
@@ -215,7 +225,8 @@ export default function OrdersManagement() {
                             {status === 'all' ? 'הכל' :
                                 status === 'processing' ? 'בטיפול' :
                                     status === 'shipped' ? 'נשלח' :
-                                        status === 'delivered' ? 'ההזמנה מוכנה' : 'בוטל'}
+                                        status === 'delivered' ? 'ההזמנה מוכנה' :
+                                            status === 'cancelled' ? 'בוטל' : 'ממתין לתשלום'}
                         </button>
                     ))}
                     {selectedIds.length > 0 && (

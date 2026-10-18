@@ -1,4 +1,4 @@
-/** קטגוריות מוצרים — לפי הוראות הבוס */
+/** Product categories — per the boss's instructions */
 
 export const DISPLAY_TYPES = {
     DESIGN: 'design',

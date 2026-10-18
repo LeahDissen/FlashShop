@@ -1,9 +1,9 @@
-/** גדלי הדפסה לפיתוח תמונות — ס"מ ללקוח, אינץ'ים לחישוב פנימי */
+/** Print sizes for photo development — cm for the customer, inches for internal calculation */
 
 export const DEFAULT_PHOTO_PRINT_SIZE = '10x15';
 export const DEFAULT_PHOTO_ORIENTATION = 'landscape';
 
-/** קטלוג גדלים (מקור אמת) */
+/** Size catalog (source of truth) */
 export const PHOTO_PRINT_SIZE_CATALOG = [
     {
         size: '10x15',
@@ -53,7 +53,13 @@ export function getPhotoSizeCatalogEntry(sizeStr) {
     );
 }
 
-/** תווית לתפריט בחירת גודל — ס"מ בלבד (ללקוח) */
+/** Short size in cm for display, e.g. "10×15" */
+export function formatPrintSizeCm(sizeStr) {
+    const entry = getPhotoSizeCatalogEntry(sizeStr);
+    return `${entry.widthCm}×${entry.heightCm}`;
+}
+
+/** Label for the size selection menu — cm only (for the customer) */
 export function formatPhotoSizeOptionLabel(entry) {
     const cm = `${entry.widthCm}×${entry.heightCm} ס"מ`;
     if (entry.name) {
@@ -62,27 +68,21 @@ export function formatPhotoSizeOptionLabel(entry) {
     return cm;
 }
 
-/** מיזוג מחירים מהשרת עם קטלוג הגדלים */
-export function mergePhotoPricesWithCatalog(apiPrices = []) {
+/** Size options to choose from (the prices themselves come from the price list, not from here) */
+export function getPhotoSizeOptions() {
     return [...PHOTO_PRINT_SIZE_CATALOG]
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((entry) => {
-            const fromApi = Array.isArray(apiPrices)
-                ? apiPrices.find((p) => p.size === entry.size)
-                : null;
-            return {
-                size: entry.size,
-                price: fromApi?.price ?? 0,
-                label: formatPhotoSizeOptionLabel(entry),
-                widthCm: entry.widthCm,
-                heightCm: entry.heightCm,
-                widthIn: entry.widthIn,
-                heightIn: entry.heightIn,
-            };
-        });
+        .map((entry) => ({
+            size: entry.size,
+            label: formatPhotoSizeOptionLabel(entry),
+            widthCm: entry.widthCm,
+            heightCm: entry.heightCm,
+            widthIn: entry.widthIn,
+            heightIn: entry.heightIn,
+        }));
 }
 
-/** פרסור גודל הדפסה (למשל "10x15") — ללא כיוון */
+/** Parses a print size (e.g. "10x15") — without orientation */
 export function parsePrintSize(sizeStr) {
     const entry = getPhotoSizeCatalogEntry(sizeStr);
     return {
@@ -95,7 +95,7 @@ export function parsePrintSize(sizeStr) {
     };
 }
 
-/** כיוון הדפסה: אורך (portrait) או רוחב (landscape) */
+/** Print orientation: portrait or landscape */
 export function resolvePrintDimensions(sizeStr, orientation = 'portrait') {
     const base = parsePrintSize(sizeStr);
     const landscape = orientation === 'landscape';
@@ -141,7 +141,7 @@ export function getImageDimensions(src) {
     });
 }
 
-/** תווית קומפקטית על כרטיס התמונה — מידות בס"מ בלבד */
+/** Compact label on the photo card — dimensions in cm only */
 export function getCompactPrintSizeLabel(sizeStr, orientation = 'landscape') {
     const print = resolvePrintDimensions(sizeStr, orientation);
     return `${print.width}×${print.height} ס"מ`;
@@ -151,7 +151,7 @@ export function getPrintSizeLabel(sizeStr, _availableSizes = [], orientation = '
     return getCompactPrintSizeLabel(sizeStr, orientation);
 }
 
-/** חיתוך בזום: scale + הזזה בתוך מסגרת קבועה */
+/** Zoom crop: scale + pan inside a fixed frame */
 export const DEFAULT_CROP = { scale: 1, offsetX: 0, offsetY: 0 };
 
 export function normalizeZoomCrop(crop) {
@@ -165,7 +165,7 @@ export function normalizeZoomCrop(crop) {
     return { ...DEFAULT_CROP };
 }
 
-/** CSS transform לתצוגת cover עם זום וגרירה */
+/** CSS transform for a cover view with zoom and drag */
 export function getCropTransformStyle(crop = DEFAULT_CROP, imageAspect, frameAspect) {
     const normalized = normalizeZoomCrop(crop);
     const scale = normalized.scale;
@@ -187,7 +187,7 @@ export function getCropTransformStyle(crop = DEFAULT_CROP, imageAspect, frameAsp
     };
 }
 
-/** האם יחס התמונה שונה מיחס ההדפסה (עלול להיחתך) */
+/** Whether the photo's ratio differs from the print ratio (may get cropped) */
 export function getCropWarning(imageWidth, imageHeight, printAspect) {
     if (!imageWidth || !imageHeight || !printAspect) return null;
 

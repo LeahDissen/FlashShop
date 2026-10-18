@@ -1,38 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProducts } from '../api/products';
+import { useProducts } from '../hooks/useProducts';
+import SalePrice from './SalePrice';
+import { optimizeImageUrl } from '../utils/imageUrl';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState(["הכל"]);
+    const { products, loading, error } = useProducts();
+    const loadError = error ? 'לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.' : null;
+    const categories = useMemo(
+        () => ["הכל", ...new Set(products.map((p) => p.category).filter(Boolean))],
+        [products],
+    );
     const [activeCategory, setActiveCategory] = useState("הכל");
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState(null);
 
     const formatPrice = (price) => {
         const num = typeof price === 'number' ? price : parseFloat(price);
         return Number.isFinite(num) ? num.toFixed(2) : null;
     };
-
-    useEffect(() => {
-        const fetchProducts = async () => {
-            setLoadError(null);
-            try {
-                const data = await getProducts();
-                const list = Array.isArray(data) ? data : [];
-                setProducts(list);
-                const uniqueCategories = [...new Set(list.map(p => p.category).filter(c => c))];
-                setCategories(["הכל", ...uniqueCategories]);
-            } catch (error) {
-                console.error("Failed to load products", error);
-                setLoadError('לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProducts();
-    }, []);
 
     useEffect(() => {
         if (!initialCategory || categories.length <= 1) return;
@@ -95,7 +80,9 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                 {loadError && (
                     <div className="py-12 px-4 text-center">
                         <p className="text-red-600 font-medium mb-2">{loadError}</p>
-                        <p className="text-gray-500 text-sm">אם הבעיה נמשכת, בדקי שהשרת בענן פעיל ושאין חסימת רשת לכתובת Render.</p>
+                        <button type="button" onClick={() => window.location.reload()} className="text-sm font-bold text-[#f2665e] hover:underline">
+                            לרענן את הדף
+                        </button>
                     </div>
                 )}
 
@@ -112,8 +99,13 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                             onClick={() => handleProductClick(product)}
                             className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white border-transparent shadow-md hover:shadow-xl hover:border-red-300`}
                         >
-                            <div className="h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
-                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                            <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
+                                <img src={optimizeImageUrl(product.image, { width: 500 })} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
+                                {product.isOnSale && (
+                                    <span className="absolute top-2 right-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#f2665e] text-white shadow-md">
+                                        מבצע
+                                    </span>
+                                )}
                             </div>
 
                             <div className="p-3 flex flex-col items-center gap-1 bg-white">
@@ -121,8 +113,8 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                     {product.name}
                                 </h3>
                                 {priceLabel && (
-                                    <span className="text-gray-500 text-xs">
-                                        ₪{priceLabel}
+                                    <span className="text-xs">
+                                        <SalePrice product={product} priceClassName="text-gray-500" />
                                     </span>
                                 )}
                                 {product.size && (

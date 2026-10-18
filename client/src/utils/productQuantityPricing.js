@@ -1,4 +1,4 @@
-/** תמחור מוצר לפי מדרגות כמות — מקור אמת לתצוגה ולחישוב */
+/** Product pricing by quantity tiers — source of truth for display and calculation */
 
 function normalizeMaxQuantity(value) {
     if (value == null || value === '') return null;
@@ -132,7 +132,7 @@ export function validatePriceTiers(tiers) {
     return { valid: true, tiers: normalized };
 }
 
-/** המרה לשמירה ב-API */
+/** Conversion for saving through the API */
 export function serializePriceTiers(tiers) {
     const result = validatePriceTiers(tiers);
     if (!result.valid) return [];

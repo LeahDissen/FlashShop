@@ -1,6 +1,8 @@
+import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '../config/api';
+
 const CLOUDINARY_UPLOAD_URL =
-    'https://api.cloudinary.com/v1_1/dwqywo11u/image/upload';
-const UPLOAD_PRESET = 'ml_default';
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+const UPLOAD_PRESET = CLOUDINARY_UPLOAD_PRESET;
 
 /** Cloudinary unsigned uploads are typically capped at ~10MB */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -74,22 +76,93 @@ function parseCloudinaryError(data) {
     return 'העלאת הקובץ נכשלה. נסו שוב.';
 }
 
-export async function uploadImageToCloudinary(file) {
-    const prepared = await prepareImageForUpload(file);
+/** An error marked with whether it is worth retrying (network/server) or not (corrupt file, too large, 4xx) */
+const uploadError = (message, retryable) => Object.assign(new Error(message), { retryable });
+
+/**
+ * Uploads an image and also returns the dimensions Cloudinary reports –
+ * saves downloading every image again just to measure it.
+ */
+export async function uploadImageDetailed(file) {
+    let prepared;
+    try {
+        prepared = await prepareImageForUpload(file);
+    } catch (error) {
+        throw uploadError(error.message, false);
+    }
+
     const formData = new FormData();
     formData.append('file', prepared);
     formData.append('upload_preset', UPLOAD_PRESET);
 
-    const response = await fetch(CLOUDINARY_UPLOAD_URL, {
-        method: 'POST',
-        body: formData,
-    });
+    let response;
+    try {
+        response = await fetch(CLOUDINARY_UPLOAD_URL, { method: 'POST', body: formData });
+    } catch {
+        throw uploadError('בעיית רשת בזמן ההעלאה. נסו שוב.', true);
+    }
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-        throw new Error(parseCloudinaryError(data));
+        throw uploadError(parseCloudinaryError(data), response.status >= 500 || response.status === 429);
     }
 
+    return { url: data.secure_url, width: data.width, height: data.height };
+}
+
+export async function uploadImageToCloudinary(file) {
+    const { url } = await uploadImageDetailed(file);
+    return url;
+}
+
+/** Document (PDF) – Cloudinary accepts it with the same preset; returns a direct download link */
+export async function uploadDocumentToCloudinary(file) {
+    if (file?.type !== 'application/pdf') {
+        throw new Error('יש לבחור קובץ PDF');
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('הקובץ גדול מדי (מעל 10MB).');
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const response = await fetch(CLOUDINARY_UPLOAD_URL.replace('/image/upload', '/auto/upload'), {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(parseCloudinaryError(data));
+    }
+    return data.secure_url;
+}
+
+const FONT_EXTENSIONS = ['otf', 'ttf', 'woff', 'woff2'];
+const MAX_FONT_BYTES = 5 * 1024 * 1024;
+
+/** Uploads a font file (OTF/TTF/WOFF/WOFF2) as a raw file and returns its URL */
+export async function uploadFontToCloudinary(file) {
+    const extension = String(file?.name || '').split('.').pop().toLowerCase();
+    if (!FONT_EXTENSIONS.includes(extension)) {
+        throw new Error('אפשר להעלות רק קובצי גופן: OTF, TTF, WOFF או WOFF2');
+    }
+    if (file.size > MAX_FONT_BYTES) {
+        throw new Error('קובץ הגופן גדול מדי (מעל 5MB)');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`, {
+        method: 'POST',
+        body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(parseCloudinaryError(data));
+    }
     return data.secure_url;
 }

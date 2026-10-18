@@ -1,4 +1,4 @@
-import { FaBoxOpen, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
+import { FaBoxOpen, FaBullhorn, FaClipboardList, FaComments, FaEdit, FaEnvelope, FaFilePdf, FaImage, FaImages, FaLink, FaMagic, FaSlidersH } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 
@@ -50,6 +50,13 @@ export default function AdminDashboardPage() {
       link: "/updatecatalog",
     },
     {
+      id: "photo-pricing",
+      title: "מחירי פיתוח תמונות",
+      description: "מחיר לתמונה לפי גודל, הנחות לפי כמות והנחה על אלבום.",
+      icon: <FaImages className="text-3xl text-white" />,
+      link: "/photopricing",
+    },
+    {
       id: 6,
       title: "עריכת דפים",
       description: "מעבר מהיר לעריכת התוכן בדפי הבית, אודות, טיפים ועוד.",
@@ -69,6 +76,20 @@ export default function AdminDashboardPage() {
       description: "מידות המסגרות, גופנים, צבעים והטקסטים שהלקוח רואה בעורך.",
       icon: <FaSlidersH className="text-3xl text-white" />,
       link: "/editorsettings",
+    },
+    {
+      id: 10,
+      title: "מיילים ללקוחות",
+      description: "עריכת נוסח המיילים האוטומטיים שהלקוח מקבל בכל שלב בהזמנה.",
+      icon: <FaEnvelope className="text-3xl text-white" />,
+      link: "/orderemails",
+    },
+    {
+      id: 11,
+      title: "פופאפים באתר",
+      description: "הודעות קופצות ללקוחות: מבצעים, הודעות חשובות, קורסים — לפי עמוד, זמן ותאריכים.",
+      icon: <FaBullhorn className="text-3xl text-white" />,
+      link: "/popups",
     },
     {
       id: 9,

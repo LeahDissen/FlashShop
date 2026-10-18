@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPage } from '../api/pages';
-import { getPhotoPrices } from '../api/photo';
+import { getPhotoPricing } from '../api/photo';
 import AdminControls from '../components/AdminControls';
 import Gallery from '../components/Gallery';
 import Hero from '../components/Hero';
@@ -9,30 +9,43 @@ import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useCartStore } from '../store/cartStore';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
+import { uploadFilesInParallel } from '../utils/uploadQueue';
 import { blobToFile } from '../utils/cropImage';
 import {
     DEFAULT_CROP,
     DEFAULT_PHOTO_PRINT_SIZE,
     getDefaultOrientation,
-    getImageDimensions,
-    mergePhotoPricesWithCatalog,
+    formatPrintSizeCm,
+    getPhotoSizeOptions,
 } from '../utils/printSizes';
 import PhotoPrintAdjustModal from '../components/PhotoPrintAdjustModal';
 import {
     getAlbumDiscount,
     getNextPricingTierHint,
     getOrderPricing,
-    getUnitPriceByQuantity,
+    getPhotoUnitPrice,
+    getPrintsBySize,
+    normalizeSize,
 } from '../utils/photoQuantityPricing';
+import { clearPhotoDraft, endAlbumDetour, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
+
+const isPhotoPrintCartItem = (item) => item?.itemType === 'photo-print';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
-    const [images, setImages] = useState([]);
-    const [priceList, setPriceList] = useState([]);
+    // The selected photos are kept for the whole visit (e.g. when leaving to pick an album and coming back)
+    const [images, setImages] = useState(loadPhotoDraft);
+    /** The photo development price list from the server; null until loaded */
+    const [pricing, setPricing] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
+    /** Multi-upload progress: { done, total, failed } */
+    const [uploadProgress, setUploadProgress] = useState(null);
+    /** Files that failed in the last upload – the customer can retry them without choosing again */
+    const [failedUploads, setFailedUploads] = useState([]);
     const [adjustImageId, setAdjustImageId] = useState(null);
     const [isCropSaving, setIsCropSaving] = useState(false);
     const addToCart = useCartStore((state) => state.addToCart);
+    const repriceItems = useCartStore((state) => state.repriceItems);
     const navigate = useNavigate();
 
     const adminControls = useAdminControl({
@@ -43,91 +56,83 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     }, "photos");
     const { draft, updateDraft, editMode } = adminControls;
 
+    const loadPricing = useCallback(() => getPhotoPricing()
+        .then((data) => {
+            setPricing(data);
+            return data;
+        })
+        .catch((err) => {
+            console.error("Failed to load photo pricing:", err);
+            return null;
+        }), []);
+
     useEffect(() => {
         getPage("photos").then((data) => {
             adminControls.setPage(data);
             adminControls.setDraft(data);
         }).catch(error => console.error("Error fetching main photos page data:", error));
-        const fetchPrices = async () => {
-            try {
-                const data = await getPhotoPrices();
-                setPriceList(mergePhotoPricesWithCatalog(data));
-            } catch (err) {
-                console.error("Failed to load prices from DB:", err);
-                setPriceList(mergePhotoPricesWithCatalog([]));
-            }
-        };
-        fetchPrices();
+        loadPricing();
     }, []);
 
-    const orderPricing = useMemo(() => getOrderPricing(images), [images]);
+    useEffect(() => {
+        savePhotoDraft(images);
+    }, [images]);
+
+    // Coming back to the page (even without buying an album) ends the "left to pick an album" detour
+    useEffect(endAlbumDetour, []);
+
+    const sizeOptions = useMemo(() => getPhotoSizeOptions(), []);
+    const orderPricing = useMemo(
+        () => getOrderPricing(images, pricing, DEFAULT_PHOTO_PRINT_SIZE),
+        [images, pricing],
+    );
     const nextTierHint = useMemo(
-        () => getNextPricingTierHint(orderPricing.totalPrints),
-        [orderPricing.totalPrints],
+        () => getNextPricingTierHint(orderPricing.sizes, pricing, formatPrintSizeCm),
+        [orderPricing.sizes, pricing],
     );
     const albumDiscount = useMemo(
-        () => getAlbumDiscount(orderPricing.totalPrints),
-        [orderPricing.totalPrints],
+        () => getAlbumDiscount(orderPricing.totalPrints, pricing),
+        [orderPricing.totalPrints, pricing],
     );
+
+    const toGalleryImage = ({ file, index, url, width, height }) => ({
+        id: `${Date.now()}_${index}_${Math.random()}`,
+        src: url,
+        originalSrc: url,
+        alt: file.name,
+        quantity: 1,
+        size: DEFAULT_PHOTO_PRINT_SIZE,
+        crop: { ...DEFAULT_CROP },
+        orientation: getDefaultOrientation(width, height),
+    });
 
     const handleFilesSelected = async (files) => {
         const fileList = Array.from(files);
         if (fileList.length === 0) return;
 
-        const defaultSize = DEFAULT_PHOTO_PRINT_SIZE;
-        const total = fileList.length;
-
         setIsUploading(true);
-        setUploadStatus(
-            total === 1
-                ? 'מעלה תמונה, אנא המתינו...'
-                : `מעלה ${total} תמונות, אנא המתינו...`,
-        );
-
-        const newImages = [];
-        let failedCount = 0;
+        setFailedUploads([]);
+        setUploadProgress({ done: 0, total: fileList.length, failed: 0 });
+        setUploadStatus('');
 
         try {
-            for (let i = 0; i < fileList.length; i++) {
-                const file = fileList[i];
-                setUploadStatus(`מעלה תמונה ${i + 1} מתוך ${total}...`);
+            // A few photos in parallel, each joins the gallery as soon as it is ready
+            const { failed } = await uploadFilesInParallel(fileList, {
+                onProgress: setUploadProgress,
+                onUploaded: (result) => setImages((prev) => [...prev, toGalleryImage(result)]),
+            });
 
-                try {
-                    const secureUrl = await uploadImageToCloudinary(file);
-                    const dims = await getImageDimensions(secureUrl);
-                    newImages.push({
-                        id: `${Date.now()}_${i}_${Math.random()}`,
-                        src: secureUrl,
-                        originalSrc: secureUrl,
-                        alt: file.name,
-                        quantity: 1,
-                        size: defaultSize,
-                        crop: { ...DEFAULT_CROP },
-                        orientation: getDefaultOrientation(dims.w, dims.h),
-                    });
-                } catch (error) {
-                    failedCount += 1;
-                    console.error('Error uploading image:', error);
-                }
-            }
-
-            if (newImages.length > 0) {
-                setImages((prev) => [...prev, ...newImages]);
-            }
-
-            if (failedCount > 0) {
-                const uploadedCount = newImages.length;
-                alert(
-                    uploadedCount > 0
-                        ? `${uploadedCount} תמונות הועלו בהצלחה. ${failedCount} תמונות נכשלו.`
-                        : 'העלאת התמונות נכשלה. נסו תמונות קטנות יותר.',
-                );
+            if (failed.length > 0) {
+                failed.forEach(({ file, error }) => console.error('Error uploading image:', file.name, error));
+                setFailedUploads(failed);
             }
         } finally {
             setIsUploading(false);
-            setUploadStatus('');
+            setUploadProgress(null);
         }
     };
+
+    const handleRetryFailed = () => handleFilesSelected(failedUploads.map(({ file }) => file));
 
     const handleSetQuantity = (id, quantity) => {
         const qty = Math.min(9999, Math.max(1, Math.floor(Number(quantity)) || 1));
@@ -208,15 +213,22 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         ? images.find((img) => img.id === adjustImageId)
         : null;
 
-    const handleSendOrder = () => {
+    const handleSendOrder = async () => {
         if (images.length === 0) return;
+        // The price list loads in the background; if loading failed, retry before continuing
+        const activePricing = pricing || await loadPricing();
+        if (!activePricing) {
+            alert('לא הצלחנו לטעון את מחירי ההדפסה. נא לבדוק את החיבור לאינטרנט ולנסות שוב.');
+            return;
+        }
 
-        const defaultSize = DEFAULT_PHOTO_PRINT_SIZE;
-        const unitPrice = getUnitPriceByQuantity(orderPricing.totalPrints);
-
+        // The price tier is set by all the photos of the same size – including those already in the cart from an earlier round
+        const photosInCart = useCartStore.getState().cartItems.filter(isPhotoPrintCartItem);
+        const printsBySize = getPrintsBySize([...images, ...photosInCart], DEFAULT_PHOTO_PRINT_SIZE);
         const cartItems = images.map((img) => {
-            const size = img.size || defaultSize;
+            const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
             const qty = Math.max(1, img.quantity);
+            const unitPrice = getPhotoUnitPrice(activePricing, size, printsBySize[normalizeSize(size)]);
             return {
                 id: img.id,
                 itemType: 'photo-print',
@@ -243,6 +255,10 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         });
 
         addToCart(cartItems);
+        repriceItems((item) => (isPhotoPrintCartItem(item)
+            ? getPhotoUnitPrice(activePricing, item.size, printsBySize[normalizeSize(item.size)])
+            : undefined));
+        clearPhotoDraft();
         navigate('/cart');
     };
 
@@ -312,7 +328,8 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                 onAdjustPrint={setAdjustImageId}
                 onToggleOrientation={handleToggleOrientation}
                 onSendOrder={handleSendOrder}
-                availableSizes={priceList}
+                availableSizes={sizeOptions}
+                pricing={pricing}
                 orderPricing={orderPricing}
                 nextTierHint={nextTierHint}
                 albumDiscount={albumDiscount}
@@ -334,8 +351,39 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                     onSave={handleSaveCrop}
                     onClose={() => setAdjustImageId(null)}
                     isSaving={isCropSaving}
-                    availableSizes={priceList}
+                    availableSizes={sizeOptions}
                 />
+            )}
+
+            {!isUploading && failedUploads.length > 0 && (
+                <div
+                    className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 z-[150] max-w-md bg-white border border-red-200 rounded-2xl shadow-xl p-4 text-right"
+                    dir="rtl"
+                    role="alert"
+                >
+                    <p className="font-bold text-red-700 mb-1">{failedUploads.length} תמונות לא הועלו</p>
+                    <ul className="text-xs text-gray-600 max-h-24 overflow-y-auto mb-3 space-y-0.5">
+                        {failedUploads.map(({ file, error }) => (
+                            <li key={`${file.name}-${file.size}`}>{file.name} — {error?.message || 'שגיאה'}</li>
+                        ))}
+                    </ul>
+                    <div className="flex gap-2 justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setFailedUploads([])}
+                            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                        >
+                            סגירה
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleRetryFailed}
+                            className="px-3 py-1.5 text-sm rounded-lg bg-[#f2665e] text-white font-bold hover:bg-[#d95248]"
+                        >
+                            לנסות שוב
+                        </button>
+                    </div>
+                </div>
             )}
 
             {isUploading && (
@@ -370,7 +418,30 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                             />
                         </svg>
                         <h2 className="text-xl font-bold text-gray-800 mb-2">מעלה תמונות</h2>
-                        <p className="text-gray-600 text-sm">{uploadStatus}</p>
+                        {uploadProgress ? (
+                            <>
+                                <div
+                                    className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2"
+                                    role="progressbar"
+                                    aria-valuemin={0}
+                                    aria-valuemax={uploadProgress.total}
+                                    aria-valuenow={uploadProgress.done}
+                                >
+                                    <div
+                                        className="h-full bg-[#f2665e] transition-all duration-300"
+                                        style={{ width: `${Math.round((uploadProgress.done / Math.max(1, uploadProgress.total)) * 100)}%` }}
+                                    />
+                                </div>
+                                <p className="text-gray-600 text-sm">
+                                    {uploadProgress.done} מתוך {uploadProgress.total} תמונות
+                                    {uploadProgress.failed > 0 && (
+                                        <span className="text-red-600"> · {uploadProgress.failed} נכשלו</span>
+                                    )}
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-gray-600 text-sm">{uploadStatus}</p>
+                        )}
                         <p className="text-gray-400 text-xs mt-3">
                             התמונות נדחסות ומועלות — אל תסגרו את הדף
                         </p>

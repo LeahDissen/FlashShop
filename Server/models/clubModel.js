@@ -28,6 +28,11 @@ let clubSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    /** Asked to be removed from the mailing list – receives no marketing emails */
+    unsubscribed: {
+        type: Boolean,
+        default: false
+    },
     createdAt: {
         type: Date,
         default: Date.now

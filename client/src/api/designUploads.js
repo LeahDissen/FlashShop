@@ -9,7 +9,7 @@ export const getDriveStatus = async () => {
 };
 
 /**
- * מעלה את קובץ העיצוב הסופי לענן לפני יצירת ההזמנה.
+ * Uploads the final design file to the cloud before the order is created.
  * @returns {Promise<{configured: boolean, file?: {id: string, name: string, url: string}}>}
  */
 export const uploadFinalDesign = async ({ image, projectName }) => {

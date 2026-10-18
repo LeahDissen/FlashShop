@@ -1,6 +1,6 @@
 /**
- * הרצה: node seedEditorAssets.js
- * מזין את רכיבי עורך העיצוב העצמי הקיימים בקוד (פעם אחת, לפי seedKey).
+ * Run: node seedEditorAssets.js
+ * Seeds the self-design editor items that exist in the code (once, by seedKey).
  */
 const mongoose = require("mongoose");
 const { config } = require("./config/secret");
@@ -8,7 +8,7 @@ const { upsertDefaultAssets } = require("./controllers/editorAssetsController");
 
 async function seed() {
     if (!config.MONGO_URL) {
-        console.error("חסר MONGO_URL בקובץ .env");
+        console.error("MONGO_URL is missing from the .env file");
         process.exit(1);
     }
 

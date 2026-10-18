@@ -7,6 +7,7 @@ import {
     SendBackwardIcon, SunIcon, TrashIcon, UnderlineIcon 
 } from '../icons';
 import { DEFAULT_EDITOR_SETTINGS } from '../../constants/editorSettingsDefaults';
+import ToolbarPopover from './ToolbarPopover';
 
 const NumericStepper = ({ value, onChange, min = 0, max = 200, step = 1, label }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -102,12 +103,6 @@ const NumericStepper = ({ value, onChange, min = 0, max = 200, step = 1, label }
 
 const Divider = () => <div className="w-px h-8 bg-gray-200 mx-2"></div>;
 
-const PRESET_COLORS = [
-  '#FFFFFF', '#E5E7EB', '#9CA3AF', '#4B5563', '#1F2937', '#000000',
-  '#9333EA', '#C084FC', '#E879F9', '#F472B6', '#F87171', '#DC2626',
-  '#1D4ED8', '#3B82F6', '#38BDF8', '#67E8F9', '#2DD4BF', '#10B981',
-  '#FB923C', '#FBBF24', '#FDE047', '#A3E635', '#4ADE80', '#16A34A'
-];
 
 const ContextualToolbar = ({ 
     selectedElement, 
@@ -117,7 +112,8 @@ const ContextualToolbar = ({
     onDelete,
     onBringToFront,
     onSendToBack,
-    textOptions = DEFAULT_EDITOR_SETTINGS.textToolbar
+    textOptions = DEFAULT_EDITOR_SETTINGS.textToolbar,
+    colors = [],
 }) => {
     const [showColorPicker, setShowColorPicker] = useState(false);
     const [showTextColorPicker, setShowTextColorPicker] = useState(false);
@@ -128,6 +124,8 @@ const ContextualToolbar = ({
 
     useEffect(() => {
         const handleClickOutside = (event) => {
+            // The panels are rendered in a portal outside the toolbar – a click in their content is not "outside"
+            if (event.target.closest?.('[data-toolbar-popover]')) return;
             if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
                 setShowColorPicker(false);
             }
@@ -168,8 +166,8 @@ const ContextualToolbar = ({
     const fonts = textOptions?.fonts?.length
         ? textOptions.fonts
         : DEFAULT_EDITOR_SETTINGS.textToolbar.fonts;
-    const textColorPresets = textOptions?.colorPresets?.length
-        ? textOptions.colorPresets
+    const paletteValues = colors.length
+        ? colors.map((c) => c.value)
         : DEFAULT_EDITOR_SETTINGS.textToolbar.colorPresets;
     const minFontSize = Number(textOptions?.minFontSize) || DEFAULT_EDITOR_SETTINGS.textToolbar.minFontSize;
     const maxFontSize = Number(textOptions?.maxFontSize) || DEFAULT_EDITOR_SETTINGS.textToolbar.maxFontSize;
@@ -249,7 +247,7 @@ const ContextualToolbar = ({
                         </button>
 
                         {showTextColorPicker && (
-                            <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-72" dir="rtl">
+                            <ToolbarPopover anchorRef={textColorPickerRef} width={288} className="p-4">
                                 <div className="text-right font-bold text-gray-800 mb-3">צבע הטקסט</div>
                                 <div className="flex items-center gap-3 mb-4">
                                     <div
@@ -272,7 +270,7 @@ const ContextualToolbar = ({
 
                                 <div className="text-right text-sm font-semibold text-gray-600 mb-2">צבעים</div>
                                 <div className="grid grid-cols-6 gap-2">
-                                    {textColorPresets.map((color) => (
+                                    {paletteValues.map((color) => (
                                         <button
                                             key={color}
                                             type="button"
@@ -285,7 +283,7 @@ const ContextualToolbar = ({
                                         />
                                     ))}
                                 </div>
-                            </div>
+                            </ToolbarPopover>
                         )}
                     </div>
 
@@ -372,7 +370,7 @@ const ContextualToolbar = ({
                         </div>
 
                         {showColorPicker && (
-                            <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-72" dir="rtl">
+                            <ToolbarPopover anchorRef={colorPickerRef} width={288} className="p-4">
                                 <div className="text-right font-bold text-gray-800 mb-2">צבע האלמנט</div>
                                 <div className="flex items-center gap-3 mb-4">
                                     {/* Current Color Large Preview */}
@@ -409,7 +407,7 @@ const ContextualToolbar = ({
 
                                 <div className="text-right text-sm font-semibold text-gray-600 mb-2">צבעים</div>
                                 <div className="grid grid-cols-6 gap-2">
-                                    {PRESET_COLORS.map(color => (
+                                    {paletteValues.map(color => (
                                         <button
                                             key={color}
                                             onClick={() => handleShapeChange('fill', color)}
@@ -419,7 +417,7 @@ const ContextualToolbar = ({
                                         />
                                     ))}
                                 </div>
-                            </div>
+                            </ToolbarPopover>
                         )}
                     </div>
                     
@@ -494,7 +492,7 @@ const ContextualToolbar = ({
                         </button>
 
                         {showFilters && (
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 bg-white border border-gray-200 rounded-xl shadow-xl p-5 z-50 w-64" dir="rtl">
+                            <ToolbarPopover anchorRef={filtersRef} width={256} align="center" className="p-5">
                                 <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">התאמת תמונה</h3>
                                 
                                 <div className="space-y-4">
@@ -570,7 +568,7 @@ const ContextualToolbar = ({
                                         איפוס הגדרות
                                     </button>
                                 </div>
-                            </div>
+                            </ToolbarPopover>
                         )}
                     </div>
                 </>

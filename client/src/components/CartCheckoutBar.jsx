@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-/** פס תשלום תחתון — רספונסיבי, סה״כ + כפתורים בלי חפיפה */
+/** Bottom payment bar — responsive, total + buttons without overlap */
 export default function CartCheckoutBar({
   totalPrice,
   subtotal,

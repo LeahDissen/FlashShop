@@ -9,7 +9,7 @@ const authRoutes = require("./routes/authRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 const orderRoutes = require("./routes/ordersRoutes");
-const photoPriceRoutes = require("./routes/photoPriceRoutes");
+const photoPricingRoutes = require("./routes/photoPricingRoutes");
 const productRoutes = require("./routes/productRoutes");
 const tipsRoutes = require("./routes/tipsRoutes");
 const catalogRoutes = require("./routes/catalogRoutes");
@@ -20,15 +20,17 @@ const editorSettingsRoutes = require("./routes/editorSettingsRoutes");
 const editorAssetsRoutes = require("./routes/editorAssetsRoutes");
 const designUploadsRoutes = require("./routes/designUploadsRoutes");
 const shopSettingsRoutes = require("./routes/shopSettingsRoutes");
+const pagesRoutes = require("./routes/pagesRoutes");
+const popupsRoutes = require("./routes/popupsRoutes");
 
 const PORT = Number(process.env.PORT || config.PORT) || 10000;
 const HOST = process.env.HOST || "0.0.0.0";
 const app = express();
 app.set('trust proxy', 1);
+// Origins allowed by CORS: the production client URLs come from CLIENT_URL (comma-separated)
 const allowedOrigins = Array.from(new Set([
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://lustrous-speculoos-e2f3a6.netlify.app",
   ...(process.env.CLIENT_URL || "")
     .split(",")
     .map((origin) => origin.trim())
@@ -53,7 +55,7 @@ app.use("/auth", authRoutes);
 app.use("/club", clubRoutes);
 app.use("/contact", contactRoutes);
 app.use("/orders", orderRoutes);
-app.use("/photo-prices", photoPriceRoutes);
+app.use("/photo-prices", photoPricingRoutes);
 app.use("/products", productRoutes);
 app.use("/tips", tipsRoutes);
 app.use("/catalog", catalogRoutes);
@@ -64,6 +66,8 @@ app.use("/editor-settings", editorSettingsRoutes);
 app.use("/editor-assets", editorAssetsRoutes);
 app.use("/design-uploads", designUploadsRoutes);
 app.use("/shop-settings", shopSettingsRoutes);
+app.use("/pages", pagesRoutes);
+app.use("/popups", popupsRoutes);
 
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);

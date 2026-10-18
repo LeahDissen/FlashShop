@@ -20,6 +20,7 @@ import {
     getActiveGlobalFrame,
     getDropzoneImageForSlot,
     insertBelowGlobalFrame,
+    moveElementToEdge,
     isDropzoneImage,
     isGlobalFrame,
     removeDropzoneImages,
@@ -29,6 +30,7 @@ import {
 } from '../utils/editorLayering';
 import { fitImageToDropzone, isMultiDropzoneFrame, resolveDropzones } from '../utils/dropzoneUtils';
 import { detectEmptyPhotoSlots } from '../utils/detectEmptyPhotoSlots';
+import { prepareFrameImageSrc, punchDropzoneHoles } from '../utils/frameImageProcessing';
 import {
     getCanvasOrientation,
     getFrameOrientation,
@@ -45,6 +47,8 @@ import EditorSidebar from '../components/editor/EditorSidebar.jsx';
 import OrientationMismatchNotice from '../components/editor/OrientationMismatchNotice';
 import ProductPreviewModal from '../components/editor/ProductPreviewModal';
 import { useEditorSettings } from '../hooks/useEditorSettings';
+import { useEditorAssets } from '../hooks/useEditorAssets';
+import { buildEditorPalette } from '../utils/editorPalette';
 import { uploadFinalDesign } from '../api/designUploads';
 import { ClockIcon, TrashIcon, XIcon } from '../components/icons';
 import { db } from '../services/databaseService';
@@ -54,6 +58,9 @@ import useAuthStore from '../store/authStore';
 import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
 import { withMagnetPrintDimensions } from '../utils/magnetSize';
+import { EMPTY_EDITOR_ASSETS } from '../utils/mapEditorAssets';
+
+/** The page needs only the colors from the library; the other categories load in the sidebar */
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
@@ -90,25 +97,30 @@ const safeStorageSetItem = (key, value) => {
 const resolveDraftProductKey = (product, fallbackProductId) =>
     product?._id || product?.id || fallbackProductId || 'no-product';
 
-const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
+const EditorPage = ({ onNavigateToHome }) => {
     const { productId } = useParams();
     const location = useLocation();
 
-    // שליפת המוצר הנבחר מה-Store של המוצרים
+    // Get the selected product from the products store
     const { selectedProduct, setSelectedProduct, orderQuantity } = useProductStore();
     const onSelectProduct = setSelectedProduct;
     
-    // שליפת פונקציית ההוספה לסל מה-Store של העגלה
+    // Get the add-to-cart function from the cart store
     const addToCart = useCartStore((state) => state.addToCart);
     const userId = useAuthStore((state) => state.userId);
 
     const { settings: editorSettings } = useEditorSettings();
+    const { assets: editorAssets } = useEditorAssets(EMPTY_EDITOR_ASSETS);
+    const colorPalette = useMemo(
+        () => buildEditorPalette(editorSettings.textToolbar?.colorPresets, editorAssets.colors),
+        [editorSettings.textToolbar?.colorPresets, editorAssets.colors],
+    );
 
     const [activeFrameAspectRatio, setActiveFrameAspectRatio] = useState(null);
     const [orientationFlipped, setOrientationFlipped] = useState(false);
-    /** בחירת המסגרת של הלקוח (מידה, כיוון, מסגרת) – נשמרת עם ההזמנה */
+    /** The customer's frame choice (size, orientation, frame) – saved with the order */
     const [frameSelection, setFrameSelection] = useState(null);
-    /** התראה על אי-התאמת כיוון בין התמונה למסגרת */
+    /** Alert about an orientation mismatch between the photo and the frame */
     const [orientationNotice, setOrientationNotice] = useState(null);
 
     const canvasDimensions = useMemo(
@@ -124,7 +136,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const lastCanvasPxRef = useRef({ width: 0, height: 0 });
     const storageWarningShownRef = useRef(false);
 
-    // --- ניהול סטייט מקומי וטיוטות ---
+    // --- Local state and draft management ---
     const [elements, setElements] = useState(() =>
         normalizeEditorElements(null, getCanvasDimensions(null)),
     );
@@ -173,7 +185,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         const frame = elements.find(isGlobalFrame);
         if (!frame) return undefined;
 
-        // כבר מעובד עם חורים / data URL – לא לדרוס
+        // Already processed with holes / data URL – don't overwrite
         if (frame.holesPunched === 'v2') return undefined;
         if (frame.src?.startsWith('data:') && !isMultiDropzoneFrame(frame)) return undefined;
 
@@ -187,7 +199,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                     ? await punchDropzoneHoles(processed, frame.dropzones)
                     : processed;
                 if (cancelled || !nextSrc || nextSrc === frame.src) {
-                    // גם אם ה-src זהה, לסמן שעודכן לחורים v2
+                    // Even if the src is the same, mark it as updated for v2 holes
                     if (!cancelled && isMultiDropzoneFrame(frame) && frame.holesPunched !== 'v2') {
                         setElements((prev) => enforceLayerOrder(
                             prev.map((el) => (
@@ -269,7 +281,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [elements, canvasBackground, projectName, frameSelection, draftStorage]);
 
-    // התאמת משטח העבודה למידות ההדפסה של המוצר שנבחר
+    // Fit the workspace to the print dimensions of the selected product
     useEffect(() => {
         const storageKey = getCanvasStorageKey(
             selectedProduct,
@@ -342,7 +354,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         draftStorage,
     ]);
 
-    // טעינת המוצר שנבחר מעמוד המוצרים (state של הניווט או שליפה לפי מזהה ב-URL)
+    // Load the product selected on the products page (navigation state, or fetch by the id in the URL)
     useEffect(() => {
         const productFromNav = location.state?.product;
         if (productFromNav) {
@@ -403,7 +415,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         addToHistory(layered);
     }, [addToHistory]);
 
-    // פונקציית שמירת פרויקט לבסיס הנתונים
+    // Save the project to the database
     const saveProjectToDB = async (previewOverride) => {
         const node = document.getElementById('canvas-container');
         let previewDataUrl = undefined;
@@ -446,7 +458,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         return saved;
     };
 
-    /** צילום משטח העיצוב – בלי מוקאפ AI (מציג בדיוק מה שעיצבת) */
+    /** Snapshot of the design canvas – without an AI mockup (shows exactly what you designed) */
     const captureCanvasImage = useCallback(async (pixelRatioOverride) => {
         const node = document.getElementById('canvas-container');
         if (!node) return null;
@@ -478,7 +490,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [canvasBackground, zoom, canvasDimensions]);
 
-    /** 1.3 – רשימת הכתוביות שנשמרת עם ההזמנה לצורך ההפקה */
+    /** 1.3 – the list of captions saved with the order for production */
     const collectCaptions = useCallback(() => (
         elements
             .filter((el) => el.type === 'text' && el.content?.trim())
@@ -492,8 +504,8 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     ), [elements]);
 
     /**
-     * 1.4 – שמירת התמונה הסופית בענן. הקובץ מועבר לתיקיית ההזמנה בשרת
-     * ברגע שההזמנה נוצרת. אם Drive לא מוגדר, ההזמנה נמשכת רגיל.
+     * 1.4 – Save the final image to the cloud. The file is moved to the order's folder on the server
+     * as soon as the order is created. If Drive is not configured, the order continues as usual.
      */
     const uploadFinalDesignToDrive = useCallback(async (printImage) => {
         if (!printImage) return null;
@@ -506,13 +518,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [projectName]);
 
-    // --- 1. כפתור "אישור והזמנה" הראשי מתוך מסך התצוגה המקדימה ---
+    // --- 1. Main "approve and order" button from the preview screen ---
     const handleConfirmAndOrder = useCallback(async () => {
         setIsSaving(true);
         try {
-            // תמונת הדפסה ברזולוציה מלאה – נשמרת בענן בתיקיית ההזמנה
+            // Full-resolution print image – saved to the cloud in the order's folder
             const printImage = previewImage || (await captureCanvasImage());
-            // תמונה קטנה לתצוגה בעגלה / שמירה מקומית (לא תמונת הדפסה ענקית)
+            // Small image for display in the cart / local saving (not a huge print image)
             const cartThumb = await captureCanvasImage(2);
             if (printImage) {
                 setPreviewImage(printImage);
@@ -520,22 +532,22 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
             const designFile = await uploadFinalDesignToDrive(printImage);
 
-            // א. שמירת הפרויקט לקבלת מזהה ייחודי
+            // a. Save the project to get a unique id
             const savedProject = await saveProjectToDB(cartThumb || undefined);
             
-            // ב. הגדרת משתני ברירת מחדל למקרה קיצוני שהאובייקט ריק
+            // b. Set default variables for the edge case where the object is empty
             let productName = 'מוצר בעיצוב אישי';
             let productPrice = 24.99; 
             let productOriginalId = 'custom_product';
 
-            // ג. שליפה ישירה ומדויקת מתוך האובייקט שהגיע מהקליק של המשתמש (ללא ניחושים)
+            // c. Read directly and precisely from the object that came from the user's click (no guessing)
             if (selectedProduct) {
                 if (typeof selectedProduct === 'object') {
-                    // שליפת השם המקורי של המוצר (למשל Travel Mug)
+                    // Get the product's original name (e.g. Travel Mug)
                     productName = selectedProduct.name ? `${selectedProduct.name} בעיצוב אישי` : productName;
                     productOriginalId = selectedProduct._id || selectedProduct.id || productOriginalId;
                     
-                    // חילוץ חכם של המחיר: מנקה הכל חוץ ממספרים ונקודה (למשל מנקה סימני ₪ או רווחים)
+                    // Smart price extraction: strips everything except digits and a dot (e.g. removes ₪ signs or spaces)
                     if (selectedProduct.price !== undefined && selectedProduct.price !== null) {
                         const tieredPrice = getUnitPriceForQuantity(selectedProduct, orderQuantity || 1);
                         if (tieredPrice > 0) {
@@ -553,7 +565,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             }
 
-            // ד. בניית אובייקט עגלה תקין לחלוטין עם המחיר והשם המקוריים
+            // d. Build a fully valid cart object with the original price and name
             const cartItem = withTieredPricingFields({
                 id: `cart_${Date.now()}`,
                 productId: productOriginalId,
@@ -578,15 +590,13 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             }, typeof selectedProduct === 'object' ? selectedProduct : null);
 
-            // ה. הזרקה לסל הקניות (תמונה ממוזערת/URL קל לתצוגה בעגלה)
-            await addToCart([cartItem]);
-
-            alert('המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!');
+            // e. Inject into the shopping cart (thumbnail/light URL for display in the cart)
+            await addToCart([cartItem], { successMessage: 'המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!' });
             setShowPreviewModal(false);
             clearDraft();
 
-            if (onNavigateToCart) {
-                onNavigateToCart();
+            if (onNavigateToHome) {
+                onNavigateToHome();
             }
         } catch (error) {
             console.error("Failed to order project", error);
@@ -594,7 +604,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         } finally {
             setIsSaving(false);
         }
-    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToCart, captureCanvasImage, canvasDimensions, orderQuantity, frameSelection, collectCaptions, uploadFinalDesignToDrive]);
+    }, [selectedProduct, previewImage, canvasBackground, projectName, elements, uploadedImages, uploadedBackgrounds, currentProjectId, addToCart, onNavigateToHome, captureCanvasImage, canvasDimensions, orderQuantity, frameSelection, collectCaptions, uploadFinalDesignToDrive]);
 
     const handleSaveToDatabase = useCallback(async () => {
         setIsSaving(true);
@@ -609,7 +619,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         }
     }, [currentProjectId, projectName, elements, canvasBackground, uploadedImages, uploadedBackgrounds, selectedProduct, previewImage]);
 
-    // --- 2. כפתור הוספה ישירה לסל מתוך מסך "הפרויקטים שלי" ---
+    // --- 2. Add-to-cart button directly from the "my projects" screen ---
     const handleAddExistingProjectToCart = useCallback(async (e, proj) => {
         e.stopPropagation(); 
         
@@ -651,19 +661,17 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 }
             }, typeof proj.selectedProduct === 'object' ? proj.selectedProduct : null);
 
-            await addToCart([cartItem]);
-            
-            alert(`הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!`);
+            await addToCart([cartItem], { successMessage: `הפרויקט "${proj.name}" נוסף בהצלחה לסל הקניות!` });
             setShowLoadModal(false);
             
-            if (onNavigateToCart) {
-                onNavigateToCart();
+            if (onNavigateToHome) {
+                onNavigateToHome();
             }
         } catch (error) {
             console.error("Error adding project to cart", error);
             alert("שגיאה בהוספת הפרויקט לסל");
         }
-    }, [addToCart, onNavigateToCart]);
+    }, [addToCart, onNavigateToHome]);
 
     const handleOpenLoadModal = useCallback(async () => {
         setShowLoadModal(true);
@@ -780,7 +788,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         let dropzones = Array.isArray(frame.dropzones) ? frame.dropzones : [];
         let layoutType = frame.layoutType === 'multi_dropzone' ? 'multi_dropzone' : 'single_overlay';
 
-        // אם אין חלונות מוגדרים – מנסים לזהות ריבועים ריקים בתמונה (כמו בתבניות קולאז׳)
+        // If no windows are defined – try to detect empty squares in the image (as in collage templates)
         if (dropzones.length === 0) {
             try {
                 const detected = await detectEmptyPhotoSlots(frame.imageUrl || frame.thumbnailUrl);
@@ -804,7 +812,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             ? await punchDropzoneHoles(processedSrc, dropzones)
             : processedSrc;
 
-        // מסגרת קבועה: שכבת Overlay שנפרסת על כל המשטח ואינה ניתנת להזזה על ידי הלקוח
+        // Fixed frame: an overlay layer spanning the whole canvas that the customer cannot move
         const isFixedOverlay = frame.isFixedOverlay !== false;
 
         const frameElement = {
@@ -962,7 +970,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 : el
         ));
 
-        // התאמה מחדש של תמונות חלונות הקולאז׳ לגודל החדש
+        // Refit the collage window photos to the new size
         const frame = updatedElements.find(isGlobalFrame);
         if (frame && isMultiDropzoneFrame(frame)) {
             const resolved = resolveDropzones(
@@ -1017,7 +1025,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions]);
 
-    /** 1.3 – כתובית לתמונה עם ברירות מחדל שהמנהלת מגדירה */
+    /** 1.3 – photo caption with the defaults the admin defines */
     const addCaptionElement = useCallback(() => {
         const newElement = createCaptionTextElement(
             canvasDimensions,
@@ -1028,7 +1036,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setSelectedElementId(newElement.id);
     }, [elements, updateElementsWithHistory, canvasDimensions, editorSettings.captionDefaults]);
 
-    /** 1.2 – סיבוב התמונה ב-90° כדי להתאים אותה לכיוון המסגרת */
+    /** 1.2 – rotate the photo by 90° to match the frame's orientation */
     const handleRotateToMatchOrientation = useCallback(() => {
         if (!orientationNotice?.elementId) return;
 
@@ -1057,7 +1065,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
         setOrientationNotice(null);
     }, []);
 
-    /** 1.2 – זיהוי אוטומטי של אי-התאמת כיוון בין התמונה למסגרת/משטח */
+    /** 1.2 – automatic detection of an orientation mismatch between the photo and the frame/canvas */
     const detectOrientationMismatch = useCallback((elementId, naturalWidth, naturalHeight) => {
         const imageOrientation = getOrientation(naturalWidth, naturalHeight);
         const targetOrientation = getTargetOrientation(
@@ -1196,7 +1204,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
             const target = prev.find((el) => el.id === id);
             if (!target) return prev;
 
-            // הזזת/שינוי גודל מסגרת – חלונות הקולאז׳ זזים יחד איתה
+            // Moving/resizing a frame – the collage windows move with it
             if (
                 isGlobalFrame(target)
                 && (newProps.left !== undefined
@@ -1264,7 +1272,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
     const duplicateElementWithState = useCallback(() => {
         const elementToDuplicate = elements.find(el => el.id === selectedElementId);
         if (!elementToDuplicate || elementToDuplicate.locked || isGlobalFrame(elementToDuplicate)) return;
-        // תמונות קולאז׳ – לא משכפלים (חלון אחד לתמונה)
+        // Collage photos – not duplicated (one window per photo)
         if (isDropzoneImage(elementToDuplicate)) return;
 
         const newElement = {
@@ -1290,49 +1298,12 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
 
     const handleBringToFront = useCallback(() => {
         if (!selectedElementId) return;
-        const el = elements.find((item) => item.id === selectedElementId);
-        if (!el || isGlobalFrame(el)) return;
-
-        const newElements = [...elements];
-        const index = newElements.findIndex((item) => item.id === selectedElementId);
-        if (index === -1) return;
-
-        const [removed] = newElements.splice(index, 1);
-
-        if (el.type === 'text') {
-            newElements.push(removed);
-        } else {
-            const frameIdx = newElements.findIndex(isGlobalFrame);
-            if (frameIdx === -1) {
-                newElements.push(removed);
-            } else {
-                newElements.splice(frameIdx, 0, removed);
-            }
-        }
-
-        updateElementsWithHistory(enforceLayerOrder(newElements));
+        updateElementsWithHistory(moveElementToEdge(elements, selectedElementId, 'front'));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const handleSendToBack = useCallback(() => {
         if (!selectedElementId) return;
-        const el = elements.find((item) => item.id === selectedElementId);
-        if (!el || isGlobalFrame(el)) return;
-
-        const newElements = [...elements];
-        const index = newElements.findIndex((item) => item.id === selectedElementId);
-        if (index === -1) return;
-
-        const [removed] = newElements.splice(index, 1);
-
-        if (el.type === 'text') {
-            const frameIdx = newElements.findIndex(isGlobalFrame);
-            const insertAt = frameIdx === -1 ? 0 : frameIdx + 1;
-            newElements.splice(insertAt, 0, removed);
-        } else {
-            newElements.unshift(removed);
-        }
-
-        updateElementsWithHistory(enforceLayerOrder(newElements));
+        updateElementsWithHistory(moveElementToEdge(elements, selectedElementId, 'back'));
     }, [elements, selectedElementId, updateElementsWithHistory]);
 
     const deleteUploadedImage = useCallback((srcToDelete) => {
@@ -1449,6 +1420,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                                 onBringToFront={handleBringToFront}
                                 onSendToBack={handleSendToBack}
                                 textOptions={editorSettings.textToolbar}
+                                colors={colorPalette}
                             />
                         </div>
                     )}
@@ -1512,6 +1484,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                         addUploadedBackground={addUploadedBackground}
                         deleteUploadedBackground={deleteUploadedBackground}
                         editorSettings={editorSettings}
+                        colors={colorPalette}
                     />
                 </div>
             </div>
@@ -1525,7 +1498,7 @@ const EditorPage = ({ onNavigateToHome, onNavigateToCart }) => {
                 printSizeLabel={printSizeLabel}
             />
 
-            {/* מודאל פרויקטים שמורים */}
+            {/* Saved projects modal */}
             {showLoadModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black bg-opacity-75 p-4 backdrop-blur-sm">
                     <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden">

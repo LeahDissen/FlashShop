@@ -33,6 +33,17 @@ function sanitizeProductBody(body = {}) {
         data.size = data.size.trim();
     }
 
+    if (data.isOnSale !== undefined) {
+        data.isOnSale = data.isOnSale === true || data.isOnSale === "true";
+    }
+
+    if (data.originalPrice !== undefined) {
+        const originalPrice = Number(data.originalPrice);
+        data.originalPrice = data.originalPrice === "" || data.originalPrice === null || !Number.isFinite(originalPrice)
+            ? null
+            : originalPrice;
+    }
+
     if (isMagnetProductDoc(data)) {
         data.priceTiers = [];
         const parsedSize = parseMagnetSize(data.size);

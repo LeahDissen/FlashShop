@@ -4,11 +4,16 @@ const fs = require("fs");
 const path = require("path");
 const { config } = require("../config/secret");
 
+// An unresponsive SMTP server must not hold a request for minutes (nodemailer's default is 2 minutes)
+const SMTP_TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 };
+const HTTP_TIMEOUT_MS = 15_000;
+
 let etherealAccount = null;
 
 const hasEmailCredentials = () => Boolean(config.EMAIL_USER && config.EMAIL_PASS);
+const usesHttpProvider = () => Boolean(config.EMAIL_PROVIDER && config.EMAIL_API_KEY);
 
-exports.hasEmailCredentials = hasEmailCredentials;
+exports.hasEmailCredentials = () => usesHttpProvider() || hasEmailCredentials();
 
 const getEtherealAccount = async () => {
   if (!etherealAccount) {
@@ -18,17 +23,16 @@ const getEtherealAccount = async () => {
   return etherealAccount;
 };
 
-const createTransporter = async () => {
+const createSmtpTransport = async () => {
   if (hasEmailCredentials()) {
+    const port = Number(config.SMTP_PORT) || 465;
     return {
       transporter: nodemailer.createTransport({
         host: config.SMTP_HOST || "smtp.gmail.com",
-        port: 465,         // שונה ל-465 (פורט מאובטח של גוגל)
-        secure: true,      // שונה ל-true כי פורט 465 דורש חיבור SSL מאובטח
-        auth: {
-          user: config.EMAIL_USER,
-          pass: config.EMAIL_PASS,
-        },
+        port,
+        secure: port === 465,
+        auth: { user: config.EMAIL_USER, pass: config.EMAIL_PASS },
+        ...SMTP_TIMEOUTS,
       }),
       from: config.EMAIL_USER,
       isEthereal: false,
@@ -45,55 +49,114 @@ const createTransporter = async () => {
       host: testAccount.smtp.host,
       port: testAccount.smtp.port,
       secure: testAccount.smtp.secure,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
+      auth: { user: testAccount.user, pass: testAccount.pass },
+      ...SMTP_TIMEOUTS,
     }),
     from: `"FlashShop" <${testAccount.user}>`,
     isEthereal: true,
   };
 };
 
+const toBase64 = (content) => Buffer.from(content).toString("base64");
+
+/** Adapters for HTTP-based email providers — each converts a uniform message to the provider's format */
+const HTTP_PROVIDERS = {
+  brevo: ({ from, fromName, to, bcc, subject, html, attachments }) => ({
+    url: "https://api.brevo.com/v3/smtp/email",
+    headers: { "api-key": config.EMAIL_API_KEY },
+    body: {
+      sender: { email: from, name: fromName },
+      to: to.map((email) => ({ email })),
+      ...(bcc.length ? { bcc: bcc.map((email) => ({ email })) } : {}),
+      subject,
+      htmlContent: html,
+      ...(attachments.length
+        ? { attachment: attachments.map((a) => ({ name: a.filename, content: toBase64(a.content) })) }
+        : {}),
+    },
+  }),
+  resend: ({ from, fromName, to, bcc, subject, html, attachments }) => ({
+    url: "https://api.resend.com/emails",
+    headers: { Authorization: `Bearer ${config.EMAIL_API_KEY}` },
+    body: {
+      from: fromName ? `${fromName} <${from}>` : from,
+      to,
+      ...(bcc.length ? { bcc } : {}),
+      subject,
+      html,
+      ...(attachments.length
+        ? { attachments: attachments.map((a) => ({ filename: a.filename, content: toBase64(a.content) })) }
+        : {}),
+    },
+  }),
+};
+
+const sendViaHttpProvider = async (message) => {
+  const buildRequest = HTTP_PROVIDERS[config.EMAIL_PROVIDER];
+  if (!buildRequest) throw new Error(`Unknown EMAIL_PROVIDER: ${config.EMAIL_PROVIDER}`);
+
+  const from = config.EMAIL_FROM || config.EMAIL_USER;
+  const { url, headers, body } = buildRequest({
+    ...message,
+    // Same as SMTP: with BCC the visible recipient is the sender (the providers require at least one recipient)
+    to: message.to.length ? message.to : [from],
+    from,
+    fromName: config.EMAIL_FROM_NAME || "FlashShop",
+  });
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(`Email provider ${config.EMAIL_PROVIDER} responded ${response.status}: ${details.slice(0, 300)}`);
+  }
+  return { info: await response.json().catch(() => ({})), isEthereal: false, previewUrl: null };
+};
+
+const sendViaSmtp = async ({ to, bcc, subject, html, attachments }) => {
+  const { transporter, from, isEthereal } = await createSmtpTransport();
+  // With BCC the visible recipient is the sender, so the addresses are not exposed to each other
+  const info = await transporter.sendMail({
+    from,
+    to: to.length ? to : from,
+    ...(bcc.length ? { bcc } : {}),
+    subject,
+    html,
+    attachments,
+  });
+  return { info, isEthereal, previewUrl: isEthereal ? nodemailer.getTestMessageUrl(info) : null };
+};
+
+const renderTemplate = (template, payload) => {
+  const templatePath = path.resolve(__dirname, template);
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Email template not found: ${templatePath}`);
+  }
+  return handlebars.compile(fs.readFileSync(templatePath, "utf8"))(payload);
+};
+
+/**
+ * Sends an email from a handlebars template. An array of recipients is sent as BCC.
+ * Throws on failure.
+ */
 exports.sendEmail = async (email, subject, payload, template, attachments = []) => {
   try {
-    const { transporter, from, isEthereal } = await createTransporter();
+    const recipients = Array.isArray(email) ? { to: [], bcc: email } : { to: [email], bcc: [] };
+    const message = { ...recipients, subject, html: renderTemplate(template, payload), attachments };
+    console.log("Sending email to:", Array.isArray(email) ? `${email.length} recipients (bcc)` : email);
 
-    const templatePath = path.resolve(__dirname, template);
-    if (!fs.existsSync(templatePath)) {
-      throw new Error(`Email template not found: ${templatePath}`);
-    }
-
-    const source = fs.readFileSync(templatePath, "utf8");
-    const compiledTemplate = handlebars.compile(source);
-
-    const mailOptions = {
-      from,
-      subject,
-      html: compiledTemplate(payload),
-      attachments,
-    };
-
-    if (Array.isArray(email)) {
-      mailOptions.to = from;
-      mailOptions.bcc = email;
+    const result = usesHttpProvider() ? await sendViaHttpProvider(message) : await sendViaSmtp(message);
+    if (result.previewUrl) {
+      console.log("[Email] Preview URL:", result.previewUrl);
     } else {
-      mailOptions.to = email;
-      console.log("Sending email to:", email);
+      console.log("Email sent successfully:", result.info?.messageId || result.info?.id || "");
     }
-
-    const info = await transporter.sendMail(mailOptions);
-    const previewUrl = isEthereal ? nodemailer.getTestMessageUrl(info) : null;
-
-    if (previewUrl) {
-      console.log("[Email] Preview URL:", previewUrl);
-    } else {
-      console.log("Email sent successfully:", info?.messageId);
-    }
-
-    return { success: true, info, previewUrl, isEthereal };
+    return { success: true, ...result };
   } catch (error) {
-    console.error("sendEmail error:", error);
+    console.error("sendEmail error:", error.message);
     throw error;
   }
 };

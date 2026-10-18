@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom';
-import { ALBUM_CATEGORY } from '../utils/photoQuantityPricing';
+import { ALBUM_CATEGORY, formatShekel } from '../utils/photoQuantityPricing';
+import { formatPrintSizeCm } from '../utils/printSizes';
 import PhotoPricingInfo from './PhotoPricingInfo';
+import { startAlbumDetour } from '../utils/photoOrderDraft';
 
 const PhotoOrderSummary = ({
+    pricing,
     totalPrints,
-    unitPrice,
     grandTotal,
-    tierLabel,
+    sizes,
     nextTierHint,
     albumDiscount,
 }) => {
@@ -17,13 +19,19 @@ const PhotoOrderSummary = ({
             <div className="bg-[#fff5f4] border border-[#f2665e]/30 rounded-xl p-4 text-center shadow-sm">
                 <div className="flex items-center justify-center gap-3 mb-1 flex-wrap">
                     <p className="text-sm text-gray-600">סיכום הזמנת פיתוח תמונות</p>
-                    <PhotoPricingInfo totalPrints={totalPrints} />
+                    <PhotoPricingInfo
+                        pricing={pricing}
+                        printsBySize={Object.fromEntries(sizes.map(({ size, count }) => [size, count]))}
+                    />
                 </div>
-                <p className="text-lg font-bold text-gray-800">
-                    {totalPrints} הדפסות ·{' '}
-                    <span className="text-[#f2665e]">{unitPrice.toFixed(2)} ₪</span> לתמונה
-                </p>
-                <p className="text-xs text-gray-500 mt-1">מדרגת מחיר: {tierLabel}</p>
+                <p className="text-lg font-bold text-gray-800">{totalPrints} הדפסות</p>
+                <ul className="text-sm text-gray-600 mt-1 space-y-0.5">
+                    {sizes.map(({ size, count, unitPrice }) => (
+                        <li key={size}>
+                            {formatPrintSizeCm(size)}: {count} × {formatShekel(unitPrice)}
+                        </li>
+                    ))}
+                </ul>
                 <p className="text-2xl font-bold text-[#f2665e] mt-2">
                     סה״כ: {grandTotal.toFixed(2)} ₪
                 </p>
@@ -39,9 +47,11 @@ const PhotoOrderSummary = ({
                     <p className="text-green-800 font-medium text-sm text-center sm:text-right">
                         בחרת {totalPrints} תמונות — מגיעה לך{' '}
                         <strong>{albumDiscount.percent}% הנחה</strong> על אלבומי תמונות!
+                        <span className="block text-xs text-green-700 mt-1">התמונות שבחרת נשמרות, ואחרי בחירת האלבום תחזרי לכאן.</span>
                     </p>
                     <Link
                         to={`/products?category=${encodeURIComponent(ALBUM_CATEGORY)}`}
+                        onClick={startAlbumDetour}
                         className="shrink-0 bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2 px-5 rounded-full transition-colors"
                     >
                         לבחירת אלבום

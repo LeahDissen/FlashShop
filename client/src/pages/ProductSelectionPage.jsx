@@ -15,6 +15,11 @@ import {
     hasTieredPricing,
     formatPrice,
 } from '../utils/productQuantityPricing';
+import SalePrice from '../components/SalePrice';
+import PrintOptionButton from '../components/PrintOptionButton';
+import { getPrintOption } from '../constants/printOptions';
+import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -41,7 +46,8 @@ const ProductSelectionPage = () => {
         referenceImage: null
     });
 
-    const [heroBgImage, setHeroBgImage] = useState("");
+    // Content of the "products" CMS page: the banner image and the option button texts
+    const [productsPageContent, setProductsPageContent] = useState({});
     const fileInputRef = useRef(null);
     const magnetFileRef = useRef(null);
     const designerFileRef = useRef(null);
@@ -65,17 +71,7 @@ const ProductSelectionPage = () => {
     }, [product, productId, setSelectedProduct, navigate]);
 
     useEffect(() => {
-        const fetchPageDesign = async () => {
-            try {
-                const data = await getPage("products");
-                if (data && data.img) {
-                    setHeroBgImage(data.img);
-                }
-            } catch (error) {
-                console.error("Error fetching products page design:", error);
-            }
-        };
-        fetchPageDesign();
+        getPage("products").then(setProductsPageContent);
     }, []);
 
     useEffect(() => {
@@ -157,16 +153,19 @@ const ProductSelectionPage = () => {
         return null;
     }
 
+    const selfDesignOption = getPrintOption(productsPageContent, 'optionSelfDesign');
+    const designerOption = getPrintOption(productsPageContent, 'optionDesigner');
+    const uploadOption = getPrintOption(productsPageContent, 'optionUpload');
+    const captionsOption = getPrintOption(productsPageContent, 'optionCaptions');
+
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
 
+    // After adding to the cart, return to the products page so the customer can keep shopping
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
-            await addToCart(items);
-            if (successMessage) {
-                alert(successMessage);
-            }
-            navigate('/cart');
+            await addToCart(items, { successMessage });
+            navigate(getReturnPathAfterAdd(product, '/products'));
         } catch (error) {
             console.error('Failed to add to cart:', error);
             alert('לא ניתן להוסיף לסל כרגע. נסו שוב.');
@@ -264,18 +263,18 @@ const ProductSelectionPage = () => {
         navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity } });
     };
 
-    // שליחת טופס גרפיקאית עם וולידציות מורחבות
+    // Submit the designer form with extended validation
     const handleDesignerSubmit = async (e) => {
         e.preventDefault();
         
-        // וולידציית טלפון ישראלי בסיסית
+        // Basic Israeli phone validation
         const cleanPhone = designerDetails.phone.replace(/[-\s]/g, '');
         if (cleanPhone.length < 9 || cleanPhone.length > 10 || isNaN(cleanPhone)) {
             alert("אנא הזן מספר טלפון תקין");
             return;
         }
 
-        // וולידציית אימייל
+        // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(designerDetails.email)) {
             alert("אנא הזן כתובת אימייל תקינה");
@@ -299,7 +298,7 @@ const ProductSelectionPage = () => {
         });
     };
 
-    // טיפול בקובץ של מסלול העלאה ישירה
+    // Handle the file of the direct upload flow
     const handleFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -308,7 +307,7 @@ const ProductSelectionPage = () => {
         try {
             const imageUrl = await uploadImageToCloudinary(file);
             setUploadedImage(imageUrl);
-            setShowDesignerForm(false); // סוגר את טופס הגרפיקאית למניעת בלבול
+            setShowDesignerForm(false); // Close the designer form to avoid confusion
             setTimeout(() => {
                 window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }, 100);
@@ -320,13 +319,13 @@ const ProductSelectionPage = () => {
         }
     };
 
-    // ביטול ומחיקת התמונה המוכנה שהועלתה במסלול הישיר
+    // Cancel and delete the ready image uploaded in the direct flow
     const handleRemoveUploadedImage = () => {
         setUploadedImage(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    // טיפול בקובץ המצורף עבור הגרפיקאית
+    // Handle the attached file for the designer
     const handleDesignerFileChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -343,7 +342,7 @@ const ProductSelectionPage = () => {
         }
     };
 
-    // מחיקת התמונה שצורפה לגרפיקאית
+    // Delete the image attached for the designer
     const handleRemoveDesignerImage = () => {
         setDesignerDetails({ ...designerDetails, referenceImage: null });
         if (designerFileRef.current) designerFileRef.current.value = '';
@@ -355,7 +354,7 @@ const ProductSelectionPage = () => {
             <div className="w-full relative">
                 <div
                     className="relative h-[160px] sm:h-[200px] bg-cover bg-center flex items-center justify-center text-white"
-                    style={{ backgroundImage: `url(${heroBgImage})`, backgroundColor: '#a39589' }}
+                    style={{ backgroundImage: `url(${optimizeImageUrl(productsPageContent.img || '', { width: screenWidthImageSize() })})`, backgroundColor: '#a39589' }}
                 >
                     <div className="absolute inset-0 bg-black/15"></div>
                     <h1 className="relative z-10 text-3xl sm:text-4xl font-bold text-center text-white tracking-wide drop-shadow-sm" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
@@ -390,7 +389,7 @@ const ProductSelectionPage = () => {
                     </button>
 
                     <div className="space-y-6 mt-4">
-                        {/* כרטיס מוצר ראשי */}
+                        {/* Main product card */}
                         <div className="bg-white rounded-2xl shadow-sm border border-[#f2665e]/15 p-6 sm:p-8">
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                                 <div className="shrink-0 flex justify-center md:justify-start self-start">
@@ -416,7 +415,7 @@ const ProductSelectionPage = () => {
                                             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                                                 {magnetProduct ? (
                                                     <>
-                                                        <span className="text-xl font-semibold text-gray-900">{product.price} ₪</span>
+                                                        <SalePrice product={product} priceClassName="text-xl font-semibold text-gray-900" />
                                                         {product.size && (
                                                             <span className="text-xs text-[#f2665e]/80">גודל {product.size} ס&quot;מ</span>
                                                         )}
@@ -432,7 +431,7 @@ const ProductSelectionPage = () => {
                                                         </span>
                                                     </>
                                                 ) : (
-                                                    <span className="text-xl font-semibold text-gray-900">{product.price} ₪</span>
+                                                    <SalePrice product={product} priceClassName="text-xl font-semibold text-gray-900" />
                                                 )}
                                             </div>
 
@@ -509,7 +508,7 @@ const ProductSelectionPage = () => {
                                                     className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer"
                                                 >
                                                     <Palette size={16} />
-                                                    עיצוב עצמי
+                                                    {selfDesignOption.label}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -517,7 +516,7 @@ const ProductSelectionPage = () => {
                                                     disabled={isUploading}
                                                     className="px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
                                                 >
-                                                    {isUploading ? 'מעלה...' : magnetImage ? 'החלפת תמונה' : 'העלאת תמונה'}
+                                                    {isUploading ? 'מעלה...' : magnetImage ? 'החלפת תמונה' : uploadOption.label}
                                                 </button>
                                                 <input type="file" ref={magnetFileRef} onChange={handleMagnetFileChange} className="hidden" accept="image/*" />
                                                 <button
@@ -547,15 +546,17 @@ const ProductSelectionPage = () => {
                                     {!simpleProduct && !magnetProduct && (
                                     <>
                                     <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
-                                        <button
+                                        <PrintOptionButton
+                                            hint={selfDesignOption.hint}
                                             onClick={handleDesignClick}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
                                             <Palette size={17} />
-                                            עיצוב עצמי
-                                        </button>
+                                            {selfDesignOption.label}
+                                        </PrintOptionButton>
 
-                                        <button
+                                        <PrintOptionButton
+                                            hint={designerOption.hint}
                                             onClick={() => { setShowDesignerForm(!showDesignerForm); setUploadedImage(null); }}
                                             className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer ${
                                                 showDesignerForm
@@ -564,26 +565,27 @@ const ProductSelectionPage = () => {
                                             }`}
                                         >
                                             <Sparkles size={17} />
-                                            עיצוב מותאם
-                                        </button>
+                                            {designerOption.label}
+                                        </PrintOptionButton>
 
-                                        <button
+                                        <PrintOptionButton
+                                            hint={uploadOption.hint}
                                             onClick={() => fileInputRef.current.click()}
                                             disabled={isUploading}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e] text-[#f2665e] bg-[#fff5f4] hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
                                         >
                                             {isUploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
-                                            {isUploading ? 'מעלה...' : 'העלאת תמונה'}
-                                        </button>
+                                            {isUploading ? 'מעלה...' : uploadOption.label}
+                                        </PrintOptionButton>
 
-                                        <button
-                                            type="button"
+                                        <PrintOptionButton
+                                            hint={captionsOption.hint}
                                             onClick={() => navigate(`/product-selection/${productId}/caption-ideas`)}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
                                             <Type size={17} />
-                                            רעיונות לכיתוב
-                                        </button>
+                                            {captionsOption.label}
+                                        </PrintOptionButton>
                                     </div>
 
                                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
@@ -593,14 +595,14 @@ const ProductSelectionPage = () => {
                             </div>
                         </div>
 
-                        {/* תצוגה מקדימה - מסלול העלאה ישירה (כולל כפתור מחיקה חדש להתחרטות) */}
+                        {/* Preview - direct upload flow (including a new delete button to undo) */}
                         {uploadedImage && !simpleProduct && !magnetProduct && (
                             <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">הקובץ שהעלית להדפסה ישירה:</h3>
                                 <div className="flex flex-col items-center gap-4">
                                     <div className="relative group">
                                         <img src={uploadedImage} alt="Uploaded preview" className="max-w-xs w-full h-48 object-contain rounded-lg bg-gray-50 border p-2" />
-                                        {/* כפתור מחיקה קטן וצף על התמונה להתחרטות מהירה */}
+                                        {/* Small floating delete button on the image for a quick undo */}
                                         <button
                                             type="button"
                                             onClick={handleRemoveUploadedImage}
@@ -615,13 +617,13 @@ const ProductSelectionPage = () => {
                                         onClick={handleUploadAddToCart}
                                         className="w-full max-w-xs bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-6 rounded-full shadow-sm transition-all text-sm cursor-pointer"
                                     >
-                                        הוסף לסל והמשך לקופה
+                                        הוסף לסל
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        {/* טופס בקשת עיצוב מהגרפיקאית */}
+                        {/* Design request form for the designer */}
                         {showDesignerForm && !simpleProduct && !magnetProduct && (
                             <div ref={designerFormRef} className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 scroll-mt-24">
                                 <div>
@@ -631,7 +633,7 @@ const ProductSelectionPage = () => {
                                 
                                 <form onSubmit={handleDesignerSubmit} className="space-y-5">
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        {/* שם מלא */}
+                                        {/* Full name */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-1.5">שם מלא:</label>
                                             <div className="relative">
@@ -639,7 +641,7 @@ const ProductSelectionPage = () => {
                                                 <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                             </div>
                                         </div>
-                                        {/* מייל */}
+                                        {/* Email */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-1.5">כתובת מייל:</label>
                                             <div className="relative">
@@ -647,7 +649,7 @@ const ProductSelectionPage = () => {
                                                 <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
                                             </div>
                                         </div>
-                                        {/* טלפון */}
+                                        {/* Phone */}
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-1.5">טלפון ליצירת קשר:</label>
                                             <div className="relative">
@@ -657,7 +659,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* תיאור הבקשה */}
+                                    {/* Request description */}
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-1.5">תיאור העיצוב המבוקש:</label>
                                         <div className="relative">
@@ -666,7 +668,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* הוספת קובץ/תמונה עבור הגרפיקאית */}
+                                    {/* Attach a file/image for the designer */}
                                     <div className="bg-gray-50 rounded-xl p-4 border border-dashed border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                                         <div className="flex items-center gap-3 text-right">
                                             <div className="p-2.5 bg-white rounded-lg border shadow-sm text-gray-500">
@@ -692,7 +694,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* תצוגה מקדימה קטנה עם אייקון מחיקה */}
+                                    {/* Small preview with a delete icon */}
                                     {designerDetails.referenceImage && (
                                         <div className="flex items-center justify-between bg-green-50 text-green-800 p-3 rounded-xl border border-green-100 text-xs max-w-md">
                                             <div className="flex items-center gap-3">
@@ -710,7 +712,7 @@ const ProductSelectionPage = () => {
                                         </div>
                                     )}
 
-                                    {/* כפתור אישור סופי של הטופס */}
+                                    {/* Final form submit button */}
                                     <div className="text-left pt-2">
                                         <button type="submit" className="bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-8 rounded-full shadow-sm transition-all text-sm cursor-pointer">
                                             אישור ותוספת לסל (+15 ₪)

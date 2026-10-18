@@ -6,13 +6,16 @@ import PersonalizationSection from '../components/PersonalizationSection';
 import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
+import { PRINT_OPTIONS } from '../constants/printOptions';
+import ProductSearch from '../components/ProductSearch';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const ProductsPage = ({ onNavigate }) => {
     const [searchParams] = useSearchParams();
     const categoryFromUrl = searchParams.get('category');
     const { selectedProduct, setSelectedProduct } = useProductStore();
     const adminControls = useAdminControl({
-        title: "המוצרים שלנו", // ברירת מחדל מהפיגמה
+        title: "המוצרים שלנו", // Default from Figma
         img: "", 
         sectionTitle: "",
         sectionDescription: "",
@@ -28,7 +31,7 @@ const ProductsPage = ({ onNavigate }) => {
         });
     }, []);
 
-    // אזור עריכת מנהל (Admin)
+    // Admin edit area
     const EditContent = (
         <div className="bg-white p-6 rounded-lg space-y-4 text-right" dir="rtl">
             <h3 className="font-bold text-lg border-b pb-2">עריכת כותרת עליונה (Hero)</h3>
@@ -54,28 +57,49 @@ const ProductsPage = ({ onNavigate }) => {
                 <label className="block text-sm font-bold text-gray-700">תיאור:</label>
                 <textarea value={draft.sectionDescription} onChange={(e) => updateDraft({ sectionDescription: e.target.value })} className="w-full border p-2 rounded h-24" />
             </div>
+
+            <h3 className="font-bold text-lg border-b pb-2 mt-6">כפתורי האפשרויות בעמוד מוצר</h3>
+            <p className="text-xs text-gray-500">ההסבר מופיע ללקוח כשמרחפים עם העכבר מעל הכפתור, ובטלפון בלחיצה על אייקון ה-i.</p>
+            {PRINT_OPTIONS.map(({ key, defaultLabel, adminLabel }) => (
+                <div key={key} className="border rounded-lg p-3 space-y-2 bg-gray-50">
+                    <p className="text-sm font-bold text-gray-700">{adminLabel}</p>
+                    <input
+                        type="text"
+                        value={draft[`${key}Label`] || ''}
+                        onChange={(e) => updateDraft({ [`${key}Label`]: e.target.value })}
+                        placeholder={`טקסט הכפתור (ברירת מחדל: ${defaultLabel})`}
+                        className="w-full border p-2 rounded"
+                    />
+                    <textarea
+                        value={draft[`${key}Hint`] || ''}
+                        onChange={(e) => updateDraft({ [`${key}Hint`]: e.target.value })}
+                        placeholder="הסבר קצר (לא חובה)"
+                        className="w-full border p-2 rounded h-16"
+                    />
+                </div>
+            ))}
         </div>
     );
 
-    // תצוגת הגולש (View)
+    // Visitor view
     const ViewContent = (
         <div className="min-h-screen bg-[#faf8f6] text-right" dir="rtl">
             
-            {/* Hero Banner בגובה ובעיצוב המדויק מהפיגמה */}
+            {/* Hero banner with the exact height and design from Figma */}
             <div className="w-full relative">
                 <div 
                     className="relative h-[280px] sm:h-[320px] flex items-center justify-center text-white"
                     style={{ 
-                        backgroundColor: '#f8dcdb', // בדיוק כמו הוורוד בעמוד העגלה
-                        backgroundImage: draft.img ? `url(${draft.img})` : 'none',
+                        backgroundColor: '#f8dcdb', // Exactly like the pink on the cart page
+                        backgroundImage: draft.img ? `url(${optimizeImageUrl(draft.img, { width: screenWidthImageSize() })})` : 'none',
                         backgroundSize: 'cover',
                         backgroundPosition: 'center'
                     }}
                 >
-                    {/* שכבת כהות עדינה מאוד רק אם קיימת תמונת רקע כדי שהטקסט הלבן ייקרא טוב */}
+                    {/* Very subtle dark overlay, only when there is a background image, so the white text stays readable */}
                     {draft.img && <div className="absolute inset-0 bg-black/10"></div>}
                     
-                    {/* כותרת בעיצוב המדויק: גודל 50px, פונט Noto Sans Hebrew, משקל Bold */}
+                    {/* Title in the exact design: 50px, Noto Sans Hebrew font, bold weight */}
                     <h1 
                         className="relative z-10 text-[50px] font-bold text-center text-white tracking-wide drop-shadow-sm"
                         style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}
@@ -83,7 +107,7 @@ const ProductsPage = ({ onNavigate }) => {
                         {draft.title || "המוצרים שלנו"}
                     </h1>
 
-                    {/* הגל הלבן שמתמזג עם הרקע החדש */}
+                    {/* White wave that blends into the new background */}
                     <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-[0] rotate-180">
                         <svg
                             className="relative block w-[calc(100%+1.3px)] h-[60px] md:h-[90px]"
@@ -94,15 +118,16 @@ const ProductsPage = ({ onNavigate }) => {
                         >
                             <path
                                 d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-                                fill="#faf8f6" // מתמזג לחלוטין עם רקע העמוד החדש
+                                fill="#faf8f6" // Blends completely into the new page background
                             ></path>
                         </svg>
                     </div>
                 </div>
             </div>
 
-            {/* אזור גריד המוצרים והקטגוריות */}
+            {/* Products and categories grid area */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
+                <ProductSearch className="mb-2" />
                 <PersonalizationSection
                     onNavigateToEditor={() => onNavigate('/editor')}
                     onSelectProduct={setSelectedProduct}

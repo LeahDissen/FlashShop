@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom';
 import { getEditorSettings, updateEditorSettings } from '../api/editorSettings';
 import { DEFAULT_EDITOR_SETTINGS, mergeEditorSettings } from '../constants/editorSettingsDefaults';
 import { invalidateEditorSettingsCache } from '../hooks/useEditorSettings';
+import { uploadFontToCloudinary } from '../utils/cloudinaryUpload';
+import { fontFamilyFromFileName, registerCustomFonts } from '../utils/customFonts';
 
 const Card = ({ title, description, children }) => (
     <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -33,6 +35,8 @@ export default function EditorSettingsManagement() {
     const [message, setMessage] = useState({ type: '', text: '' });
     const [newColor, setNewColor] = useState('#f2665e');
     const [newFont, setNewFont] = useState('');
+    const [fontUploading, setFontUploading] = useState(false);
+    const [fontError, setFontError] = useState('');
 
     const loadSettings = useCallback(async () => {
         setLoading(true);
@@ -50,6 +54,11 @@ export default function EditorSettingsManagement() {
     useEffect(() => {
         loadSettings();
     }, [loadSettings]);
+
+    // Preview of uploaded fonts, even before saving
+    useEffect(() => {
+        registerCustomFonts(form.textToolbar.fonts);
+    }, [form.textToolbar.fonts]);
 
     const patch = (updates) => setForm((prev) => ({ ...prev, ...updates }));
 
@@ -100,6 +109,29 @@ export default function EditorSettingsManagement() {
             fonts: [...form.textToolbar.fonts, { label: value, value }],
         });
         setNewFont('');
+    };
+
+    /** Uploads a font file and adds it to the list; the font name is derived from the file name */
+    const handleFontFile = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        const value = fontFamilyFromFileName(file.name);
+        if (!value) {
+            setFontError('לא הצלחנו לזהות את שם הגופן מתוך שם הקובץ');
+            return;
+        }
+        setFontUploading(true);
+        setFontError('');
+        try {
+            const url = await uploadFontToCloudinary(file);
+            const fonts = form.textToolbar.fonts.filter((font) => font.value !== value);
+            patchSection('textToolbar', { fonts: [...fonts, { label: value, value, url }] });
+        } catch (error) {
+            setFontError(error.message || 'העלאת הגופן נכשלה');
+        } finally {
+            setFontUploading(false);
+        }
     };
 
     const removeFont = (value) => patchSection('textToolbar', {
@@ -317,6 +349,7 @@ export default function EditorSettingsManagement() {
                                         style={{ fontFamily: font.value }}
                                     >
                                         {font.label}
+                                        {font.url && <span className="text-[10px] text-gray-500 bg-white rounded px-1" style={{ fontFamily: 'inherit' }}>קובץ</span>}
                                         <button
                                             type="button"
                                             onClick={() => removeFont(font.value)}
@@ -344,6 +377,20 @@ export default function EditorSettingsManagement() {
                                     הוסף
                                 </button>
                             </div>
+                            <div className="mt-3 flex items-center gap-3 flex-wrap">
+                                <label className={`cursor-pointer px-4 py-2 text-sm font-bold rounded-lg border border-gray-300 bg-white hover:bg-gray-50 ${fontUploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                                    {fontUploading ? 'מעלה גופן...' : 'העלאת קובץ גופן (OTF / TTF / WOFF)'}
+                                    <input
+                                        type="file"
+                                        accept=".otf,.ttf,.woff,.woff2,font/otf,font/ttf,font/woff,font/woff2"
+                                        className="hidden"
+                                        onChange={handleFontFile}
+                                        disabled={fontUploading}
+                                    />
+                                </label>
+                                <span className="text-xs text-gray-500">הגופן זמין אחרי השמירה גם בעורך המוצרים וגם בעורך התמונות.</span>
+                            </div>
+                            {fontError && <p className="text-xs text-red-600 mt-1">{fontError}</p>}
                         </div>
 
                         <div>

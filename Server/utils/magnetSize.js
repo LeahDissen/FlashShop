@@ -1,4 +1,4 @@
-/** גדלי מגנט שהיו קשיחים בממשק — משמשים לפירוק מוצר ישן למוצרים נפרדים */
+/** Magnet sizes that used to be hard-coded in the UI — used to split an old product into separate products */
 const MAGNET_CATEGORY = "מגנטים";
 
 const DEFAULT_MAGNET_SIZES = [

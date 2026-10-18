@@ -14,6 +14,7 @@ const Gallery = ({
     onAdjustPrint,
     onToggleOrientation,
     availableSizes,
+    pricing,
     orderPricing,
     nextTierHint,
     albumDiscount,
@@ -26,15 +27,15 @@ const Gallery = ({
                         <p className="text-xl text-gray-400 font-medium text-center px-4">
                             לא נבחרו תמונות. אנא העלה תמונות באמצעות הכפתור למעלה.
                         </p>
-                        <PhotoPricingInfo totalPrints={0} />
+                        <PhotoPricingInfo pricing={pricing} />
                     </div>
                 ) : (
                     <>
                         <PhotoOrderSummary
+                            pricing={pricing}
                             totalPrints={orderPricing?.totalPrints ?? 0}
-                            unitPrice={orderPricing?.unitPrice ?? 0}
                             grandTotal={orderPricing?.grandTotal ?? 0}
-                            tierLabel={orderPricing?.tier?.label ?? ''}
+                            sizes={orderPricing?.sizes ?? []}
                             nextTierHint={nextTierHint}
                             albumDiscount={albumDiscount}
                         />

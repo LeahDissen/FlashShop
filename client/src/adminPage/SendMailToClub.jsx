@@ -1,8 +1,17 @@
-import { useEffect, useState } from 'react';
-import { FaCheckCircle, FaImage, FaPaperPlane, FaUsers } from "react-icons/fa";
+import { useEffect, useMemo, useState } from 'react';
+import { FaCheckCircle, FaImage, FaPaperPlane, FaTrash, FaUserPlus, FaUsers } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
-import { getClubMembers, sendBroadcastEmail } from "../api/club";
+import { addClubMember, deleteClubMember, getClubMembers, sendBroadcastEmail } from "../api/club";
+
+const RECIPIENT_LABELS = {
+    all: "לכל חברי המועדון",
+    new_members: "למצטרפים החודש",
+    birthday: "לחוגגי יום הולדת החודש",
+    selected: "לחברים שנבחרו",
+};
+
+const EMPTY_MEMBER = { name: "", email: "", birthDate: "" };
 
 export default function SendMailToClub() {
     const [formData, setFormData] = useState({
@@ -11,24 +20,32 @@ export default function SendMailToClub() {
         message: "",
         image: null
     });
+    const [selectedIds, setSelectedIds] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [showSuccess, setShowSuccess] = useState(false);
+    /** The last send result: how many were sent, which failed, which addresses were skipped */
+    const [sendResult, setSendResult] = useState(null);
     const [members, setMembers] = useState([]);
     const [membersLoading, setMembersLoading] = useState(true);
+    const [newMember, setNewMember] = useState(EMPTY_MEMBER);
+    const [addingMember, setAddingMember] = useState(false);
+    const [memberMessage, setMemberMessage] = useState({ type: "", text: "" });
+
+    const loadMembers = async () => {
+        try {
+            const data = await getClubMembers();
+            setMembers(data);
+        } catch (error) {
+            console.error("Failed to load club members:", error);
+        } finally {
+            setMembersLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const loadMembers = async () => {
-            try {
-                const data = await getClubMembers();
-                setMembers(data);
-            } catch (error) {
-                console.error("Failed to load club members:", error);
-            } finally {
-                setMembersLoading(false);
-            }
-        };
         loadMembers();
     }, []);
+
+    const activeMembers = useMemo(() => members.filter((m) => !m.unsubscribed), [members]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -39,16 +56,23 @@ export default function SendMailToClub() {
         setFormData(prev => ({ ...prev, image: e.target.files[0] }));
     };
 
-    const recipientLabels = {
-        all: "לכל חברי המועדון",
-        new_members: "למצטרפים החודש",
-        birthday: "לחוגגי יום הולדת החודש",
+    const toggleSelected = (id) => {
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    };
+
+    const toggleSelectAll = () => {
+        setSelectedIds((prev) => (prev.length === activeMembers.length ? [] : activeMembers.map((m) => m._id)));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (loading) return; // A send is already in progress — don't send twice
         if (!formData.subject || !formData.message) {
             alert("נא למלא כותרת ותוכן הודעה");
+            return;
+        }
+        if (formData.recipientType === "selected" && selectedIds.length === 0) {
+            alert("יש לסמן לפחות חבר/ה אחד/ת ברשימה");
             return;
         }
 
@@ -57,20 +81,51 @@ export default function SendMailToClub() {
         data.append("subject", formData.subject);
         data.append("recipientType", formData.recipientType);
         data.append("message", formData.message);
+        if (formData.recipientType === "selected") {
+            data.append("memberIds", JSON.stringify(selectedIds));
+        }
         if (formData.image) {
             data.append("image", formData.image);
         }
 
         try {
-            await sendBroadcastEmail(data);
-            setShowSuccess(true);
+            const result = await sendBroadcastEmail(data);
+            setSendResult(result);
             setFormData({ subject: "", recipientType: "all", message: "", image: null });
+            setSelectedIds([]);
         } catch (error) {
             console.error(error);
             const serverMsg = error.response?.data?.msg;
             alert(serverMsg || "אירעה שגיאה בשליחת המייל.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleAddMember = async (e) => {
+        e.preventDefault();
+        setAddingMember(true);
+        setMemberMessage({ type: "", text: "" });
+        try {
+            await addClubMember(newMember);
+            setNewMember(EMPTY_MEMBER);
+            setMemberMessage({ type: "success", text: "נוסף/ה למועדון" });
+            await loadMembers();
+        } catch (error) {
+            setMemberMessage({ type: "error", text: error.response?.data?.msg || "שגיאה בהוספה" });
+        } finally {
+            setAddingMember(false);
+        }
+    };
+
+    const handleDeleteMember = async (member) => {
+        if (!confirm(`להסיר את ${member.name} (${member.email}) מהמועדון?`)) return;
+        try {
+            await deleteClubMember(member._id);
+            setMembers((prev) => prev.filter((m) => m._id !== member._id));
+            setSelectedIds((prev) => prev.filter((id) => id !== member._id));
+        } catch (error) {
+            alert(error.response?.data?.msg || "שגיאה בהסרה");
         }
     };
 
@@ -96,33 +151,92 @@ export default function SendMailToClub() {
                     </div>
                     <div>
                         <h2 className="text-xl font-bold text-gray-800">חברי המועדון ({members.length})</h2>
-                        <p className="text-gray-500 text-sm">רשימת כל המיילים הרשומים למועדון הלקוחות</p>
+                        <p className="text-gray-500 text-sm">
+                            סימון חברים ברשימה מאפשר לשלוח מייל רק אליהם. מי שהסיר/ה את עצמו/ה מהתפוצה מסומן/ת ולא מקבל/ת דיוור.
+                        </p>
                     </div>
                 </div>
+
+                <form onSubmit={handleAddMember} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end mb-6 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                    <label className="block">
+                        <span className="block text-xs font-bold text-gray-600 mb-1">שם</span>
+                        <input type="text" value={newMember.name} onChange={(e) => setNewMember((p) => ({ ...p, name: e.target.value }))} required className="w-full p-2.5 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-[#f2665e]" />
+                    </label>
+                    <label className="block">
+                        <span className="block text-xs font-bold text-gray-600 mb-1">מייל</span>
+                        <input type="email" dir="ltr" value={newMember.email} onChange={(e) => setNewMember((p) => ({ ...p, email: e.target.value }))} required className="w-full p-2.5 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-[#f2665e]" />
+                    </label>
+                    <label className="block">
+                        <span className="block text-xs font-bold text-gray-600 mb-1">תאריך לידה (אופציונלי)</span>
+                        <input type="date" value={newMember.birthDate} onChange={(e) => setNewMember((p) => ({ ...p, birthDate: e.target.value }))} className="w-full p-2.5 border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-[#f2665e]" />
+                    </label>
+                    <button type="submit" disabled={addingMember} className="py-2.5 px-4 rounded-xl bg-[#f2665e] text-white font-bold hover:bg-[#d95248] disabled:opacity-50 flex items-center justify-center gap-2">
+                        <FaUserPlus /> {addingMember ? "מוסיף..." : "הוספה ידנית"}
+                    </button>
+                    {memberMessage.text && (
+                        <p className={`md:col-span-4 text-sm font-medium ${memberMessage.type === "success" ? "text-green-700" : "text-red-600"}`}>
+                            {memberMessage.text}
+                        </p>
+                    )}
+                </form>
+
                 {membersLoading ? (
                     <p className="text-gray-500 text-center py-6">טוען רשימת חברים...</p>
                 ) : members.length === 0 ? (
                     <p className="text-gray-500 text-center py-6">אין עדיין חברי מועדון רשומים</p>
                 ) : (
-                    <div className="overflow-x-auto rounded-xl border border-gray-100">
+                    <div className="overflow-x-auto rounded-xl border border-gray-100 max-h-[420px] overflow-y-auto">
                         <table className="w-full text-right">
-                            <thead className="bg-gray-50 text-gray-600 text-sm">
+                            <thead className="bg-gray-50 text-gray-600 text-sm sticky top-0">
                                 <tr>
+                                    <th className="p-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            aria-label="בחירת כל החברים הפעילים"
+                                            checked={activeMembers.length > 0 && selectedIds.length === activeMembers.length}
+                                            onChange={toggleSelectAll}
+                                        />
+                                    </th>
                                     <th className="p-3 font-bold">שם</th>
                                     <th className="p-3 font-bold">מייל</th>
                                     <th className="p-3 font-bold">תאריך הצטרפות</th>
                                     <th className="p-3 font-bold">קוד מתנה</th>
+                                    <th className="p-3 w-10"></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {members.map((member) => (
-                                    <tr key={member._id} className="border-t border-gray-100 hover:bg-gray-50">
-                                        <td className="p-3">{member.name}</td>
-                                        <td className="p-3 text-[#f2665e]">{member.email}</td>
+                                    <tr key={member._id} className={`border-t border-gray-100 hover:bg-gray-50 ${member.unsubscribed ? "opacity-60" : ""}`}>
+                                        <td className="p-3">
+                                            <input
+                                                type="checkbox"
+                                                aria-label={`בחירת ${member.name}`}
+                                                disabled={member.unsubscribed}
+                                                checked={selectedIds.includes(member._id)}
+                                                onChange={() => toggleSelected(member._id)}
+                                            />
+                                        </td>
+                                        <td className="p-3">
+                                            {member.name}
+                                            {member.unsubscribed && (
+                                                <span className="mr-2 text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-500">הוסר/ה מהתפוצה</span>
+                                            )}
+                                        </td>
+                                        <td className="p-3 text-[#f2665e]" dir="ltr">{member.email}</td>
                                         <td className="p-3 text-gray-500 text-sm">
                                             {new Date(member.createdAt).toLocaleDateString("he-IL")}
                                         </td>
                                         <td className="p-3 font-mono text-sm">{member.giftCode}</td>
+                                        <td className="p-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteMember(member)}
+                                                className="text-gray-400 hover:text-red-600"
+                                                aria-label={`הסרת ${member.name} מהמועדון`}
+                                            >
+                                                <FaTrash size={13} />
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -155,6 +269,7 @@ export default function SendMailToClub() {
                                 <option value="all">כל חברי המועדון 👥</option>
                                 <option value="new_members">מצטרפים חדשים (החודש) ✨</option>
                                 <option value="birthday">חוגגי יום הולדת החודש 🎂</option>
+                                <option value="selected">רק חברים שסימנתי ברשימה ({selectedIds.length}) ✅</option>
                             </select>
                         </div>
                     </div>
@@ -168,6 +283,7 @@ export default function SendMailToClub() {
                             placeholder="כתבי כאן את תוכן המייל..."
                             className="w-full p-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f2665e] focus:border-transparent outline-none transition-all resize-none"
                         ></textarea>
+                        <p className="text-xs text-gray-500 mt-1">לכל מייל מצורף אוטומטית קישור "להסרה מרשימת התפוצה", כנדרש בחוק.</p>
                     </div>
                     <div>
                         <label className="block text-gray-700 font-bold mb-2">צרף תמונה (אופציונלי)</label>
@@ -189,31 +305,45 @@ export default function SendMailToClub() {
                     >
                         {loading ? "שולח..." : (
                             <>
-                                <span>שלח הודעה {recipientLabels[formData.recipientType] || ""}</span>
+                                <span>שלח הודעה {RECIPIENT_LABELS[formData.recipientType] || ""}</span>
                                 <FaPaperPlane />
                             </>
                         )}
                     </button>
                 </form>
             </div>
-            {showSuccess && (
+            {sendResult && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowSuccess(false)}></div>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSendResult(null)}></div>
 
-                    <div className="relative bg-[#f0645a] rounded-full w-[300px] h-[300px] md:w-[400px] md:h-[400px] flex flex-col items-center justify-center text-center p-8 shadow-2xl text-white animate-bounce-in">
+                    <div className="relative bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl text-center" dir="rtl">
                         <button
-                            onClick={() => setShowSuccess(false)}
-                            className="absolute top-8 right-8 text-red-800/70 hover:text-red-900 transition-colors text-3xl font-bold bg-white/20 rounded-full p-1 w-10 h-10 flex items-center justify-center"
+                            onClick={() => setSendResult(null)}
+                            className="absolute top-4 left-4 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+                            aria-label="סגירה"
                         >
                             ✕
                         </button>
-                        <div className="bg-white/20 p-4 rounded-full mb-4">
-                            <FaCheckCircle className="text-5xl text-white" />
+                        <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${sendResult.sent > 0 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                            <FaCheckCircle className="text-3xl" />
                         </div>
-                        <h2 className="text-3xl font-bold mb-2">המייל נשלח בהצלחה!</h2>
-                        <p className="text-lg opacity-90">ההודעה בדרך ללקוחות שלך.</p>
-                        <div className="absolute top-10 left-10 w-16 h-16 bg-white/10 rounded-full pointer-events-none"></div>
-                        <div className="absolute bottom-10 right-10 w-10 h-10 bg-white/10 rounded-full pointer-events-none"></div>
+                        <h2 className="text-2xl font-bold mb-2 text-gray-800">{sendResult.msg}</h2>
+                        {sendResult.failed?.length > 0 && (
+                            <div className="text-right mt-4 bg-red-50 border border-red-100 rounded-xl p-3 text-sm">
+                                <p className="font-bold text-red-700 mb-1">נכשלה השליחה ל-{sendResult.failed.length}:</p>
+                                <ul className="text-red-600 space-y-0.5" dir="ltr">
+                                    {sendResult.failed.map((email) => <li key={email}>{email}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                        {sendResult.skipped?.length > 0 && (
+                            <div className="text-right mt-3 bg-amber-50 border border-amber-100 rounded-xl p-3 text-sm">
+                                <p className="font-bold text-amber-700 mb-1">כתובות לא חוקיות שדולגו ({sendResult.skipped.length}):</p>
+                                <ul className="text-amber-700 space-y-0.5" dir="ltr">
+                                    {sendResult.skipped.map((email) => <li key={email}>{email}</li>)}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
