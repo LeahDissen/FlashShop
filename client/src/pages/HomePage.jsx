@@ -24,7 +24,7 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
-/** כמה ריבועי מוצרים אפשר להגדיר בדף הבית (4 בשורה בדסקטופ, 2 במובייל) */
+/** How many product tiles can be set on the home page (4 per row on desktop, 2 on mobile) */
 const HOME_TILE_COUNT = 8;
 const PHOTO_DEVELOPMENT_PATH = '/photo-development';
 const DEFAULT_UPLOAD_BADGE_TEXT = 'להעלאת תמונות להדפסה';
@@ -134,7 +134,7 @@ export default function HomePage() {
         updateDraft({ testimonials: list.filter((_, i) => i !== index) });
     };
 
-    /** ריבוע בלי קישור מפורש מוביל לעמוד המוצרים מסונן לפי שם הקטגוריה שלו */
+    /** A tile without an explicit link leads to the products page filtered by its category name */
     const tileLink = (prod) => {
         const link = (prod?.link || '').trim();
         if (link) return link;
@@ -144,7 +144,7 @@ export default function HomePage() {
 
     const uploadBadgeText = (draft.uploadBadgeText || '').trim() || DEFAULT_UPLOAD_BADGE_TEXT;
 
-    /** משבצות העריכה באדמין: תמיד HOME_TILE_COUNT, כולל ריקות */
+    /** The admin's edit slots: always HOME_TILE_COUNT, including empty ones */
     const editTiles = useMemo(() => {
         const list = Array.isArray(draft.products) ? draft.products : [];
         return [
@@ -153,7 +153,7 @@ export default function HomePage() {
         ];
     }, [draft.products]);
 
-    /** בחנות מוצגים רק ריבועים שיש להם תמונה – בלי משבצות ריקות */
+    /** The shop shows only tiles that have an image – no empty slots */
     const visibleTiles = useMemo(() => editTiles.filter((prod) => prod?.image), [editTiles]);
 
     // ─── Admin Edit Panel ─────────────────────────────────────────────────────

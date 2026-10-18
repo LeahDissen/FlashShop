@@ -104,7 +104,7 @@ select:disabled,
   direction: ltr;
 }
 
-/* flex ולא grid כדי ששורה אחרונה לא מלאה (למשל 6 ריבועים: 4 + 2) תהיה ממורכזת */
+/* flex rather than grid so an incomplete last row (e.g. 6 tiles: 4 + 2) is centered */
 .home-products__grid {
   --home-tile-columns: 4;
   --home-tile-gap: clamp(1rem, 2.2vw, 1.75rem);
