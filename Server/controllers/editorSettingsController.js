@@ -59,7 +59,13 @@ const normalizeFonts = (fonts) => {
         .map((font) => {
             const value = String(font?.value || font?.label || "").trim();
             if (!value) return null;
-            return { label: String(font?.label || value).trim(), value };
+            const url = String(font?.url || "").trim();
+            return {
+                label: String(font?.label || value).trim(),
+                value,
+                // רק קישור https לקובץ גופן; כל דבר אחר נזרק
+                url: /^https:\/\/\S+$/i.test(url) ? url : "",
+            };
         })
         .filter(Boolean);
 };
