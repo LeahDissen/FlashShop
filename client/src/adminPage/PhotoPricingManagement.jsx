@@ -9,7 +9,7 @@ import { formatPhotoSizeOptionLabel, getPhotoSizeCatalogEntry } from "../utils/p
 const inputClass = "w-full p-2 border rounded-lg focus:ring-2 focus:ring-[#f2665e]/30 focus:border-[#f2665e] outline-none";
 
 /**
- * טבלת מדרגות: בכל שורה "מכמות" וערך (מחיר בש"ח או אחוז), עם הוספה ומחיקה.
+ * Tier table: each row has a "from quantity" and a value (shekel price or percent), with add and remove.
  * @param {{ rows: object[], valueKey: string, valueLabel: string, valueStep: string, lockFirstRow?: boolean, onChange: Function }} props
  */
 function TierRows({ rows, valueKey, valueLabel, valueStep, lockFirstRow = false, onChange }) {
@@ -76,7 +76,7 @@ function TierRows({ rows, valueKey, valueLabel, valueStep, lockFirstRow = false,
 
 const sectionClass = "bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3";
 
-/** עריכת מחירון פיתוח התמונות: מדרגות מחיר בש"ח לכל גודל, והנחות על אלבום */
+/** Photo development price list editor: shekel price tiers per size, and album discounts */
 export default function PhotoPricingManagement() {
     const [pricing, setPricing] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -93,7 +93,7 @@ export default function PhotoPricingManagement() {
         sizes: prev.sizes.map((entry) => (entry.size === size ? { ...entry, tiers } : entry)),
     }));
 
-    /** תצוגה מקדימה: אותה טבלה שהלקוח רואה, רק משורות מלאות */
+    /** Preview: the same table the customer sees, from complete rows only */
     const previewPricing = useMemo(() => {
         if (!pricing) return null;
         return {

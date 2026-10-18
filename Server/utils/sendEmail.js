@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { config } = require("../config/secret");
 
-// SMTP שלא עונה לא אמור להחזיק בקשה דקות ארוכות (ברירת המחדל של nodemailer היא 2 דקות)
+// An unresponsive SMTP server must not hold a request for minutes (nodemailer's default is 2 minutes)
 const SMTP_TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 };
 const HTTP_TIMEOUT_MS = 15_000;
 
@@ -59,7 +59,7 @@ const createSmtpTransport = async () => {
 
 const toBase64 = (content) => Buffer.from(content).toString("base64");
 
-/** מתאמים לספקי מייל מבוססי HTTP — כל אחד ממיר הודעה אחידה לפורמט של הספק */
+/** Adapters for HTTP-based email providers — each converts a uniform message to the provider's format */
 const HTTP_PROVIDERS = {
   brevo: ({ from, fromName, to, bcc, subject, html, attachments }) => ({
     url: "https://api.brevo.com/v3/smtp/email",
@@ -98,7 +98,7 @@ const sendViaHttpProvider = async (message) => {
   const from = config.EMAIL_FROM || config.EMAIL_USER;
   const { url, headers, body } = buildRequest({
     ...message,
-    // כמו ב-SMTP: במשלוח BCC הנמען הגלוי הוא השולח (הספקים דורשים נמען אחד לפחות)
+    // Same as SMTP: with BCC the visible recipient is the sender (the providers require at least one recipient)
     to: message.to.length ? message.to : [from],
     from,
     fromName: config.EMAIL_FROM_NAME || "FlashShop",
@@ -118,7 +118,7 @@ const sendViaHttpProvider = async (message) => {
 
 const sendViaSmtp = async ({ to, bcc, subject, html, attachments }) => {
   const { transporter, from, isEthereal } = await createSmtpTransport();
-  // ב-BCC הנמען הגלוי הוא השולח עצמו, כדי שהכתובות לא ייחשפו זו לזו
+  // With BCC the visible recipient is the sender, so the addresses are not exposed to each other
   const info = await transporter.sendMail({
     from,
     to: to.length ? to : from,
@@ -139,8 +139,8 @@ const renderTemplate = (template, payload) => {
 };
 
 /**
- * שולח מייל לפי תבנית handlebars. מערך נמענים נשלח ב-BCC.
- * זורק שגיאה בכישלון.
+ * Sends an email from a handlebars template. An array of recipients is sent as BCC.
+ * Throws on failure.
  */
 exports.sendEmail = async (email, subject, payload, template, attachments = []) => {
   try {

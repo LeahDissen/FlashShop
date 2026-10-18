@@ -22,7 +22,7 @@ export default function SendMailToClub() {
     });
     const [selectedIds, setSelectedIds] = useState([]);
     const [loading, setLoading] = useState(false);
-    /** תוצאת השליחה האחרונה: כמה נשלחו, למי נכשל, אילו כתובות דולגו */
+    /** The last send result: how many were sent, which failed, which addresses were skipped */
     const [sendResult, setSendResult] = useState(null);
     const [members, setMembers] = useState([]);
     const [membersLoading, setMembersLoading] = useState(true);
@@ -66,7 +66,7 @@ export default function SendMailToClub() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (loading) return; // שליחה כבר בדרך — לא שולחים פעמיים
+        if (loading) return; // A send is already in progress — don't send twice
         if (!formData.subject || !formData.message) {
             alert("נא למלא כותרת ותוכן הודעה");
             return;

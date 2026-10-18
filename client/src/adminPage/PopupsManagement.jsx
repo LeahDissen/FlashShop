@@ -7,7 +7,7 @@ import SmartImageInput from "../components/SmartImageInput";
 
 const inputClass = "w-full border border-gray-200 rounded-xl p-3 text-right focus:ring-2 focus:ring-[#f2665e]/30 focus:border-[#f2665e] outline-none";
 
-/** העמודים שאפשר לכוון אליהם פופאפ; ריק = כל האתר */
+/** The pages a popup can target; empty = the whole site */
 const PAGE_OPTIONS = [
     { value: "/", label: "דף הבית" },
     { value: "/products", label: "מוצרים" },

@@ -15,7 +15,7 @@ exports.updatePricing = async (req, res) => {
         const { value, error } = validatePhotoPricing(req.body);
         if (error) return res.status(400).json({ msg: error });
 
-        // quantityTiers הוא שדה של המבנה הקודם; מוחק אותו כדי שהמסמך יישאר במבנה אחד
+        // quantityTiers is a field of the previous structure; remove it so the document keeps a single structure
         await PhotoPricingModel.findOneAndUpdate(
             { key: "default" },
             { $set: value, $unset: { quantityTiers: 1 }, $setOnInsert: { key: "default" } },

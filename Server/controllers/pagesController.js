@@ -17,7 +17,7 @@ exports.getPage = async (req, res) => {
     }
 };
 
-// עדכון חלקי: רק השדות שנשלחו נדרסים, השאר נשמרים
+// Partial update: only the fields that were sent are overwritten, the rest are kept
 exports.updatePage = async (req, res) => {
     try {
         const { key } = req.params;

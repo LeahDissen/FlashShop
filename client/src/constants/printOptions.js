@@ -1,6 +1,6 @@
 /**
- * כפתורי האפשרויות בעמוד המוצר. הטקסט וההסבר ניתנים לעריכה בעמוד "המוצרים" באדמין
- * ונשמרים בדף ה-CMS "products" בשדות `${key}Label` / `${key}Hint`.
+ * Option buttons on the product page. The label and hint are editable on the admin "products" page
+ * and saved in the "products" CMS page under the `${key}Label` / `${key}Hint` fields.
  */
 export const PRINT_OPTIONS = [
     { key: "optionSelfDesign", defaultLabel: "עיצוב עצמי", adminLabel: "עיצוב עצמי" },
@@ -9,7 +9,7 @@ export const PRINT_OPTIONS = [
     { key: "optionCaptions", defaultLabel: "רעיונות לכיתוב", adminLabel: "רעיונות לכיתוב" },
 ];
 
-/** הטקסט וההסבר של אפשרות, לפי תוכן ה-CMS עם ברירת מחדל */
+/** An option's label and hint, from the CMS content with a default */
 export function getPrintOption(content, key) {
     const option = PRINT_OPTIONS.find((o) => o.key === key);
     const label = String(content?.[`${key}Label`] ?? "").trim();

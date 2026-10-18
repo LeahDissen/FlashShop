@@ -3,14 +3,14 @@ export function isGlobalFrame(el) {
 }
 
 /**
- * מסגרת "מקובעת": שכבת Overlay קבועה או קולאז׳ עם חלונות תמונה.
- * היא נשארת מעל התמונות ולא זזה. מסגרת חופשית מתנהגת כמו כל אלמנט עיצובי.
+ * A "pinned" frame: a fixed overlay layer or a collage with photo windows.
+ * It stays above the photos and does not move. A free frame behaves like any other design element.
  */
 export function isPinnedFrame(el) {
     return isGlobalFrame(el) && (el.isFixedOverlay !== false || el.layoutType === 'multi_dropzone');
 }
 
-/** מסדר אלמנטים: תמונות/צורות/מסגרות חופשיות למטה, מסגרת מקובעת באמצע, טקסט למעלה */
+/** Orders elements: photos/shapes/free frames at the bottom, the pinned frame in the middle, text on top */
 export function enforceLayerOrder(elements) {
     if (!Array.isArray(elements)) return [];
 
@@ -22,7 +22,7 @@ export function enforceLayerOrder(elements) {
 }
 
 /**
- * מעביר אלמנט לקדמה או לאחור בתוך שכבת הסדר שלו (טקסט נשאר מעל הכל, מסגרת מקובעת לא זזה).
+ * Moves an element to the front or back within its own layer (text stays above everything, a pinned frame does not move).
  * @param {'front' | 'back'} direction
  */
 export function moveElementToEdge(elements, elementId, direction) {
@@ -41,7 +41,7 @@ export function getActiveGlobalFrame(elements) {
     return elements.find(isGlobalFrame) || null;
 }
 
-/** מוסיף אלמנט מתחת למסגרת המקובעת (אם יש), אחרת מעל שאר התמונות */
+/** Adds an element below the pinned frame (if any), otherwise above the other photos */
 export function insertBelowGlobalFrame(elements, newElement) {
     const frameIdx = getGlobalFrameIndex(elements);
     if (frameIdx === -1) {
@@ -79,7 +79,7 @@ export function getDropzoneImageForSlot(elements, dropzoneId) {
     return elements.find((el) => isDropzoneImage(el) && el.dropzoneId === dropzoneId) || null;
 }
 
-/** מחליף/מוסיף תמונה לחלון קולאז׳ (שומר תמונה אחת לכל dropzoneId) */
+/** Replaces/adds a photo in a collage window (keeps one photo per dropzoneId) */
 export function replaceDropzoneImage(elements, dropzoneId, newImageElement) {
     if (!Array.isArray(elements) || !dropzoneId || !newImageElement) return elements || [];
     const withoutSlot = elements.filter(
@@ -92,7 +92,7 @@ export function replaceDropzoneImage(elements, dropzoneId, newImageElement) {
     });
 }
 
-/** מסיר קישור dropzone מתמונות שלא אמורות להיות בקולאז׳ (מסגרת רגילה / הסרה) */
+/** Removes the dropzone link from photos that should not be in the collage (regular frame / removal) */
 export function stripLegacyDropzoneFields(elements) {
     if (!Array.isArray(elements)) return [];
     return elements.map((el) => {
@@ -102,13 +102,13 @@ export function stripLegacyDropzoneFields(elements) {
     });
 }
 
-/** מחלק אלמנטים לשכבות רינדור: תוכן חופשי, תמונות קולאז׳, מסגרת, טקסט */
+/** Splits elements into render layers: free content, collage photos, frame, text */
 export function partitionElementsByLayer(elements) {
     if (!Array.isArray(elements)) {
         return { bottom: [], dropzoneImages: [], frames: [], texts: [] };
     }
 
-    // מסגרת חופשית מצוירת יחד עם התמונות (לפי סדר השכבות ועם סיבוב); רק מסגרת מקובעת בשכבה הייעודית
+    // A free frame is drawn together with the photos (by layer order and with rotation); only a pinned frame is in the dedicated layer
     const nonTextNonFrame = elements.filter((el) => el.type !== 'text' && !isPinnedFrame(el));
 
     return {

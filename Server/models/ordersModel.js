@@ -17,7 +17,7 @@ let orderSchema = new mongoose.Schema({
     subtotal: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     coupon_code: { type: String },
-    /** תיקיית Google Drive שנוצרה להזמנה עם קבצי העיצוב הסופיים */
+    /** The Google Drive folder created for the order with the final design files */
     drive: {
         folderId: { type: String },
         folderName: { type: String },
@@ -46,7 +46,7 @@ let orderSchema = new mongoose.Schema({
         type: String,
         default: "pending"
     },
-    /** תשלום בדף המאובטח של Hyp. הזמנה ממתינה לתשלום נמצאת בסטטוס awaiting_payment */
+    /** Payment on Hyp's secure page. An order waiting for payment has the status awaiting_payment */
     payment: {
         provider: { type: String },
         status: { type: String, enum: ["pending", "paid"] },

@@ -12,9 +12,9 @@ const matchesOrientation = (frame, orientation) => {
 };
 
 /**
- * בורר מסגרות בנוי כתיקיות לפי מידות הדפסה (10×15, 13×18, 15×20 ...),
- * וכל תיקייה מחולקת למסגרות לרוחב ולאורך.
- * מידות התיקיות והתוויות מנוהלות מלוח הבקרה ולא מקובעות בקוד.
+ * Frame picker organized as folders by print size (10×15, 13×18, 15×20 ...),
+ * with each folder split into landscape and portrait frames.
+ * Folder sizes and labels are managed from the dashboard, not hard-coded.
  */
 const FrameSizeFolders = ({
     frames,
@@ -29,7 +29,7 @@ const FrameSizeFolders = ({
     const [openSizeKey, setOpenSizeKey] = useState(null);
     const [orientationFilter, setOrientationFilter] = useState(ORIENTATION.LANDSCAPE);
 
-    /** מסגרות בלי מידה משויכת זמינות בכל התיקיות */
+    /** Frames without an assigned size are available in all folders */
     const framesForSize = useMemo(() => {
         const bySize = new Map();
         printSizes.forEach((size) => bySize.set(size.key, []));

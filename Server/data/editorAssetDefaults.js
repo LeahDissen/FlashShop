@@ -1,7 +1,7 @@
 /**
- * העתק של רכיבי עורך העיצוב העצמי כפי שהם מוגדרים היום ב-
+ * A copy of the self-design editor items as they are currently defined in
  * client/src/components/editor/EditorSidebar.jsx
- * משמש לזריעה ראשונית בלבד.
+ * Used for the initial seed only.
  */
 
 const svgToDataURL = (svgString) =>

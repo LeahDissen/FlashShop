@@ -21,7 +21,7 @@ export const normalizeCartItem = (item) => {
     return productId ? { ...rest, productId } : rest;
 };
 
-/** מוודא שלכל שורה בעגלה יש מזהה שורה ייחודי — בלי לדרוס מזהים קיימים */
+/** Makes sure every cart row has a unique row id — without overwriting existing ids */
 export const assignCartLineIds = (items) => {
     const seen = new Set();
     return items.map((item, index) => {
@@ -36,7 +36,7 @@ export const assignCartLineIds = (items) => {
     });
 };
 
-/** שומר נתוני מדרגות מחיר על פריט עגלה לחישוב מחדש בעת שינוי כמות */
+/** Keeps price tier data on a cart item to recalculate when the quantity changes */
 export const withTieredPricingFields = (item, product, { priceAddon = 0 } = {}) => {
     if (!product || !hasTieredPricing(product)) {
         return item;
@@ -74,7 +74,7 @@ export const applyQuantityToCartItem = (item, quantity) => {
     };
 };
 
-/** שומר בחירת מסגרת וכתוביות עם הפריט בעגלה ובהזמנה */
+/** Keeps the frame choice and captions with the item in the cart and in the order */
 export const compactCustomDesignForCart = (customDesign) => {
     if (!customDesign || typeof customDesign !== 'object') return undefined;
 

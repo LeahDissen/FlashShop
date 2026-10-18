@@ -73,7 +73,7 @@ const Canvas = ({
   const textEditRefs = useRef({});
   const dropzoneFileInputRef = useRef(null);
   const pendingDropzoneIdRef = useRef(null);
-  /** מונע ביטול בחירה מיידי אחרי לחיצה על אלמנט (בגלל re-render של שכבת הבחירה) */
+  /** Prevents an immediate deselect after clicking an element (caused by a re-render of the selection layer) */
   const skipCanvasDeselectUntilRef = useRef(0);
   const elementsRef = useRef(elements);
   elementsRef.current = elements;
@@ -89,7 +89,7 @@ const Canvas = ({
     wasAlreadySelected: false,
     didMove: false,
   });
-  /** שמירת מצב הלחיצה האחרונה לזיהוי הקשה שנייה על טקסט (מובייל) */
+  /** Keeps the last click state to detect a second tap on text (mobile) */
   const lastTapRef = useRef({
     elementId: null,
     wasAlreadySelected: false,
@@ -221,12 +221,12 @@ const Canvas = ({
       selection?.removeAllRanges();
       selection?.addRange(range);
     } catch {
-      // חלק מדפדפני מובייל לא תומכים בבחירת טווח על contentEditable
+      // Some mobile browsers don't support range selection on contentEditable
     }
     return true;
   }, []);
 
-  /** כניסה לעריכת טקסט – flushSync כדי שהמקלדת במובייל תיפתח בתוך מחוות המשתמש */
+  /** Enter text editing – flushSync so the mobile keyboard opens within the user gesture */
   const startTextEditing = useCallback((elementId) => {
     const element = elementsRef.current.find((el) => el.id === elementId);
     if (!element || element.type !== 'text' || element.locked) return;
@@ -243,7 +243,7 @@ const Canvas = ({
 
   useEffect(() => {
     if (!editingElementId) return;
-    // גיבוי אם ה־ref עדיין לא מוכן אחרי flushSync
+    // Fallback if the ref is not ready yet after flushSync
     const timer = window.setTimeout(() => focusTextEditor(editingElementId), 0);
     return () => window.clearTimeout(timer);
   }, [editingElementId, focusTextEditor]);
@@ -473,7 +473,7 @@ const Canvas = ({
     window.addEventListener('pointermove', handleGlobalMouseMove);
     window.addEventListener('pointerup', handleGlobalMouseUp);
     window.addEventListener('pointercancel', handleGlobalMouseUp);
-    // גיבוי לדפדפנים ישנים בלי Pointer Events מלאים
+    // Fallback for old browsers without full Pointer Events
     window.addEventListener('mousemove', handleGlobalMouseMove);
     window.addEventListener('mouseup', handleGlobalMouseUp);
 
@@ -517,7 +517,7 @@ const Canvas = ({
     const point = e.touches?.[0] || e;
     const wasAlreadySelected = selectedElementId === el.id;
 
-    // בטקסט שכבר נבחר – לא מונעים default, כדי שהקלדה במובייל תוכל לקבל פוקוס
+    // On already selected text – don't prevent default, so mobile typing can get focus
     if (!(el.type === 'text' && wasAlreadySelected)) {
       e.preventDefault();
     }
@@ -879,7 +879,7 @@ const Canvas = ({
           }}
         />
 
-        {/* Rotate Handle – לא למסגרת קולאז׳ פנימית (רק הזזה/גודל) */}
+        {/* Rotate handle – not for an inner collage frame (move/resize only) */}
         {!el.locked && !el.dropzoneId && (
           <div
             className="absolute left-1/2 -translate-x-1/2 p-1 cursor-grab bg-white rounded-full shadow active:cursor-grabbing"
@@ -890,7 +890,7 @@ const Canvas = ({
           </div>
         )}
 
-        {/* Resize Handles – כולל תמונות בתוך חלונות קולאז׳ */}
+        {/* Resize handles – including photos inside collage windows */}
         {!el.locked && (el.type === 'image' || el.type === 'shape' || el.type === 'globalFrame') && Object.keys(handlePositions).map(pos => (
           <div
             key={pos}
@@ -943,7 +943,7 @@ const Canvas = ({
         onClick={(e) => {
           if (croppingElementId || editingElementId) return;
           if (Date.now() < skipCanvasDeselectUntilRef.current) return;
-          // אל תבטל בחירה אם הלחיצה הגיעה מתוך משטח העיצוב/אלמנט
+          // Don't deselect if the click came from inside the design canvas/an element
           if (e.target.closest?.('#canvas-container')) return;
           setSelectedElementId(null);
         }}
@@ -953,7 +953,7 @@ const Canvas = ({
           onClick={(e) => {
             if (croppingElementId || editingElementId) return;
             if (Date.now() < skipCanvasDeselectUntilRef.current) return;
-            // לחיצה על הריפוד סביב הקנבס מבטלת בחירה; לחיצה על הקנבס עצמו מטופלת שם
+            // A click on the padding around the canvas deselects; a click on the canvas itself is handled there
             if (e.target === e.currentTarget) {
               setSelectedElementId(null);
             }
@@ -988,7 +988,7 @@ const Canvas = ({
           ...canvasDynamicStyles,
         }}
         onClick={(e) => {
-          // לחיצה על רקע ריק בתוך הקנבס מבטלת בחירה
+          // A click on an empty background inside the canvas deselects
           if (croppingElementId || editingElementId) return;
           if (Date.now() < skipCanvasDeselectUntilRef.current) return;
           if (e.target === e.currentTarget) {
@@ -1007,7 +1007,7 @@ const Canvas = ({
           />
         )}
 
-        {/* Safe zone – מסגרת חיתוך מקווקות */}
+        {/* Safe zone – dashed crop frame */}
         <div
           className="absolute pointer-events-none canvas-safe-zone-overlay"
           style={{
@@ -1048,7 +1048,7 @@ const Canvas = ({
           </svg>
         </div>
 
-        {/* RENDER ELEMENTS – תוכן תחתון, מסגרת overlay, טקסט */}
+        {/* RENDER ELEMENTS – bottom content, overlay frame, text */}
         {[
           ...layeredElements.bottom.map((el, index) => ({ el, zIndex: index })),
           ...layeredElements.texts.map((el, index) => ({ el, zIndex: 1000 + index })),
@@ -1070,7 +1070,7 @@ const Canvas = ({
           if (el.locked) ariaLabel += ' (Locked)';
           if (selectedElementId === el.id) ariaLabel += ' (Selected)';
 
-          // למסגרת חופשית יש רוחב וגובה משלה; בלי זה הרוחב "אוטומטי" ומתכווץ כשמזיזים אותה ימינה
+          // A free frame has its own width and height; without this the width is "auto" and shrinks when it is moved right
           const hasFixedSize = elIsImage || elIsShape || elIsText || el.type === 'globalFrame';
 
           const outerWrapperStyle = {
@@ -1102,7 +1102,7 @@ const Canvas = ({
               aria-label={ariaLabel}
               aria-pressed={selectedElementId === el.id}
               onKeyDown={(e) => {
-                // במצב עריכת טקסט – לא לחסום רווח/Enter (נדרשים להקלדה)
+                // In text editing mode – don't block Space/Enter (needed for typing)
                 if (el.type === 'text' && el.id === editingElementId) return;
                 if (e.target.isContentEditable) return;
 
@@ -1177,7 +1177,7 @@ const Canvas = ({
           )
         })}
 
-        {/* תצוגת תמונות קולאז׳ – מתחת למסגרת */}
+        {/* Collage photo display – below the frame */}
         {resolvedDropzones.length > 0 && (
           <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 400 }} aria-hidden="true">
             {resolvedDropzones.map((zone) => {
@@ -1214,7 +1214,7 @@ const Canvas = ({
           </div>
         )}
 
-        {/* שכבת מסגרת גלובלית – לחיצה לבחירה ולהזזה */}
+        {/* Global frame layer – click to select and move */}
         {layeredElements.frames.length > 0 && (
           <div
             className="absolute inset-0"
@@ -1259,7 +1259,7 @@ const Canvas = ({
           </div>
         )}
 
-        {/* לחיצה על חלונות קולאז׳ – מעל המסגרת */}
+        {/* Clicks on collage windows – above the frame */}
         {resolvedDropzones.length > 0 && (
           <div className="absolute inset-0" style={{ zIndex: 550 }} aria-label="חלונות תמונה לקולאז׳">
             <input
@@ -1304,7 +1304,7 @@ const Canvas = ({
                       onPointerDown={(e) => {
                         if (e.pointerType === 'mouse' && e.button !== 0) return;
                         e.stopPropagation();
-                        // תמיד משתמשים בגרסה העדכנית מה-ref כדי שהגרירה תהיה חלקה
+                        // Always use the latest version from the ref so dragging stays smooth
                         const latest = elementsRef.current.find((item) => item.id === imageEl.id) || imageEl;
                         handleMouseDown(e, latest);
                       }}

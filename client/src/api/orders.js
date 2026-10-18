@@ -49,7 +49,7 @@ export const updateOrderEmailTemplate = async (status, data) => {
     return response.data;
 }
 
-/** אחרי החזרה מדף התשלום: השרת מאמת מול Hyp ומעביר את ההזמנה לטיפול */
+/** After returning from the payment page: the server verifies with Hyp and moves the order to processing */
 export const confirmOrderPayment = async (orderId, redirectQuery) => {
     const response = await axios.post(`${API_URL}/${orderId}/payment/confirm`, { query: redirectQuery });
     return response.data;

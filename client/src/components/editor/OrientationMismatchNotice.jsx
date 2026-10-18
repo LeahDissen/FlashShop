@@ -2,8 +2,8 @@ import { FlipHorizontalIcon, XIcon } from '../icons';
 import { orientationLabel } from '../../utils/orientationMatching';
 
 /**
- * הודעה לא חוסמת שמופיעה כשכיוון התמונה שהועלתה לא תואם לכיוון המסגרת,
- * ומציעה סיבוב אוטומטי ב-90°. הטקסטים נערכים מלוח הבקרה.
+ * Non-blocking notice shown when the uploaded photo's orientation does not match the frame's,
+ * offering an automatic 90° rotation. The texts are edited from the dashboard.
  */
 const OrientationMismatchNotice = ({
     notice,

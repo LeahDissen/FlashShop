@@ -76,12 +76,12 @@ function parseCloudinaryError(data) {
     return 'העלאת הקובץ נכשלה. נסו שוב.';
 }
 
-/** שגיאה עם סימון האם שווה לנסות שוב (רשת/שרת) או לא (קובץ פגום, גדול מדי, 4xx) */
+/** An error marked with whether it is worth retrying (network/server) or not (corrupt file, too large, 4xx) */
 const uploadError = (message, retryable) => Object.assign(new Error(message), { retryable });
 
 /**
- * מעלה תמונה ומחזיר גם את המידות שקלאודינרי מדווח –
- * חוסך הורדה חוזרת של כל תמונה רק כדי למדוד אותה.
+ * Uploads an image and also returns the dimensions Cloudinary reports –
+ * saves downloading every image again just to measure it.
  */
 export async function uploadImageDetailed(file) {
     let prepared;
@@ -116,7 +116,7 @@ export async function uploadImageToCloudinary(file) {
     return url;
 }
 
-/** מסמך (PDF) – Cloudinary מקבל אותו באותו preset; מוחזר קישור ישיר להורדה */
+/** Document (PDF) – Cloudinary accepts it with the same preset; returns a direct download link */
 export async function uploadDocumentToCloudinary(file) {
     if (file?.type !== 'application/pdf') {
         throw new Error('יש לבחור קובץ PDF');
@@ -142,7 +142,7 @@ export async function uploadDocumentToCloudinary(file) {
 const FONT_EXTENSIONS = ['otf', 'ttf', 'woff', 'woff2'];
 const MAX_FONT_BYTES = 5 * 1024 * 1024;
 
-/** מעלה קובץ גופן (OTF/TTF/WOFF/WOFF2) כקובץ גולמי ומחזיר את כתובתו */
+/** Uploads a font file (OTF/TTF/WOFF/WOFF2) as a raw file and returns its URL */
 export async function uploadFontToCloudinary(file) {
     const extension = String(file?.name || '').split('.').pop().toLowerCase();
     if (!FONT_EXTENSIONS.includes(extension)) {

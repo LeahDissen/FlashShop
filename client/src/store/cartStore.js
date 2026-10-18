@@ -43,7 +43,7 @@ export const useCartStore = create(
           set({ cartItems: [] });
       },
 
-      /** מוסיף פריטים לסל ומציג ללקוח אישור. אפשר להחליף את נוסח האישור דרך successMessage */
+      /** Adds items to the cart and shows the customer a confirmation. The confirmation text can be replaced with successMessage */
       addToCart: async (newItems, { successMessage = CART_ADDED_MESSAGE } = {}) => {
           const preparedItems = await prepareCartItems(newItems);
           set((state) => {
@@ -58,7 +58,7 @@ export const useCartStore = create(
           useToastStore.getState().showToast(successMessage);
       },
 
-      /** מעדכן מחיר של פריטים שכבר בסל (למשל מדרגת מחיר של תמונות אחרי שנוספו עוד). getPrice מחזיר undefined = בלי שינוי */
+      /** Updates the price of items already in the cart (e.g. the photo price tier after more were added). getPrice returning undefined = no change */
       repriceItems: (getPrice) => {
           set((state) => {
               let changed = false;

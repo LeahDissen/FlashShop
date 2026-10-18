@@ -2,7 +2,7 @@ const { EditorSettingsModel } = require("../models/editorSettingsModel");
 
 const SETTINGS_KEY = "default";
 
-/** מידות ההדפסה שמופיעות כתיקיות מסגרות בעורך – ניתנות לשינוי מלוח הבקרה */
+/** The print sizes shown as frame folders in the editor – editable from the dashboard */
 const DEFAULT_PRINT_SIZES = [
     { key: "10x15", label: "10×15 ס״מ", widthCm: 10, heightCm: 15, sortOrder: 0, isActive: true },
     { key: "13x18", label: "13×18 ס״מ", widthCm: 13, heightCm: 18, sortOrder: 1, isActive: true },
@@ -63,7 +63,7 @@ const normalizeFonts = (fonts) => {
             return {
                 label: String(font?.label || value).trim(),
                 value,
-                // רק קישור https לקובץ גופן; כל דבר אחר נזרק
+                // Only an https link to a font file; anything else is dropped
                 url: /^https:\/\/\S+$/i.test(url) ? url : "",
             };
         })
@@ -88,11 +88,11 @@ const buildDefaults = () => ({
     },
 });
 
-/** מחזיר את מסמך ההגדרות, ויוצר אותו עם ברירות המחדל בפעם הראשונה */
+/** Returns the settings document, creating it with the defaults the first time */
 const loadSettings = async () => {
     const existing = await EditorSettingsModel.findOne({ key: SETTINGS_KEY });
     if (existing) {
-        // השלמת ברירות מחדל למסמכים שנשמרו לפני הוספת שדה
+        // Fill in defaults for documents saved before a field was added
         let mutated = false;
         if (!existing.framePrintSizes?.length) {
             existing.framePrintSizes = DEFAULT_PRINT_SIZES;

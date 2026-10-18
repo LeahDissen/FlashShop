@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Info } from 'lucide-react';
 
 /**
- * כפתור אפשרות הדפסה עם הסבר: ההסבר מופיע במעבר עכבר או בפוקוס,
- * ובמסכי מגע בלחיצה על אייקון ה-i שבפינת הכפתור.
+ * Print option button with a hint: the hint shows on mouse hover or focus,
+ * and on touch screens when tapping the "i" icon in the button's corner.
  * @param {{ hint?: string, className: string, children: React.ReactNode } & React.ButtonHTMLAttributes} props
  */
 export default function PrintOptionButton({ hint, className, children, ...buttonProps }) {

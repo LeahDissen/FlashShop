@@ -8,12 +8,12 @@ const { createUnsubscribeToken, verifyUnsubscribeToken } = require("../utils/uns
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isValidEmail = (email) => EMAIL_PATTERN.test(String(email || ""));
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
-/** כמה מיילים נשלחים במקביל בדיוור – Gmail לא אוהב מאות חיבורים בבת אחת */
+/** How many emails are sent in parallel in a mailing – Gmail does not like hundreds of connections at once */
 const BROADCAST_CONCURRENCY = 5;
-// מונע שתי שליחות דיוור במקביל (למשל לחיצה כפולה או טאב נוסף)
+// Prevents two mailings in parallel (e.g. a double click or another tab)
 let broadcastInProgress = false;
 
-/** קישור ההסרה מצביע לשרת ה-API (שם הנתיב), לפי הכתובת שבה הבקשה הגיעה */
+/** The unsubscribe link points to the API server (where the route is), based on the address the request came to */
 const unsubscribeUrlFor = (req, member) =>
     `${req.protocol}://${req.get("host")}/club/unsubscribe/${member._id}/${createUnsubscribeToken(member._id)}`;
 
@@ -22,13 +22,13 @@ const { PageModel } = require("../models/pageModel");
 
 const DEFAULT_WELCOME_SUBJECT = "ברוכים הבאים למועדון! 🎁";
 
-/** {{name}} / {{code}} בנוסח שהמנהלת כותבת; מפתח לא מוכר נשאר גלוי */
+/** {{name}} / {{code}} in the text the admin writes; an unknown key is left visible */
 const renderWelcomeText = (text, vars) =>
     String(text || "").replace(/{{\s*(\w+)\s*}}/g, (match, key) =>
         Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : match,
     );
 
-/** מוריד את קובץ המתנה (PDF) כדי לצרף אותו למייל; כשל לא מונע את המייל עצמו */
+/** Downloads the gift file (PDF) to attach it to the email; a failure does not block the email itself */
 const fetchWelcomeAttachment = async (url) => {
     if (!url) return [];
     try {
@@ -42,7 +42,7 @@ const fetchWelcomeAttachment = async (url) => {
     }
 };
 
-/** שולח את מייל ההצטרפות לפי ההגדרות בדף 'club' (נושא, גוף, קובץ מצורף) */
+/** Sends the join email per the settings on the 'club' page (subject, body, attachment) */
 const sendWelcomeEmail = async ({ email, name, code }) => {
     const page = await PageModel.findOne({ key: "club" }).lean();
     const settings = page?.data || {};
@@ -76,8 +76,8 @@ exports.joinClub = async (req, res) => {
         if (!email || !name) {
             return res.status(400).json({ msg: "יש למלא שם וכתובת מייל" });
         }
-        // הרשמה כפולה נדחית – לא שולחים שוב מייל ולא חושפים את קוד ההטבה הקיים
-        // השוואה בלי תלות באותיות גדולות/קטנות – חברים ותיקים נשמרו לפני שהמייל נורמל
+        // A duplicate signup is rejected – no email is sent again and the existing benefit code is not revealed
+        // Case-insensitive comparison – older members were saved before emails were normalized
         const existingMember = await ClubModel.findOne({ email }).collation(CASE_INSENSITIVE);
         if (existingMember) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
@@ -92,7 +92,7 @@ exports.joinClub = async (req, res) => {
             isUsed: false
         });
         await newMember.save();
-        // המייל נשלח ברקע: ההרשמה כבר נשמרה, והלקוחה לא צריכה לחכות לשרת המייל
+        // The email is sent in the background: the signup is already saved, and the customer does not need to wait for the mail server
         sendWelcomeEmail({ email, name, code: newCode })
             .then(() => console.log("Welcome email sent to " + email))
             .catch((emailErr) => console.error("Failed to send welcome email:", emailErr.message));
@@ -196,7 +196,7 @@ exports.sendBroadcastEmail = async (req, res) => {
             return res.status(400).json({ msg: "נא למלא נושא ותוכן הודעה" });
         }
 
-        // מי שביקש/ה להסיר את עצמו/ה לא מקבל/ת דיוור שיווקי, בשום סינון
+        // Whoever asked to be removed gets no marketing email, under any filter
         const query = { unsubscribed: { $ne: true } };
         if (recipientType === "new_members") {
             const now = new Date();
@@ -207,7 +207,7 @@ exports.sendBroadcastEmail = async (req, res) => {
         } else if (recipientType === "birthday") {
             query.$expr = { $eq: [{ $month: "$birthDate" }, new Date().getMonth() + 1] };
         } else if (recipientType === "selected") {
-            // ב-multipart הרשימה מגיעה כמחרוזת JSON
+            // In multipart the list arrives as a JSON string
             let memberIds = req.body?.memberIds;
             if (typeof memberIds === "string") {
                 try { memberIds = JSON.parse(memberIds); } catch { memberIds = []; }
@@ -227,11 +227,11 @@ exports.sendBroadcastEmail = async (req, res) => {
             ? [{ filename: req.file.originalname, content: req.file.buffer }]
             : [];
 
-        // כתובות לא חוקיות מדולגות ומדווחות למנהלת במקום להפיל את כל השליחה
+        // Invalid addresses are skipped and reported to the admin instead of failing the whole send
         const skipped = members.filter((m) => !isValidEmail(m.email)).map((m) => m.email);
         const valid = members.filter((m) => isValidEmail(m.email));
 
-        // כל נמען מקבל מייל נפרד עם קישור הסרה משלו
+        // Each recipient gets a separate email with their own unsubscribe link
         const failed = [];
         let sent = 0;
         for (let i = 0; i < valid.length; i += BROADCAST_CONCURRENCY) {
@@ -247,7 +247,7 @@ exports.sendBroadcastEmail = async (req, res) => {
                 if (result.status === "fulfilled") sent += 1;
                 else failed.push(batch[idx].email);
             });
-            // אם כל הקבוצה הראשונה נכשלה, שירות המייל עצמו לא זמין — אין טעם להמשיך ולהמתין
+            // If the whole first batch failed, the email service itself is unavailable — no point in continuing to wait
             if (sent === 0 && failed.length === batch.length && i === 0) {
                 return res.status(503).json({
                     msg: "שירות המייל לא זמין כרגע ולכן ההודעה לא נשלחה לאף אחד. נא לנסות שוב מאוחר יותר.",
@@ -272,7 +272,7 @@ exports.sendBroadcastEmail = async (req, res) => {
     }
 };
 
-/** הוספה ידנית של חבר/ה מהאדמין – בלי מייל ברוכים הבאים */
+/** Manual member add from the admin – without a welcome email */
 exports.addClubMember = async (req, res) => {
     try {
         const name = String(req.body?.name || "").trim();
@@ -282,7 +282,7 @@ exports.addClubMember = async (req, res) => {
         if (!name || !isValidEmail(email)) {
             return res.status(400).json({ msg: "יש להזין שם וכתובת מייל תקינה" });
         }
-        // בלי תלות באותיות גדולות/קטנות: חברים ותיקים נשמרו לפני שהמייל נורמל
+        // Case-insensitive: older members were saved before emails were normalized
         if (await ClubModel.exists({ email }).collation({ locale: "en", strength: 2 })) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון" });
         }
@@ -314,7 +314,7 @@ exports.deleteClubMember = async (req, res) => {
     }
 };
 
-/** קישור ההסרה מהמייל – דף תשובה קטן, בלי התחברות */
+/** The unsubscribe link from the email – a small response page, no login */
 exports.unsubscribe = async (req, res) => {
     const page = (title, text) => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
 <body style="margin:0;background:#f4f5f7;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">

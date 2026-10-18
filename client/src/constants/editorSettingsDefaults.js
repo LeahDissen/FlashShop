@@ -1,6 +1,6 @@
 /**
- * ברירות מחדל לעורך – נשמרות בצד הלקוח כרשת ביטחון בלבד.
- * המקור האמיתי הוא מסמך ההגדרות שהמנהלת עורכת (GET /editor-settings).
+ * Editor defaults – kept on the client only as a safety net.
+ * The source of truth is the settings document the admin edits (GET /editor-settings).
  */
 export const DEFAULT_EDITOR_SETTINGS = {
     framePrintSizes: [
@@ -59,7 +59,7 @@ export const DEFAULT_EDITOR_SETTINGS = {
     },
 };
 
-/** ממזג הגדרות מהשרת עם ברירות המחדל, כדי שחסר שדה לא ישבור את העורך */
+/** Merges server settings with the defaults, so a missing field does not break the editor */
 export const mergeEditorSettings = (incoming) => {
     if (!incoming || typeof incoming !== 'object') return DEFAULT_EDITOR_SETTINGS;
 

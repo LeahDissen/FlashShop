@@ -70,7 +70,7 @@ export default function CheckoutPage() {
                     phone: prev.phone || user?.phone || '',
                 }));
             } catch {
-                // אין פרופיל מזוהה — השדות נשארים למילוי ידני
+                // No recognized profile — the fields stay for manual entry
             }
         };
 
@@ -151,7 +151,7 @@ export default function CheckoutPage() {
 
             paymentSubmittedRef.current = true;
 
-            // סליקה מחוברת: עוברים לדף התשלום המאובטח. הסל נשמר עד שהתשלום מאומת (PaymentResultPage)
+            // Payment connected: go to the secure payment page. The cart is kept until the payment is verified (PaymentResultPage)
             if (order.paymentUrl) {
                 window.location.assign(order.paymentUrl);
                 return;

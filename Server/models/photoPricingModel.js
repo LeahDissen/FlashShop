@@ -22,7 +22,7 @@ const albumTierSchema = new mongoose.Schema(
     { _id: false },
 );
 
-/** מחירון פיתוח התמונות (מסמך יחיד) — המנהלת עורכת אותו במסך "מחירי פיתוח תמונות" */
+/** The photo development price list (single document) — the admin edits it on the "photo development prices" screen */
 const photoPricingSchema = new mongoose.Schema(
     {
         key: { type: String, default: "default", unique: true },

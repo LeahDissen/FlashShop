@@ -6,7 +6,7 @@ const formatShekel = (value) => {
 };
 
 /**
- * מחיר מוצר. במבצע: המחיר הקודם מחוק לצד המחיר החדש ותג אחוז ההנחה.
+ * Product price. On sale: the previous price struck through next to the new price, plus a discount percent badge.
  * @param {{ product: object, priceClassName?: string }} props
  */
 export default function SalePrice({ product, priceClassName = 'font-semibold text-gray-900' }) {

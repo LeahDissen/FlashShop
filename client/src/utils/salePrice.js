@@ -1,5 +1,5 @@
 /**
- * פרטי מבצע להצגה: מוחזר רק כשהמוצר מסומן במבצע והמחיר המקורי גבוה מהמחיר הנוכחי.
+ * Sale details for display: returned only when the product is marked on sale and the original price is higher than the current price.
  * @returns {{ originalPrice: number, savedAmount: number, percentOff: number } | null}
  */
 export function getSaleInfo(product) {

@@ -33,7 +33,7 @@ function resolveOutputDimensions(aspect) {
 }
 
 /**
- * יוצר Blob באיכות גבוהה מאזור חיתוך שנבחר (react-image-crop)
+ * Creates a high-quality Blob from the selected crop area (react-image-crop)
  */
 export function detectTextDirection(text) {
     const sample = String(text || '');
@@ -72,7 +72,7 @@ function wrapFillText(ctx, text, x, y, maxWidth, lineHeight) {
     });
 }
 
-/** מצייר מסגרת קבועה וכתוביות מעל תמונת ההדפסה */
+/** Draws a fixed frame and captions over the print image */
 export async function drawPrintOverlays(ctx, {
     width,
     height,
@@ -187,7 +187,7 @@ export async function getPrintCropBlob({
 }
 
 /**
- * יוצר Blob באיכות גבוהה מהאזור שנבחר (react-easy-crop croppedAreaPixels)
+ * Creates a high-quality Blob from the selected area (react-easy-crop croppedAreaPixels)
  */
 export async function getCroppedImageBlob(imageSrc, pixelCrop, file = null) {
     if (!pixelCrop?.width || !pixelCrop?.height) {

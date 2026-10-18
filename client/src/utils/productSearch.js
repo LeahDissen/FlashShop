@@ -1,4 +1,4 @@
-/** ניקוד, גרשיים וסימני פיסוק לא משנים התאמה; אותיות סופיות נחשבות כמו רגילות */
+/** Niqqud, quote marks and punctuation do not affect matching; final letters count as regular ones */
 const FINAL_LETTERS = { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' };
 
 export const normalizeSearchText = (text) => String(text || '')
@@ -15,15 +15,15 @@ const FIELD_WEIGHTS = [
     ['description', 1],
 ];
 
-/** שורש פשוט לעברית: "תמונה" ו"תמונות" מוצאים זה את זה (מוריד סיומת יחיד/רבים נפוצה) */
+/** Simple Hebrew stemming: "photo" and "photos" find each other (strips a common singular/plural suffix) */
 const toStem = (word) => {
-    const stem = word.replace(/(ות|ימ|ה|ת)$/, ''); // אחרי הנרמול ם הופכת ל-מ
+    const stem = word.replace(/(ות|ימ|ה|ת)$/, ''); // After normalization the final mem becomes a regular mem
     return stem.length >= 3 ? stem : word;
 };
 
 /**
- * מחפש מוצרים לפי שם, קטגוריה ותיאור. מוצר מתאים אם לפחות מילה אחת מהחיפוש מופיעה בו
- * (גם כחלק ממילה ובלי תלות ביחיד/רבים, למשל "מגנט" מוצא "מגנטים"); מוצרים עם יותר התאמות בשם מופיעים ראשונים.
+ * Searches products by name, category and description. A product matches if at least one search word appears in it
+ * (also as part of a word and regardless of singular/plural, e.g. "magnet" finds "magnets"); products with more name matches come first.
  */
 export function searchProducts(products, query, limit = 8) {
     const words = normalizeSearchText(query).split(' ').filter((word) => word.length >= 2).map(toStem);

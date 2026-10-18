@@ -1,4 +1,4 @@
-/** ממיר אחוזים (0–100) לפיקסלים ביחס למסגרת (או לקנבס) */
+/** Converts percent (0–100) to pixels relative to the frame (or the canvas) */
 export function resolveDropzones(dropzones, frameWidth, frameHeight, frameLeft = 0, frameTop = 0) {
     if (!Array.isArray(dropzones) || !frameWidth || !frameHeight) return [];
 
@@ -14,7 +14,7 @@ export function resolveDropzones(dropzones, frameWidth, frameHeight, frameLeft =
     }));
 }
 
-/** התאמת תמונה לחלון (cover) – ממלא את האזור וחותך עודפים */
+/** Fits a photo to a window (cover) – fills the area and crops the excess */
 export function fitImageToDropzone(naturalWidth, naturalHeight, zone) {
     const nw = Number(naturalWidth) || 1;
     const nh = Number(naturalHeight) || 1;
@@ -52,7 +52,7 @@ export function getClipStyle(zone) {
     return undefined;
 }
 
-/** רשת קולאז' אחידה באחוזים */
+/** A uniform collage grid in percent */
 function buildGridZones(cols, rows, { margin = 4, gap = 2, idPrefix = 'zone' } = {}) {
     const zones = [];
     const usableW = 100 - margin * 2 - gap * (cols - 1);
@@ -78,7 +78,7 @@ function buildGridZones(cols, rows, { margin = 4, gap = 2, idPrefix = 'zone' } =
     return zones;
 }
 
-/** פריסות מוכנות לקולאז' – האדמין יכול לבחור ואז לכוון */
+/** Ready-made collage layouts – the admin can pick one and then adjust */
 export const DROPZONE_PRESETS = [
     {
         id: 'grid_2x3',
