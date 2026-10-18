@@ -46,6 +46,9 @@ export const mapEditorAssets = (raw) => {
     };
 };
 
+/** ספרייה ריקה – ברירת מחדל כשאין צורך בנכסי ברירת מחדל קבועים בקוד */
+export const EMPTY_EDITOR_ASSETS = Object.freeze({ shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] });
+
 export const mergeEditorAssetsWithFallback = (mapped, fallbacks) => ({
     shapes: mapped.shapes.length ? mapped.shapes : fallbacks.shapes,
     backgroundAssets: mapped.backgroundAssets.length ? mapped.backgroundAssets : fallbacks.backgroundAssets,
