@@ -3,7 +3,7 @@ const { DEFAULT_PHOTO_PRICING } = require("../utils/photoQuantityPricing");
 
 const PRICING_FIELDS = ["sizes", "quantityTiers", "albumDiscountTiers"];
 
-/** המחירון השמור, או ברירת המחדל אם עוד לא נשמר */
+/** The saved price list, or the default if none has been saved yet */
 exports.loadPhotoPricing = async () => {
     const saved = await PhotoPricingModel.findOne({ key: "default" }).lean();
     if (!saved) return { ...DEFAULT_PHOTO_PRICING };
@@ -13,7 +13,7 @@ exports.loadPhotoPricing = async () => {
 const toNumber = (value) => (value === "" || value === null || value === undefined ? NaN : Number(value));
 
 /**
- * בודק ומנרמל מחירון שהגיע מהאדמין.
+ * Validates and normalizes a price list received from the admin.
  * @returns {{ value?: object, error?: string }}
  */
 exports.validatePhotoPricing = (body = {}) => {

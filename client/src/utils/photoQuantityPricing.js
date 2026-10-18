@@ -1,10 +1,10 @@
 /**
- * תמחור פיתוח תמונות לפי המחירון שהמנהלת מגדירה (נטען מהשרת):
- * מחיר בסיס לכל גודל, הנחת כמות לפי סך כל ההדפסות, והנחה על אלבום.
- * אותו חישוב רץ בשרת בזמן יצירת ההזמנה (Server/utils/photoQuantityPricing.js).
+ * Photo development pricing from the price list the admin defines (loaded from the server):
+ * a base price per size, a quantity discount by total prints, and an album discount.
+ * The same calculation runs on the server when the order is created (Server/utils/photoQuantityPricing.js).
  */
 
-/** שם קטגוריית האלבומים במוצרים (לקישור "לבחירת אלבום") */
+/** The albums category name in products (for the "choose an album" link) */
 export const ALBUM_CATEGORY = 'אלבום';
 
 const roundToAgora = (value) => Math.round(value * 100) / 100;
@@ -23,7 +23,7 @@ export function getQuantityDiscountPercent(pricing, totalPrints) {
     return tier ? tier.discountPercent : 0;
 }
 
-/** מחיר לתמונה בגודל נתון, אחרי הנחת הכמות */
+/** Price per photo of a given size, after the quantity discount */
 export function getPhotoUnitPrice(pricing, size, totalPrints) {
     const sizes = pricing?.sizes || [];
     const entry = sizes.find((s) => normalizeSize(s.size) === normalizeSize(size)) || sizes[0];
@@ -31,7 +31,7 @@ export function getPhotoUnitPrice(pricing, size, totalPrints) {
     return roundToAgora(basePrice * (1 - getQuantityDiscountPercent(pricing, totalPrints) / 100));
 }
 
-/** סיכום ההזמנה: כמות כוללת, סה"כ לתשלום ואחוז הנחת הכמות */
+/** Order summary: total quantity, total to pay and the quantity discount percent */
 export function getOrderPricing(images, pricing, defaultSize) {
     const totalPrints = getTotalPrintCount(images);
     const grandTotal = images.reduce((sum, img) => {
@@ -45,7 +45,7 @@ export function getOrderPricing(images, pricing, defaultSize) {
     };
 }
 
-/** "עוד X הדפסות ותקבלי Y% הנחה" — או null במדרגה האחרונה */
+/** "X more prints and you get Y% off" — or null at the last tier */
 export function getNextPricingTierHint(totalPrints, pricing) {
     const next = [...(pricing?.quantityTiers || [])].sort(byMinAsc).find((t) => totalPrints < t.minQuantity);
     if (!next) return null;
@@ -58,7 +58,7 @@ export function getAlbumDiscount(totalPrints, pricing) {
     return tier?.percent ? { percent: tier.percent } : null;
 }
 
-/** שורות טבלת המחירים: לכל מדרגת כמות — המחיר לכל גודל, עם סימון המדרגה הפעילה */
+/** Price table rows: for each quantity tier — the price per size, marking the active tier */
 export function getPricingTableDisplay(pricing, totalPrints = 0) {
     const tiers = [...(pricing?.quantityTiers || [])].sort(byMinAsc);
     const starts = [1, ...tiers.map((t) => t.minQuantity).filter((min) => min > 1)];

@@ -1,7 +1,7 @@
 /**
- * תמחור פיתוח תמונות: מחיר בסיס לכל גודל, הנחת כמות לפי סך כל ההדפסות בהזמנה,
- * והנחה על אלבום לפי כמות. ההגדרות נשמרות ב-DB (photoPricingModel) והמנהלת עורכת אותן.
- * ברירות המחדל משחזרות את המחירון שהיה כתוב בקוד (1.80 ₪ עד 0.80 ₪ לתמונה).
+ * Photo development pricing: a base price per size, a quantity discount by total prints in the order,
+ * and an album discount by quantity. The settings are stored in the DB (photoPricingModel) and the admin edits them.
+ * The defaults restore the price list that was hard-coded (1.80 ₪ down to 0.80 ₪ per photo).
  */
 const DEFAULT_PHOTO_PRICING = Object.freeze({
     sizes: [
@@ -27,7 +27,7 @@ const roundToAgora = (value) => Math.round(value * 100) / 100;
 
 const normalizeSize = (size) => String(size || "").toLowerCase().replace(/×/g, "x").trim();
 
-/** אחוז הנחת הכמות שחל על כמות ההדפסות הכוללת */
+/** The quantity discount percent that applies to the total number of prints */
 const getQuantityDiscountPercent = (pricing, totalPrints) => {
     const count = Math.max(0, Number(totalPrints) || 0);
     const tier = [...(pricing.quantityTiers || [])]
@@ -36,7 +36,7 @@ const getQuantityDiscountPercent = (pricing, totalPrints) => {
     return tier ? tier.discountPercent : 0;
 };
 
-/** מחיר לתמונה בגודל נתון, אחרי הנחת הכמות (מעוגל לאגורה) */
+/** Price per photo of a given size, after the quantity discount (rounded to the agora) */
 const getPhotoUnitPrice = (pricing, size, totalPrints) => {
     const sizes = pricing.sizes || [];
     const entry = sizes.find((s) => normalizeSize(s.size) === normalizeSize(size)) || sizes[0];

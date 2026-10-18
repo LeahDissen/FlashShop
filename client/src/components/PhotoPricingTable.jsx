@@ -6,7 +6,7 @@ const sizeHeader = (size) => {
     return `${entry.widthCm}×${entry.heightCm}`;
 };
 
-/** טבלת המחיר לתמונה לפי כמות וגודל — לשימוש במודאל או בתצוגה מקומית */
+/** Price per photo table by quantity and size — for use in a modal or inline */
 export const PhotoPricingTableContent = ({ pricing, totalPrints = 0 }) => {
     if (!pricing) return null;
     const rows = getPricingTableDisplay(pricing, totalPrints);

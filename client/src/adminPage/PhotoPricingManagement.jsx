@@ -8,7 +8,7 @@ import { formatPhotoSizeOptionLabel, getPhotoSizeCatalogEntry } from "../utils/p
 
 const inputClass = "w-full p-2 border rounded-lg focus:ring-2 focus:ring-[#f2665e]/30 focus:border-[#f2665e] outline-none";
 
-/** טבלת מדרגות (כמות התחלה + אחוז) עם הוספה ומחיקה של שורות */
+/** Tier table (starting quantity + percent) with adding and removing rows */
 function TierEditor({ title, description, tiers, percentKey, onChange }) {
     const updateTier = (index, field, value) =>
         onChange(tiers.map((tier, i) => (i === index ? { ...tier, [field]: value } : tier)));
@@ -70,7 +70,7 @@ function TierEditor({ title, description, tiers, percentKey, onChange }) {
     );
 }
 
-/** עריכת מחירון פיתוח התמונות: מחיר לכל גודל, הנחות כמות והנחות על אלבום */
+/** Photo development price list editor: price per size, quantity discounts and album discounts */
 export default function PhotoPricingManagement() {
     const [pricing, setPricing] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -84,7 +84,7 @@ export default function PhotoPricingManagement() {
 
     const update = (field, value) => setPricing((prev) => ({ ...prev, [field]: value }));
 
-    /** תצוגה מקדימה: אותה טבלה שהלקוח רואה, לפי הערכים שבטופס */
+    /** Preview: the same table the customer sees, from the form values */
     const previewPricing = useMemo(() => {
         if (!pricing) return null;
         const toNumbers = (list, keys) => list
