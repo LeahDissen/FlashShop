@@ -1,39 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProducts } from '../api/products';
+import { useProducts } from '../hooks/useProducts';
 import SalePrice from './SalePrice';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState(["הכל"]);
+    const { products, loading, error } = useProducts();
+    const loadError = error ? 'לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.' : null;
+    const categories = useMemo(
+        () => ["הכל", ...new Set(products.map((p) => p.category).filter(Boolean))],
+        [products],
+    );
     const [activeCategory, setActiveCategory] = useState("הכל");
-    const [loading, setLoading] = useState(true);
-    const [loadError, setLoadError] = useState(null);
 
     const formatPrice = (price) => {
         const num = typeof price === 'number' ? price : parseFloat(price);
         return Number.isFinite(num) ? num.toFixed(2) : null;
     };
-
-    useEffect(() => {
-        const fetchProducts = async () => {
-            setLoadError(null);
-            try {
-                const data = await getProducts();
-                const list = Array.isArray(data) ? data : [];
-                setProducts(list);
-                const uniqueCategories = [...new Set(list.map(p => p.category).filter(c => c))];
-                setCategories(["הכל", ...uniqueCategories]);
-            } catch (error) {
-                console.error("Failed to load products", error);
-                setLoadError('לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchProducts();
-    }, []);
 
     useEffect(() => {
         if (!initialCategory || categories.length <= 1) return;
@@ -96,7 +79,9 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                 {loadError && (
                     <div className="py-12 px-4 text-center">
                         <p className="text-red-600 font-medium mb-2">{loadError}</p>
-                        <p className="text-gray-500 text-sm">אם הבעיה נמשכת, בדקי שהשרת בענן פעיל ושאין חסימת רשת לכתובת Render.</p>
+                        <button type="button" onClick={() => window.location.reload()} className="text-sm font-bold text-[#f2665e] hover:underline">
+                            לרענן את הדף
+                        </button>
                     </div>
                 )}
 

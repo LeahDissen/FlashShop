@@ -16,16 +16,20 @@ const loadProductsOnce = () => {
     return productsRequest;
 };
 
+/** @returns {{ products: object[], loading: boolean, error: Error | null }} */
 export function useProducts() {
-    const [products, setProducts] = useState([]);
+    const [state, setState] = useState({ products: [], loading: true, error: null });
 
     useEffect(() => {
         let cancelled = false;
         loadProductsOnce()
-            .then((list) => { if (!cancelled) setProducts(list); })
-            .catch((error) => console.error('Failed to load products for search', error));
+            .then((products) => { if (!cancelled) setState({ products, loading: false, error: null }); })
+            .catch((error) => {
+                console.error('Failed to load products', error);
+                if (!cancelled) setState({ products: [], loading: false, error });
+            });
         return () => { cancelled = true; };
     }, []);
 
-    return products;
+    return state;
 }
