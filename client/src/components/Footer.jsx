@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaClock, FaEnvelope, FaMapMarkerAlt, FaPhoneAlt } from "react-icons/fa";
 import { sendMessageRequest } from "../api/messages";
 import { getPage } from "../api/pages";
@@ -6,6 +6,19 @@ import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 export default function Footer() {
+    // המפה של Google שוקלת כ-400KB – נטענת רק כשהגולשת מגיעה קרוב לתחתית הדף
+    const mapSlotRef = useRef(null);
+    const [showMap, setShowMap] = useState(false);
+    useEffect(() => {
+        const slot = mapSlotRef.current;
+        if (!slot || showMap) return undefined;
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) setShowMap(true);
+        }, { rootMargin: '200px' });
+        observer.observe(slot);
+        return () => observer.disconnect();
+    }, [showMap]);
+
     const adminControls = useAdminControl(
         {
             noteTitle: "שלחו לנו הודעה",
@@ -154,15 +167,18 @@ export default function Footer() {
                 </div>
 
                 <div className="flex flex-col items-center md:items-start">
-                    <iframe
-                        title="map"
-                        src={`https://maps.google.com/maps?q=${encodeURIComponent(draft.contactAddress)}&output=embed&t=m`}
-                        height="110"
-                        style={{ border: 0 }}
-                        allowFullScreen=""
-                        loading="lazy"
-                        className="w-full max-w-[260px] mx-auto md:mx-0 mb-3 rounded shadow-md opacity-90 hover:opacity-100 transition-opacity"
-                    ></iframe>
+                    <div ref={mapSlotRef} className="w-full max-w-[260px] h-[110px] mx-auto md:mx-0 mb-3">
+                        {showMap && (
+                            <iframe
+                                title="map"
+                                src={`https://maps.google.com/maps?q=${encodeURIComponent(draft.contactAddress)}&output=embed&t=m`}
+                                height="110"
+                                style={{ border: 0 }}
+                                allowFullScreen=""
+                                className="w-full h-full rounded shadow-md opacity-90 hover:opacity-100 transition-opacity"
+                            ></iframe>
+                        )}
+                    </div>
                     <address className="font-normal text-sm [font-family:'Noto_Sans_Hebrew',Helvetica] tracking-[0] leading-[normal] [direction:rtl] not-italic mb-2 flex items-center justify-start">
                         <FaMapMarkerAlt className="inline-block w-3 h-3 ml-2" />
                         {draft.contactAddress}
