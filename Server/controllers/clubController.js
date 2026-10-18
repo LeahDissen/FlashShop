@@ -17,8 +17,8 @@ exports.joinClub = async (req, res) => {
         if (!email || !name) {
             return res.status(400).json({ msg: "יש למלא שם וכתובת מייל" });
         }
-        // הרשמה כפולה נדחית – לא שולחים שוב מייל ולא חושפים את קוד ההטבה הקיים
-        // השוואה בלי תלות באותיות גדולות/קטנות – חברים ותיקים נשמרו לפני שהמייל נורמל
+        // A duplicate signup is rejected – no email is sent again and the existing benefit code is not revealed
+        // Case-insensitive comparison – older members were saved before emails were normalized
         const existingMember = await ClubModel.findOne({ email }).collation(CASE_INSENSITIVE);
         if (existingMember) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });

@@ -49,7 +49,7 @@ export default function Club() {
     const { draft, updateDraft, editMode } = adminControls;
 
     const [formData, setFormData] = useState(EMPTY_JOIN_FORM);
-    /** תוצאת ההרשמה מוצגת בתוך הפופ-אפ: success (עם קוד ההטבה) או error */
+    /** The signup result is shown inside the popup: success (with the benefit code) or error */
     const [joinResult, setJoinResult] = useState(null);
     const [isJoining, setIsJoining] = useState(false);
 
@@ -57,7 +57,7 @@ export default function Club() {
 
     const closeClub = () => {
         setClubOpen(false);
-        // הפתיחה הבאה מתחילה טופס נקי (למשל בן משפחה שנרשם מאותו דפדפן)
+        // The next opening starts with a clean form (e.g. a family member signing up from the same browser)
         if (joinResult?.type === "success") {
             setFormData(EMPTY_JOIN_FORM);
         }
