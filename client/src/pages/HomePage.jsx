@@ -6,6 +6,7 @@ import AdminControls from '../components/AdminControls.jsx';
 import SmartImageInput from '../components/SmartImageInput';
 import Testimonials, { DEFAULT_TESTIMONIALS } from '../components/Testimonials';
 import WaveDivider from '../components/WaveDivider';
+import ProductSearch from '../components/ProductSearch';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import useAppStore from '../store/appStore';
 import { useTipsStore } from '../store/tipsStore';
@@ -303,6 +304,8 @@ export default function HomePage() {
                     <h1 className="home-hero__title">
                         {draft.title || (<>מה הסיפור<br />שלכם?</>)}
                     </h1>
+
+                    <ProductSearch className="mb-6" />
 
                     <div className="home-products">
                         <div className="home-products__badge" aria-label="משלוחים לכל הארץ">
