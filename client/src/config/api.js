@@ -1,8 +1,8 @@
 const stripSlash = (url = "") => url.replace(/\/$/, "");
 
 /**
- * כתובות השרתים נקבעות בזמן build ממשתני סביבה (VITE_*) –
- * ראי client/.env.development / .env.production / .env.example.
+ * Server URLs are set at build time from environment variables (VITE_*) –
+ * see client/.env.development / .env.production / .env.example.
  */
 export const MONGO_API = stripSlash(import.meta.env.VITE_MONGO_API || "http://localhost:10000");
 export const REDIS_API = stripSlash(import.meta.env.VITE_REDIS_API || "http://localhost:4000");
