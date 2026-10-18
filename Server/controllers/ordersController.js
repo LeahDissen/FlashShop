@@ -20,6 +20,9 @@ const { isHypConfigured, createPaymentUrl, verifyPaymentRedirect, checkConnectio
 const { OrderEmailTemplateModel, ORDER_EMAIL_STATUSES, ORDER_EMAIL_PLACEHOLDERS } = require("../models/orderEmailTemplateModel");
 
 const DELIVERY_FEE = 25;
+/** Added to the product price when the shop's designer creates the design (matches the client) */
+const DESIGNER_SERVICE_FEE = 15;
+const MAX_ITEM_QUANTITY = 10_000;
 
 const sanitizeText = (value, max = 120) => String(value || "").trim().slice(0, max);
 
@@ -703,48 +706,9 @@ exports.createOrder = async (req, res) => {
         const photoPricing = photoItems.length > 0 ? await loadPhotoPricing() : null;
 
         for (const item of items) {
-            const qty = Number(item.quantity) || 1;
-            const productId = resolveProductId(item);
-
-            if (productId) {
-                const product = await ProductModel.findById(productId);
-                if (!product) {
-                    const cartPrice = Number(item.price);
-                    if (cartPrice > 0 && item.name) {
-                        subtotal += cartPrice * qty;
-                        verifiedItems.push(withItemExtras({
-                            name: item.name,
-                            size: item.size,
-                            price: cartPrice,
-                            quantity: qty,
-                            image: item.image,
-                        }, item));
-                        continue;
-                    }
-                    return res.status(404).json({ msg: "המוצר המבוקש לא נמצא במערכת" });
-                }
-
-                let unitPrice = getUnitPriceForQuantity(product, qty);
-                let name = product.name;
-                let image = product.image;
-
-                if (item.customDesign || item.customization) {
-                    const cartPrice = Number(item.price);
-                    if (cartPrice > 0) unitPrice = cartPrice;
-                    if (item.name) name = item.name;
-                    if (item.image) image = item.image;
-                }
-
-                subtotal += unitPrice * qty;
-                verifiedItems.push(withItemExtras({
-                    productId: product._id,
-                    name,
-                    size: item.size,
-                    price: unitPrice,
-                    quantity: qty,
-                    image,
-                }, item));
-                continue;
+            const qty = Number(item.quantity ?? 1);
+            if (!Number.isInteger(qty) || qty < 1 || qty > MAX_ITEM_QUANTITY) {
+                return res.status(400).json({ msg: `כמות לא תקינה בעגלה: ${item.name || "ללא שם"}` });
             }
 
             if (isPhotoPrintItem(item)) {
@@ -765,52 +729,28 @@ exports.createOrder = async (req, res) => {
                 continue;
             }
 
-            if (item.customDesign) {
-                const unitPrice = Number(item.price);
-                if (!unitPrice || unitPrice <= 0) {
-                    return res.status(400).json({ msg: "מחיר פריט עיצוב אישי אינו תקין" });
-                }
-
-                subtotal += unitPrice * qty;
-                verifiedItems.push(withItemExtras({
-                    name: item.name || "מוצר בעיצוב אישי",
-                    size: item.size,
-                    price: unitPrice,
-                    quantity: qty,
-                    image: item.image,
-                }, item));
-                continue;
+            // Every other item must be a catalog product: the price always comes from the product, never from the cart
+            const productId = resolveProductId(item);
+            const product = productId ? await ProductModel.findById(productId) : null;
+            if (!product) {
+                return res.status(400).json({
+                    msg: `המוצר "${item.name || "ללא שם"}" כבר לא קיים באתר. יש להסיר אותו מהעגלה ולהוסיף מחדש.`,
+                });
             }
 
-            if (item.customization && Number(item.price) > 0 && item.name) {
-                const unitPrice = Number(item.price);
-                subtotal += unitPrice * qty;
-                verifiedItems.push(withItemExtras({
-                    name: item.name,
-                    size: item.size,
-                    price: unitPrice,
-                    quantity: qty,
-                    image: item.image,
-                }, item));
-                continue;
-            }
+            const isCustom = Boolean(item.customDesign || item.customization);
+            const serviceFee = item.customization?.type === "designer-service" ? DESIGNER_SERVICE_FEE : 0;
+            const unitPrice = getUnitPriceForQuantity(product, qty) + serviceFee;
 
-            if (item.name && Number(item.price) > 0) {
-                const unitPrice = Number(item.price);
-                subtotal += unitPrice * qty;
-                verifiedItems.push(withItemExtras({
-                    name: item.name,
-                    size: item.size,
-                    price: unitPrice,
-                    quantity: qty,
-                    image: item.image,
-                }, item));
-                continue;
-            }
-
-            return res.status(400).json({
-                msg: `פריט לא תקין בעגלה: ${item.name || "ללא שם"}`,
-            });
+            subtotal += unitPrice * qty;
+            verifiedItems.push(withItemExtras({
+                productId: product._id,
+                name: isCustom && item.name ? item.name : product.name,
+                size: item.size,
+                price: unitPrice,
+                quantity: qty,
+                image: isCustom && item.image ? item.image : product.image,
+            }, item));
         }
         // ----------------==================================----------------
 
