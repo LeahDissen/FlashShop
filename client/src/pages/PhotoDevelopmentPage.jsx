@@ -27,15 +27,15 @@ import {
 import { clearPhotoDraft, endAlbumDetour, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
-    // התמונות שנבחרו נשמרות לאורך הביקור (למשל כשיוצאים לבחור אלבום וחוזרים)
+    // The selected photos are kept for the whole visit (e.g. when leaving to pick an album and coming back)
     const [images, setImages] = useState(loadPhotoDraft);
-    /** מחירון פיתוח התמונות מהשרת; null עד שנטען */
+    /** The photo development price list from the server; null until loaded */
     const [pricing, setPricing] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
-    /** התקדמות העלאה מרובה: { done, total, failed } */
+    /** Multi-upload progress: { done, total, failed } */
     const [uploadProgress, setUploadProgress] = useState(null);
-    /** קבצים שנכשלו בהעלאה האחרונה – הלקוח יכול לנסות אותם שוב בלי לבחור מחדש */
+    /** Files that failed in the last upload – the customer can retry them without choosing again */
     const [failedUploads, setFailedUploads] = useState([]);
     const [adjustImageId, setAdjustImageId] = useState(null);
     const [isCropSaving, setIsCropSaving] = useState(false);
@@ -72,7 +72,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         savePhotoDraft(images);
     }, [images]);
 
-    // חזרה לעמוד (גם בלי לקנות אלבום) מסיימת את "היציאה לבחירת אלבום"
+    // Coming back to the page (even without buying an album) ends the "left to pick an album" detour
     useEffect(endAlbumDetour, []);
 
     const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(pricing?.sizes), [pricing]);
@@ -110,7 +110,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         setUploadStatus('');
 
         try {
-            // כמה תמונות במקביל, כל אחת מצטרפת לגלריה ברגע שהיא מוכנה
+            // A few photos in parallel, each joins the gallery as soon as it is ready
             const { failed } = await uploadFilesInParallel(fileList, {
                 onProgress: setUploadProgress,
                 onUploaded: (result) => setImages((prev) => [...prev, toGalleryImage(result)]),
@@ -209,7 +209,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
 
     const handleSendOrder = async () => {
         if (images.length === 0) return;
-        // המחירון נטען ברקע; אם הטעינה נכשלה מנסים שוב לפני שממשיכים
+        // The price list loads in the background; if loading failed, retry before continuing
         const activePricing = pricing || await loadPricing();
         if (!activePricing) {
             alert('לא הצלחנו לטעון את מחירי ההדפסה. נא לבדוק את החיבור לאינטרנט ולנסות שוב.');

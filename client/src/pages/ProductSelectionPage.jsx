@@ -161,7 +161,7 @@ const ProductSelectionPage = () => {
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
 
-    // לאחר ההוספה לסל חוזרים לעמוד המוצרים כדי שהלקוח יוכל להמשיך לקנות
+    // After adding to the cart, return to the products page so the customer can keep shopping
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
             await addToCart(items);

@@ -723,7 +723,7 @@ exports.createOrder = async (req, res) => {
             }
 
             if (isPhotoPrintItem(item)) {
-                // המחיר לתמונה תלוי בגודל ובכמות ההדפסות הכוללת – מחושב מחדש מהמחירון השמור
+                // The price per photo depends on the size and the total number of prints – recalculated from the saved price list
                 const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, totalPhotoPrints);
                 const cartPrice = Number(item.price);
                 if (!cartPrice || Math.abs(cartPrice - photoUnitPrice) > 0.01) {
