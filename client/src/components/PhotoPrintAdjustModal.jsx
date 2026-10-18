@@ -551,6 +551,8 @@ const PhotoPrintAdjustModal = ({
         ).map((color) => color.value),
         [editorSettings.textToolbar?.colorPresets, editorAssets.colors],
     );
+    // הפלטה באותיות גדולות; צבע שנשמר באותיות קטנות (למשל #ffffff) עדיין מזוהה
+    const activeBackground = String(backgroundColor || '').toUpperCase();
     const [orientation, setOrientation] = useState(image?.orientation ?? 'landscape');
     const [printSize, setPrintSize] = useState(image?.size ?? DEFAULT_PHOTO_PRINT_SIZE);
     const [placement, setPlacement] = useState(
@@ -959,13 +961,13 @@ const PhotoPrintAdjustModal = ({
                                                 onClick={() => setBackgroundColor(color)}
                                                 disabled={isSaving}
                                                 className={`w-8 h-8 rounded-md border border-gray-200 transition-all ${
-                                                    backgroundColor === color
+                                                    activeBackground === color
                                                         ? 'ring-2 ring-[#f2665e] ring-offset-1'
                                                         : 'hover:scale-105'
                                                 }`}
                                                 style={{ backgroundColor: color }}
                                                 aria-label={`רקע ${color}`}
-                                                aria-pressed={backgroundColor === color}
+                                                aria-pressed={activeBackground === color}
                                             />
                                         ))}
                                         <button
@@ -973,13 +975,13 @@ const PhotoPrintAdjustModal = ({
                                             onClick={() => colorInputRef.current?.click()}
                                             disabled={isSaving}
                                             className={`w-8 h-8 rounded-md border border-gray-200 flex items-center justify-center ${
-                                                !backgroundColors.includes(backgroundColor)
+                                                !backgroundColors.includes(activeBackground)
                                                     ? 'ring-2 ring-[#f2665e] ring-offset-1'
                                                     : ''
                                             }`}
                                             aria-label="בחר צבע מותאם"
                                         >
-                                            {!backgroundColors.includes(backgroundColor) ? (
+                                            {!backgroundColors.includes(activeBackground) ? (
                                                 <span
                                                     className="w-full h-full rounded-md"
                                                     style={{ backgroundColor }}
