@@ -68,24 +68,18 @@ export function formatPhotoSizeOptionLabel(entry) {
     return cm;
 }
 
-/** מיזוג מחירים מהשרת עם קטלוג הגדלים */
-export function mergePhotoPricesWithCatalog(apiPrices = []) {
+/** אפשרויות הגודל לבחירה (המחירים עצמם מגיעים מהמחירון, לא מכאן) */
+export function getPhotoSizeOptions() {
     return [...PHOTO_PRINT_SIZE_CATALOG]
         .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((entry) => {
-            const fromApi = Array.isArray(apiPrices)
-                ? apiPrices.find((p) => p.size === entry.size)
-                : null;
-            return {
-                size: entry.size,
-                price: fromApi?.price ?? 0,
-                label: formatPhotoSizeOptionLabel(entry),
-                widthCm: entry.widthCm,
-                heightCm: entry.heightCm,
-                widthIn: entry.widthIn,
-                heightIn: entry.heightIn,
-            };
-        });
+        .map((entry) => ({
+            size: entry.size,
+            label: formatPhotoSizeOptionLabel(entry),
+            widthCm: entry.widthCm,
+            heightCm: entry.heightCm,
+            widthIn: entry.widthIn,
+            heightIn: entry.heightIn,
+        }));
 }
 
 /** פרסור גודל הדפסה (למשל "10x15") — ללא כיוון */

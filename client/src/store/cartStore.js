@@ -58,6 +58,25 @@ export const useCartStore = create(
           useToastStore.getState().showToast(successMessage);
       },
 
+      /** מעדכן מחיר של פריטים שכבר בסל (למשל מדרגת מחיר של תמונות אחרי שנוספו עוד). getPrice מחזיר undefined = בלי שינוי */
+      repriceItems: (getPrice) => {
+          set((state) => {
+              let changed = false;
+              const updatedCart = state.cartItems.map((item) => {
+                  const price = getPrice(item);
+                  if (price === undefined || price === item.price) return item;
+                  changed = true;
+                  return { ...item, price };
+              });
+              if (!changed) return state;
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
+              return { cartItems: updatedCart };
+          });
+      },
+
       removeFromCart: (itemId) => {
           if (!itemId) return;
 

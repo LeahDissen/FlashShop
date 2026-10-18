@@ -16,7 +16,7 @@ import {
     DEFAULT_PHOTO_PRINT_SIZE,
     getDefaultOrientation,
     formatPrintSizeCm,
-    mergePhotoPricesWithCatalog,
+    getPhotoSizeOptions,
 } from '../utils/printSizes';
 import PhotoPrintAdjustModal from '../components/PhotoPrintAdjustModal';
 import {
@@ -28,6 +28,8 @@ import {
     normalizeSize,
 } from '../utils/photoQuantityPricing';
 import { clearPhotoDraft, endAlbumDetour, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
+
+const isPhotoPrintCartItem = (item) => item?.itemType === 'photo-print';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     // התמונות שנבחרו נשמרות לאורך הביקור (למשל כשיוצאים לבחור אלבום וחוזרים)
@@ -43,6 +45,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [adjustImageId, setAdjustImageId] = useState(null);
     const [isCropSaving, setIsCropSaving] = useState(false);
     const addToCart = useCartStore((state) => state.addToCart);
+    const repriceItems = useCartStore((state) => state.repriceItems);
     const navigate = useNavigate();
 
     const adminControls = useAdminControl({
@@ -78,7 +81,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     // חזרה לעמוד (גם בלי לקנות אלבום) מסיימת את "היציאה לבחירת אלבום"
     useEffect(endAlbumDetour, []);
 
-    const sizeOptions = useMemo(() => mergePhotoPricesWithCatalog(), []);
+    const sizeOptions = useMemo(() => getPhotoSizeOptions(), []);
     const orderPricing = useMemo(
         () => getOrderPricing(images, pricing, DEFAULT_PHOTO_PRINT_SIZE),
         [images, pricing],
@@ -219,7 +222,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             return;
         }
 
-        const printsBySize = getPrintsBySize(images, DEFAULT_PHOTO_PRINT_SIZE);
+        // מדרגת המחיר נקבעת לפי כל התמונות מאותו גודל – גם אלה שכבר נמצאות בסל מפעם קודמת
+        const photosInCart = useCartStore.getState().cartItems.filter(isPhotoPrintCartItem);
+        const printsBySize = getPrintsBySize([...images, ...photosInCart], DEFAULT_PHOTO_PRINT_SIZE);
         const cartItems = images.map((img) => {
             const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
             const qty = Math.max(1, img.quantity);
@@ -250,6 +255,9 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         });
 
         addToCart(cartItems);
+        repriceItems((item) => (isPhotoPrintCartItem(item)
+            ? getPhotoUnitPrice(activePricing, item.size, printsBySize[normalizeSize(item.size)])
+            : undefined));
         clearPhotoDraft();
         navigate('/cart');
     };

@@ -733,12 +733,9 @@ exports.createOrder = async (req, res) => {
             }
 
             if (isPhotoPrintItem(item)) {
-                // המחיר לתמונה מחושב מחדש מהמחירון השמור, לפי הגודל וכמות ההדפסות באותו גודל
+                // המחיר לתמונה נקבע כאן מהמחירון השמור, לפי הגודל וכמות ההדפסות מאותו גודל בכל ההזמנה.
+                // המחיר שבסל לא משמש: אם הלקוחה הוסיפה תמונות בכמה פעמים, המדרגה מחושבת על הכל יחד.
                 const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, photoPrintsBySize[normalizeSize(item.size)]);
-                const cartPrice = Number(item.price);
-                if (!cartPrice || Math.abs(cartPrice - photoUnitPrice) > 0.01) {
-                    return res.status(400).json({ msg: "מחיר הדפסת תמונה אינו תקין" });
-                }
 
                 subtotal += photoUnitPrice * qty;
                 verifiedItems.push(withItemExtras({
