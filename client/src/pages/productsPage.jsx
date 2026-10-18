@@ -7,6 +7,7 @@ import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useProductStore } from '../store/productStore';
 import { PRINT_OPTIONS } from '../constants/printOptions';
+import ProductSearch from '../components/ProductSearch';
 
 const ProductsPage = ({ onNavigate }) => {
     const [searchParams] = useSearchParams();
@@ -125,6 +126,7 @@ const ProductsPage = ({ onNavigate }) => {
 
             {/* אזור גריד המוצרים והקטגוריות */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
+                <ProductSearch className="mb-2" />
                 <PersonalizationSection
                     onNavigateToEditor={() => onNavigate('/editor')}
                     onSelectProduct={setSelectedProduct}
