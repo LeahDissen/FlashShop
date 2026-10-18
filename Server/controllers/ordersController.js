@@ -997,8 +997,11 @@ exports.checkPaymentConnection = async (req, res) => {
         return res.json({ configured: false, ok: false, msg: "חסרים HYP_MASOF / HYP_KEY / HYP_PASSP" });
     }
     try {
-        const { ok, code } = await checkConnection();
-        res.json({ configured: true, ok, code, msg: ok ? "החיבור ל-Hyp תקין" : `Hyp דחו את הבקשה (קוד ${code})` });
+        const { ok, code, reason } = await checkConnection();
+        const msg = ok ? "החיבור ל-Hyp תקין"
+            : reason === "page" ? "דף התשלום של Hyp דוחה את החתימה – כנראה HYP_KEY שגוי או חלקי"
+            : `Hyp דחו את הבקשה (קוד ${code})`;
+        res.json({ configured: true, ok, code, msg });
     } catch (err) {
         res.status(502).json({ configured: true, ok: false, msg: `אין תשובה מ-Hyp: ${err.message}` });
     }

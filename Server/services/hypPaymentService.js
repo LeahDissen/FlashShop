@@ -4,6 +4,8 @@ const { config } = require("../config/secret");
 /** Hyp Pay's payment page and API (https://developers.hyp.co.il/pay) */
 const HYP_URL = "https://pay.hyp.co.il/p/";
 const REQUEST_TIMEOUT_MS = 15_000;
+/** What the payment page shows when the signature does not match the terminal (usually a wrong or truncated KEY) */
+const PAYMENT_PAGE_AUTH_ERROR = "שגיאת אימות";
 
 exports.isHypConfigured = () => Boolean(config.HYP_MASOF && config.HYP_KEY && config.HYP_PASSP);
 
@@ -64,12 +66,20 @@ exports.verifyPaymentRedirect = async (redirectQuery) => {
 };
 
 /**
- * Connection check without charging: requests a signature for 1 ₪ and does not send any customer to payment.
- * @returns {Promise<{ ok: boolean, code: string | null }>}
+ * Connection check without charging: signs a 1 ILS page and opens it the way a customer would.
+ * A wrong KEY still gets a signature back, and only the payment page itself rejects it, so both steps are checked.
+ * @returns {Promise<{ ok: boolean, code: string | null, reason?: string }>}
  */
 exports.checkConnection = async () => {
     const query = toQuery({ action: "APISign", What: "SIGN", Sign: "True", ...credentials(), Amount: "1.00", Order: "connection-check" });
     const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });
-    const response = String(data);
-    return { ok: /(^|&)signature=/.test(response), code: readCode(response) };
+    const response = String(data).trim();
+    const code = readCode(response);
+    if (!/(^|&)signature=/.test(response)) return { ok: false, code, reason: "sign" };
+
+    const page = await axios.get(`${HYP_URL}?${response}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "arraybuffer" });
+    const html = Buffer.from(page.data);
+    const pageRejected = [html.toString("utf8"), new TextDecoder("windows-1255").decode(html)]
+        .some((text) => text.includes(PAYMENT_PAGE_AUTH_ERROR));
+    return pageRejected ? { ok: false, code, reason: "page" } : { ok: true, code };
 };
