@@ -19,15 +19,15 @@ const markDismissed = (popup) => {
     try {
         sessionStorage.setItem(dismissedKey(popup._id), "1");
     } catch {
-        // אחסון חסום (מצב פרטי) – פשוט נציג שוב בביקור הבא
+        // Storage blocked (private mode) – just show it again on the next visit
     }
 };
 
 const isExternal = (url) => /^https?:\/\//i.test(url);
 
 /**
- * מציג את הפופאפ הראשון שמתאים לעמוד הנוכחי, אחרי ההשהיה שהמנהלת הגדירה.
- * לא עולה מעל פופאפ המועדון או התקנון, ולא בעמודי הניהול/ההתחברות.
+ * Shows the first popup that matches the current page, after the delay the admin set.
+ * Does not appear over the club or terms popups, or on admin/login pages.
  */
 export default function PopupHost() {
     const { pathname } = useLocation();

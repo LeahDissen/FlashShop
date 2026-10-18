@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-/** true בתוך עמודי הניהול (AdminRoute) – רכיבים של החנות יכולים לדלג על עצמם שם */
+/** true inside the admin pages (AdminRoute) – shop components can skip themselves there */
 export const AdminPageContext = createContext(false);
 
 export const useIsAdminPage = () => useContext(AdminPageContext);
