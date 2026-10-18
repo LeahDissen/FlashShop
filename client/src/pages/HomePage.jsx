@@ -24,14 +24,14 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
-/** גובה תמונת ה-Hero לפי בחירת המנהלת (בדסקטופ; במובייל קטן יותר באותו יחס) */
+/** Hero image height by the admin's choice (on desktop; smaller on mobile by the same ratio) */
 const HERO_HEIGHTS = {
     small: { label: "נמוכה", px: 240 },
     medium: { label: "בינונית", px: 360 },
     large: { label: "גבוהה", px: 480 },
 };
 const DEFAULT_HERO_HEIGHT = "medium";
-const DEFAULT_HERO_FOCUS = 50; // אחוז אנכי: 0 = החלק העליון של התמונה, 100 = התחתון
+const DEFAULT_HERO_FOCUS = 50; // Vertical percent: 0 = top of the image, 100 = bottom
 
 /** Stable initial data — defined outside component to prevent recreation on every render */
 const INITIAL_DATA = {

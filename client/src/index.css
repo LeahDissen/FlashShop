@@ -39,7 +39,7 @@ select:disabled,
   width: 100%;
 }
 
-/* --hero-height נקבע מהאדמין (קטן/בינוני/גדול); במובייל התמונה נמוכה יותר באותו יחס */
+/* --hero-height is set by the admin (small/medium/large); on mobile the image is shorter by the same ratio */
 .home-hero__banner-bg {
   position: relative;
   width: 100%;
