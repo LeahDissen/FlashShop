@@ -17,6 +17,10 @@ exports.config = {
     USER: process.env.EMAIL_USER || process.env.USER,
     PASS: process.env.EMAIL_PASS || process.env.PASS,
     BCRYPT_SALT: process.env.BCRYPT_SALT,
+    // סליקה – Hyp Pay (דף תשלום מאובטח). בלי שלושתם ההזמנה נשמרת בלי מעבר לתשלום
+    HYP_MASOF: process.env.HYP_MASOF,
+    HYP_KEY: process.env.HYP_KEY,
+    HYP_PASSP: process.env.HYP_PASSP,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     // Google Drive (אופציונלי) – שמירת קבצי העיצוב הסופיים לפי הזמנה
     GOOGLE_DRIVE_CLIENT_EMAIL: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,

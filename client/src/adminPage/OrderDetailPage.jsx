@@ -44,6 +44,8 @@ const getStatusBadge = (status) => {
             return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> בטיפול</span>;
         case "pending":
             return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
+        case "awaiting_payment":
+            return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 flex items-center gap-1 w-fit"><FaClock /> ממתין לתשלום</span>;
         case "shipped":
             return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 w-fit"><FaShippingFast /> נשלח</span>;
             case "delivered":
@@ -752,6 +754,12 @@ export default function OrderDetailPage() {
                                 <span className="font-semibold text-gray-700">סה״כ לתשלום</span>
                                 <span className="text-2xl font-bold text-[#f2665e]">₪{Number(order.total_price).toFixed(2)}</span>
                             </div>
+                            {order.payment?.status === 'paid' && (
+                                <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                                    שולם באשראי (Hyp) · מספר עסקה {order.payment.transactionId}
+                                    {order.payment.approvalCode && ` · אישור ${order.payment.approvalCode}`}
+                                </p>
+                            )}
                         </div>
                     </section>
 

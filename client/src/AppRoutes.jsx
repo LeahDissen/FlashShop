@@ -40,6 +40,7 @@ const PhotoPricingManagement = lazyWithReload(() => import("./adminPage/PhotoPri
 const ShopSettingsManagement = lazyWithReload(() => import("./adminPage/ShopSettingsManagement"));
 const PopupsManagement = lazyWithReload(() => import("./adminPage/PopupsManagement"));
 const OrderConfirmationPage = lazyWithReload(() => import("./pages/OrderConfirmationPage"));
+const PaymentResultPage = lazyWithReload(() => import("./pages/PaymentResultPage"));
 const CheckoutPage = lazyWithReload(() => import("./pages/CheckoutPage"));
 
 /** סקריפט ההתחברות של Google (כ-100KB) נטען רק בעמודי ההתחברות וההרשמה */
@@ -103,6 +104,7 @@ export default function AppRoutes() {
                     <Route path="/cart" element={<Layout> <ShoppingCartPage /> </Layout>} />
                     <Route path="/checkout" element={<Layout><CheckoutPage /></Layout>} />
                     <Route path="/order-confirmation/:orderId" element={<Layout><OrderConfirmationPage /></Layout>} />
+                    <Route path="/payment/result" element={<Layout><PaymentResultPage /></Layout>} />
                     <Route path="/products" element={<Layout> <ProductsPageWrapper /> </Layout>} />
                     <Route path="/editor/:productId" element={<Layout compact><EditorPageWrapper /></Layout>} />
                     <Route path="/photo-development" element={<Layout> <PhotoDevelopmentPage /> </Layout>} />
