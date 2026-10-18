@@ -3,7 +3,7 @@ import { MONGO_API } from '../config/api';
 
 const API_URL = `${MONGO_API}/photo-prices`;
 
-/** מחירון פיתוח התמונות: { sizes, quantityTiers, albumDiscountTiers } */
+/** Photo development price list: { sizes, quantityTiers, albumDiscountTiers } */
 export const getPhotoPricing = async () => {
     const response = await axios.get(API_URL);
     return response.data;

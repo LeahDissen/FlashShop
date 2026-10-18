@@ -53,7 +53,7 @@ export const useCartStore = create(
           });
       },
 
-      /** מעדכן מחיר של פריטים שכבר בסל (למשל מדרגת מחיר של תמונות אחרי שנוספו עוד). getPrice מחזיר undefined = בלי שינוי */
+      /** Updates the price of items already in the cart (e.g. the photo price tier after more were added). getPrice returning undefined = no change */
       repriceItems: (getPrice) => {
           set((state) => {
               let changed = false;

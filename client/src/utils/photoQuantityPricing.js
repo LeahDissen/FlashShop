@@ -1,10 +1,10 @@
 /**
- * תמחור פיתוח תמונות לפי המחירון שהמנהלת מגדירה (נטען מהשרת):
- * לכל גודל יש מדרגות מחיר בש"ח לפי כמות ההדפסות מאותו גודל, ובנוסף הנחה על אלבום לפי סך ההדפסות.
- * אותו חישוב רץ בשרת בזמן יצירת ההזמנה (Server/utils/photoQuantityPricing.js).
+ * Photo development pricing from the price list the admin defines (loaded from the server):
+ * each size has shekel price tiers by the number of prints of that size, plus an album discount by total prints.
+ * The same calculation runs on the server when the order is created (Server/utils/photoQuantityPricing.js).
  */
 
-/** שם קטגוריית האלבומים במוצרים (לקישור "לבחירת אלבום") */
+/** The albums category name in products (for the "choose an album" link) */
 export const ALBUM_CATEGORY = 'אלבום';
 
 const roundToAgora = (value) => Math.round(value * 100) / 100;
@@ -25,7 +25,7 @@ export function getTotalPrintCount(images = []) {
     return images.reduce((sum, img) => sum + quantityOf(img), 0);
 }
 
-/** כמה הדפסות מכל גודל: { '10x15': 45, ... } */
+/** How many prints of each size: { '10x15': 45, ... } */
 export function getPrintsBySize(images = [], defaultSize) {
     return images.reduce((counts, img) => {
         const key = normalizeSize(img.size || defaultSize);
@@ -34,14 +34,14 @@ export function getPrintsBySize(images = [], defaultSize) {
     }, {});
 }
 
-/** מחיר לתמונה בגודל נתון כשמזמינים `quantity` הדפסות מהגודל הזה */
+/** Price per photo of a given size when ordering `quantity` prints of that size */
 export function getPhotoUnitPrice(pricing, size, quantity) {
     const count = Math.max(1, Number(quantity) || 0);
     const tier = sortedTiers(pricing, size).reverse().find((t) => count >= t.minQuantity);
     return tier ? Number(tier.price) : 0;
 }
 
-/** סיכום ההזמנה: כמות כוללת, סה"כ לתשלום, ופירוט לכל גודל */
+/** Order summary: total quantity, total to pay, and a breakdown per size */
 export function getOrderPricing(images, pricing, defaultSize) {
     const printsBySize = getPrintsBySize(images, defaultSize);
     const sizes = Object.entries(printsBySize).map(([size, count]) => {
@@ -55,7 +55,7 @@ export function getOrderPricing(images, pricing, defaultSize) {
     };
 }
 
-/** "עוד X הדפסות בגודל Y והמחיר יורד ל-Z" – לגודל שהכי קרוב למדרגה הבאה; null אם אין */
+/** "X more prints of size Y and the price drops to Z" – for the size closest to its next tier; null if none */
 export function getNextPricingTierHint(orderSizes, pricing, formatSize = (size) => size) {
     const candidates = (orderSizes || [])
         .map(({ size, count }) => {
@@ -75,7 +75,7 @@ export function getAlbumDiscount(totalPrints, pricing) {
     return tier?.percent ? { percent: tier.percent } : null;
 }
 
-/** מדרגות המחיר של גודל אחד לתצוגה, עם סימון המדרגה הפעילה לפי מספר ההדפסות מהגודל */
+/** One size's price tiers for display, marking the active tier by the number of prints of that size */
 export function getSizePriceRows(pricing, size, count = 0) {
     const tiers = sortedTiers(pricing, size);
     return tiers.map((tier, index) => {

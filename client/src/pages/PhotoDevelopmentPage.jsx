@@ -32,13 +32,13 @@ const isPhotoPrintCartItem = (item) => item?.itemType === 'photo-print';
 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     const [images, setImages] = useState([]);
-    /** מחירון פיתוח התמונות מהשרת; null עד שנטען */
+    /** The photo development price list from the server; null until loaded */
     const [pricing, setPricing] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadStatus, setUploadStatus] = useState('');
-    /** התקדמות העלאה מרובה: { done, total, failed } */
+    /** Multi-upload progress: { done, total, failed } */
     const [uploadProgress, setUploadProgress] = useState(null);
-    /** קבצים שנכשלו בהעלאה האחרונה – הלקוח יכול לנסות אותם שוב בלי לבחור מחדש */
+    /** Files that failed in the last upload – the customer can retry them without choosing again */
     const [failedUploads, setFailedUploads] = useState([]);
     const [adjustImageId, setAdjustImageId] = useState(null);
     const [isCropSaving, setIsCropSaving] = useState(false);
@@ -107,7 +107,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         setUploadStatus('');
 
         try {
-            // כמה תמונות במקביל, כל אחת מצטרפת לגלריה ברגע שהיא מוכנה
+            // A few photos in parallel, each joins the gallery as soon as it is ready
             const { failed } = await uploadFilesInParallel(fileList, {
                 onProgress: setUploadProgress,
                 onUploaded: (result) => setImages((prev) => [...prev, toGalleryImage(result)]),
@@ -206,14 +206,14 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
 
     const handleSendOrder = async () => {
         if (images.length === 0) return;
-        // המחירון נטען ברקע; אם הטעינה נכשלה מנסים שוב לפני שממשיכים
+        // The price list loads in the background; if loading failed, retry before continuing
         const activePricing = pricing || await loadPricing();
         if (!activePricing) {
             alert('לא הצלחנו לטעון את מחירי ההדפסה. נא לבדוק את החיבור לאינטרנט ולנסות שוב.');
             return;
         }
 
-        // מדרגת המחיר נקבעת לפי כל התמונות מאותו גודל – גם אלה שכבר נמצאות בסל מפעם קודמת
+        // The price tier is set by all the photos of the same size – including those already in the cart from an earlier round
         const photosInCart = useCartStore.getState().cartItems.filter(isPhotoPrintCartItem);
         const printsBySize = getPrintsBySize([...images, ...photosInCart], DEFAULT_PHOTO_PRINT_SIZE);
         const cartItems = images.map((img) => {

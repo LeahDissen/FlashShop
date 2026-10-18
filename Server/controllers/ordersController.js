@@ -671,7 +671,7 @@ exports.createOrder = async (req, res) => {
         const verifiedItems = [];
 
         const photoItems = items.filter(isPhotoPrintItem);
-        // מדרגת המחיר של כל גודל נקבעת לפי מספר ההדפסות מאותו גודל בהזמנה
+        // Each size's price tier is set by the number of prints of that size in the order
         const photoPrintsBySize = countPrintsBySize(photoItems, (item) => item.size, (item) => item.quantity);
         const photoPricing = photoItems.length > 0 ? await loadPhotoPricing() : null;
 
@@ -721,8 +721,8 @@ exports.createOrder = async (req, res) => {
             }
 
             if (isPhotoPrintItem(item)) {
-                // המחיר לתמונה נקבע כאן מהמחירון השמור, לפי הגודל וכמות ההדפסות מאותו גודל בכל ההזמנה.
-                // המחיר שבסל לא משמש: אם הלקוחה הוסיפה תמונות בכמה פעמים, המדרגה מחושבת על הכל יחד.
+                // The price per photo is set here from the saved price list, by size and the number of prints of that size in the whole order.
+                // The cart price is not used: if the customer added photos in several rounds, the tier is calculated on all of them together.
                 const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, photoPrintsBySize[normalizeSize(item.size)]);
 
                 subtotal += photoUnitPrice * qty;

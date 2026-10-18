@@ -5,10 +5,10 @@ const roundToAgora = (value) => Math.round(value * 100) / 100;
 const byMinQuantity = (a, b) => a.minQuantity - b.minQuantity;
 
 /**
- * המרה מהמבנה הקודם (מחיר בסיס לכל גודל + מדרגות כלליות ב"אחוז הנחה").
- * במסמך השמור הוזנו בשדה האחוז ערכים שהם בעצם מחירים בש"ח (1.30, 1.20...), ולכן:
- * אם כל ה"אחוזים" קטנים ממחיר הבסיס של הגודל הראשון – הם מחירים של הגודל הראשון;
- * אחרת הם אחוזי הנחה אמיתיים ומחושבים לכל גודל.
+ * Conversion from the previous structure (base price per size + general "discount percent" tiers).
+ * The saved document had values in the percent field that are really shekel prices (1.30, 1.20...), so:
+ * if all the "percents" are lower than the first size's base price – they are prices for the first size;
+ * otherwise they are real discount percents and are applied to every size.
  */
 const convertLegacyPricing = (legacy) => {
     const legacySizes = Array.isArray(legacy.sizes) ? legacy.sizes : [];
@@ -39,7 +39,7 @@ const convertLegacyPricing = (legacy) => {
 const isLegacyPricing = (doc) => Array.isArray(doc.quantityTiers)
     || (Array.isArray(doc.sizes) && doc.sizes.some((s) => s.price !== undefined && !s.tiers));
 
-/** המחירון השמור, או ברירת המחדל אם עוד לא נשמר */
+/** The saved price list, or the default if none has been saved yet */
 exports.loadPhotoPricing = async () => {
     const saved = await PhotoPricingModel.findOne({ key: "default" }).lean();
     if (!saved) return structuredClone(DEFAULT_PHOTO_PRICING);
@@ -51,7 +51,7 @@ const toNumber = (value) => (value === "" || value === null || value === undefin
 const hasDuplicateMin = (tiers) => new Set(tiers.map((t) => t.minQuantity)).size !== tiers.length;
 
 /**
- * בודק ומנרמל מחירון שהגיע מהאדמין.
+ * Validates and normalizes a price list received from the admin.
  * @returns {{ value?: object, error?: string }}
  */
 exports.validatePhotoPricing = (body = {}) => {

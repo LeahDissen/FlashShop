@@ -53,7 +53,7 @@ export function getPhotoSizeCatalogEntry(sizeStr) {
     );
 }
 
-/** גודל קצר בס"מ להצגה, למשל "10×15" */
+/** Short size in cm for display, e.g. "10×15" */
 export function formatPrintSizeCm(sizeStr) {
     const entry = getPhotoSizeCatalogEntry(sizeStr);
     return `${entry.widthCm}×${entry.heightCm}`;
@@ -68,7 +68,7 @@ export function formatPhotoSizeOptionLabel(entry) {
     return cm;
 }
 
-/** אפשרויות הגודל לבחירה (המחירים עצמם מגיעים מהמחירון, לא מכאן) */
+/** Size options to choose from (the prices themselves come from the price list, not from here) */
 export function getPhotoSizeOptions() {
     return [...PHOTO_PRINT_SIZE_CATALOG]
         .sort((a, b) => a.sortOrder - b.sortOrder)

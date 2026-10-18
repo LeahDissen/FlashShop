@@ -74,12 +74,12 @@ function parseCloudinaryError(data) {
     return 'העלאת הקובץ נכשלה. נסו שוב.';
 }
 
-/** שגיאה עם סימון האם שווה לנסות שוב (רשת/שרת) או לא (קובץ פגום, גדול מדי, 4xx) */
+/** An error marked with whether it is worth retrying (network/server) or not (corrupt file, too large, 4xx) */
 const uploadError = (message, retryable) => Object.assign(new Error(message), { retryable });
 
 /**
- * מעלה תמונה ומחזיר גם את המידות שקלאודינרי מדווח –
- * חוסך הורדה חוזרת של כל תמונה רק כדי למדוד אותה.
+ * Uploads an image and also returns the dimensions Cloudinary reports –
+ * saves downloading every image again just to measure it.
  */
 export async function uploadImageDetailed(file) {
     let prepared;
