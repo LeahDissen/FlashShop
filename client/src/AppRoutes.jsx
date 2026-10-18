@@ -7,6 +7,8 @@ import HomePage from "./pages/HomePage";
 import { getReturnPathAfterAdd } from './utils/photoOrderDraft';
 import { useProductStore } from './store/productStore';
 import { lazyWithReload } from "./utils/lazyWithReload";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+import { GOOGLE_CLIENT_ID } from "./config/api";
 
 // עמודים שלא נדרשים בטעינה הראשונה נטענים רק כשנכנסים אליהם (חבילת JS קטנה יותר לדף הבית)
 const AdminDashboardPage = lazyWithReload(() => import("./adminPage/AdminDashboardPage"));
@@ -40,6 +42,11 @@ const PopupsManagement = lazyWithReload(() => import("./adminPage/PopupsManageme
 const OrderConfirmationPage = lazyWithReload(() => import("./pages/OrderConfirmationPage"));
 const CheckoutPage = lazyWithReload(() => import("./pages/CheckoutPage"));
 
+/** סקריפט ההתחברות של Google (כ-100KB) נטען רק בעמודי ההתחברות וההרשמה */
+const GoogleAuth = ({ children }) => (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>
+);
+
 /** מוצג לרגע בזמן שקוד העמוד נטען */
 const PageLoader = () => (
     <div className="flex justify-center items-center min-h-[50vh]" role="status" aria-label="טוען">
@@ -65,8 +72,8 @@ export default function AppRoutes() {
             <Suspense fallback={<PageLoader />}>
                 <Routes>
                     {/* Login route - without Layout */}
-                    <Route path="/login" element={<LoginPage />} />
-                    <Route path="/signup" element={<SignUpPage />} />
+                    <Route path="/login" element={<GoogleAuth><LoginPage /></GoogleAuth>} />
+                    <Route path="/signup" element={<GoogleAuth><SignUpPage /></GoogleAuth>} />
                     <Route path="/forgot" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     {/* All other routes - with Layout */}
