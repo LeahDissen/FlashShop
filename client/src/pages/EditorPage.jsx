@@ -57,7 +57,7 @@ import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
 import { withMagnetPrintDimensions } from '../utils/magnetSize';
 
-/** העמוד צריך מהספרייה רק את הצבעים; שאר הקטגוריות נטענות בסרגל הצד */
+/** The page needs only the colors from the library; the other categories load in the sidebar */
 const EMPTY_EDITOR_ASSETS = { shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] };
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';

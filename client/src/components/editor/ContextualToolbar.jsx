@@ -124,7 +124,7 @@ const ContextualToolbar = ({
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // החלוניות מרונדרות ב-portal מחוץ לסרגל – לחיצה בתוכן אינה "בחוץ"
+            // The panels are rendered in a portal outside the toolbar – a click in their content is not "outside"
             if (event.target.closest?.('[data-toolbar-popover]')) return;
             if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
                 setShowColorPicker(false);
