@@ -3,7 +3,7 @@ import { create } from 'zustand';
 const DEFAULT_DURATION_MS = 2500;
 let hideTimer = null;
 
-/** הודעה קצרה וחולפת בתחתית המסך (למשל "המוצר נוסף לסל בהצלחה!") */
+/** A short, transient message at the bottom of the screen (e.g. the "added to cart" confirmation) */
 const useToastStore = create((set) => ({
     toast: null,
 

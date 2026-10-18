@@ -1,6 +1,6 @@
 import useToastStore from '../store/toastStore';
 
-/** מציג את ההודעה החולפת הנוכחית. מורכב פעם אחת ב-Layout. */
+/** Shows the current transient message. Mounted once in Layout. */
 export default function ToastHost() {
     const toast = useToastStore((state) => state.toast);
     const hideToast = useToastStore((state) => state.hideToast);
