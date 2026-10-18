@@ -1070,7 +1070,8 @@ const Canvas = ({
           if (el.locked) ariaLabel += ' (Locked)';
           if (selectedElementId === el.id) ariaLabel += ' (Selected)';
 
-          const hasFixedSize = elIsImage || elIsShape || elIsText;
+          // למסגרת חופשית יש רוחב וגובה משלה; בלי זה הרוחב "אוטומטי" ומתכווץ כשמזיזים אותה ימינה
+          const hasFixedSize = elIsImage || elIsShape || elIsText || el.type === 'globalFrame';
 
           const outerWrapperStyle = {
             position: 'absolute',
