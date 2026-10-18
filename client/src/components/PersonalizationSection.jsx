@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import SalePrice from './SalePrice';
+import { optimizeImageUrl } from '../utils/imageUrl';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
@@ -99,7 +100,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                             className={`cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-300 transform hover:scale-105 flex flex-col bg-white border-transparent shadow-md hover:shadow-xl hover:border-red-300`}
                         >
                             <div className="relative h-48 bg-gray-50 flex items-center justify-center overflow-hidden">
-                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                <img src={optimizeImageUrl(product.image, { width: 500 })} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
                                 {product.isOnSale && (
                                     <span className="absolute top-2 right-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#f2665e] text-white shadow-md">
                                         מבצע

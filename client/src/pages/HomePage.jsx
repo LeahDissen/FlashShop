@@ -10,6 +10,7 @@ import ProductSearch from '../components/ProductSearch';
 import { useAdminControl } from '../hooks/useAdminControl.jsx';
 import useAppStore from '../store/appStore';
 import { useTipsStore } from '../store/tipsStore';
+import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 /** Parse a Redis field that may arrive as JSON string or already-parsed value */
 const parseJsonField = (value, fallback) => {
@@ -38,6 +39,26 @@ const HOME_TILE_COUNT = 8;
 const PHOTO_DEVELOPMENT_PATH = '/photo-development';
 const DEFAULT_UPLOAD_BADGE_TEXT = 'להעלאת תמונות להדפסה';
 
+const HOME_CACHE_KEY = 'flashshop_home_page';
+
+/** תוכן דף הבית מהביקור הקודם – מוצג מיד, ומתעדכן כשהגרסה העדכנית מגיעה מהשרת */
+const readHomeCache = () => {
+    try {
+        const cached = JSON.parse(localStorage.getItem(HOME_CACHE_KEY) || 'null');
+        return cached && typeof cached === 'object' ? cached : null;
+    } catch {
+        return null;
+    }
+};
+
+const writeHomeCache = (data) => {
+    try {
+        localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data));
+    } catch {
+        // אחסון מלא או חסום – פשוט בלי מטמון
+    }
+};
+
 /** Stable initial data — defined outside component to prevent recreation on every render */
 const INITIAL_DATA = {
     title: "",
@@ -64,7 +85,10 @@ const INITIAL_DATA = {
  *  - Story, Testimonials, Tips
  */
 export default function HomePage() {
-    const adminControls = useAdminControl(INITIAL_DATA, "home");
+    const [cachedHome] = useState(readHomeCache);
+    // עד שהתוכן מגיע לא מציירים את הדף, כדי שהוא לא "יקפוץ" כשהתמונה והריבועים נטענים
+    const [isLoaded, setIsLoaded] = useState(Boolean(cachedHome));
+    const adminControls = useAdminControl(cachedHome ? { ...INITIAL_DATA, ...cachedHome } : INITIAL_DATA, "home");
     const { draft, updateDraft, editMode } = adminControls;
 
     const setClubOpen = useAppStore(state => state.setClubOpen);
@@ -95,6 +119,8 @@ export default function HomePage() {
             data.testimonials = parseJsonField(data.testimonials, DEFAULT_TESTIMONIALS);
             adminControls.setPage(data);
             adminControls.setDraft(data);
+            setIsLoaded(true);
+            writeHomeCache(data);
         });
 
         getAllTips(1, 2)
@@ -348,7 +374,9 @@ export default function HomePage() {
     );
 
     // ─── View Content ─────────────────────────────────────────────────────────
-    const ViewContent = (
+    const ViewContent = !isLoaded ? (
+        <div className="w-full min-h-screen bg-white" aria-busy="true" />
+    ) : (
         <div className="w-full bg-white overflow-x-hidden">
 
             {/* ══ HERO WAVE + PRODUCTS ══════════════════════════════════════ */}
@@ -358,7 +386,7 @@ export default function HomePage() {
                         className="home-hero__banner-bg"
                         style={{
                             backgroundColor: '#f8dcdb',
-                            backgroundImage: draft.mainImg ? `url(${draft.mainImg})` : 'none',
+                            backgroundImage: draft.mainImg ? `url(${optimizeImageUrl(draft.mainImg, { width: screenWidthImageSize() })})` : 'none',
                             backgroundSize: 'cover',
                             backgroundPosition: `center ${heroFocus}%`,
                             '--hero-height': `${HERO_HEIGHTS[heroHeightKey].px}px`,
@@ -410,7 +438,13 @@ export default function HomePage() {
                                     aria-label={prod.name || `קטגוריה ${index + 1}`}
                                     className="home-products__tile"
                                 >
-                                    <img src={prod.image} alt={prod.name || `מוצר ${index + 1}`} />
+                                    <img
+                                        src={optimizeImageUrl(prod.image, { width: 600 })}
+                                        alt={prod.name || `מוצר ${index + 1}`}
+                                        width="600"
+                                        height="600"
+                                        loading="lazy"
+                                    />
                                     {prod.name ? (
                                         <span className="home-products__tile-label">{prod.name}</span>
                                     ) : null}
