@@ -1070,7 +1070,7 @@ const Canvas = ({
           if (el.locked) ariaLabel += ' (Locked)';
           if (selectedElementId === el.id) ariaLabel += ' (Selected)';
 
-          // למסגרת חופשית יש רוחב וגובה משלה; בלי זה הרוחב "אוטומטי" ומתכווץ כשמזיזים אותה ימינה
+          // A free frame has its own width and height; without this the width is "auto" and shrinks when it is moved right
           const hasFixedSize = elIsImage || elIsShape || elIsText || el.type === 'globalFrame';
 
           const outerWrapperStyle = {
