@@ -128,7 +128,7 @@ export default function HomePage() {
         updateDraft({ testimonials: list.filter((_, i) => i !== index) });
     };
 
-    /** ריבוע בלי קישור מפורש מוביל לעמוד המוצרים מסונן לפי שם הקטגוריה שלו */
+    /** A tile without an explicit link leads to the products page filtered by its category name */
     const tileLink = (prod) => {
         const link = (prod?.link || '').trim();
         if (link) return link;
