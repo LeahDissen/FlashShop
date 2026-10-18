@@ -40,7 +40,7 @@ export default function Header() {
     );
 
     return (
-        <div className="h-full flex items-center relative min-w-[200px]">
+        <div className="h-full flex items-center relative sm:min-w-[200px]">
             <div className={editMode ? "absolute top-0 right-0 z-50 min-w-[350px]" : "w-full"}>
                 <AdminControls
                     editMode={editMode}

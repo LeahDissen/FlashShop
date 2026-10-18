@@ -17,7 +17,7 @@ export default function Layout({ children, compact = false }) {
                 }`}
             >
                 <div className="max-w-screen-2xl mx-auto px-4 h-full flex items-center overflow-visible">
-                    <div className="flex-shrink-0 ml-8">
+                    <div className="flex-shrink-0 ml-3 sm:ml-8">
                         <Header />
                     </div>
                     <div className="flex-1 h-full overflow-visible">
