@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDesignFrames } from '../api/designFrames';
 import { DEFAULT_EDITOR_SETTINGS } from '../constants/editorSettingsDefaults';
 import { useEditorSettings } from '../hooks/useEditorSettings';
+import { useEditorAssets } from '../hooks/useEditorAssets';
+import { EMPTY_EDITOR_ASSETS } from '../utils/mapEditorAssets';
+import { buildEditorPalette } from '../utils/editorPalette';
 import { getFrameOrientation } from '../utils/orientationMatching';
 import { prepareFrameImageSrc } from '../utils/frameImageProcessing';
 import { detectTextDirection, getPrintCropBlob } from '../utils/cropImage';
@@ -268,7 +271,8 @@ const PrintImageEditor = ({
     );
 };
 
-const BACKGROUND_PRESETS = [
+/** צבעי רקע בסיסיים; אליהם מתווספים כל הצבעים שהמנהלת הגדירה בהגדרות העורך ובספריית הצבעים */
+const BASE_BACKGROUND_COLORS = [
     '#FFFFFF',
     '#000000',
     '#F3F4F6',
@@ -539,6 +543,14 @@ const PhotoPrintAdjustModal = ({
     availableSizes = [],
 }) => {
     const { settings: editorSettings } = useEditorSettings();
+    const { assets: editorAssets } = useEditorAssets(EMPTY_EDITOR_ASSETS);
+    const backgroundColors = useMemo(
+        () => buildEditorPalette(
+            [...BASE_BACKGROUND_COLORS, ...(editorSettings.textToolbar?.colorPresets || [])],
+            editorAssets.colors,
+        ).map((color) => color.value),
+        [editorSettings.textToolbar?.colorPresets, editorAssets.colors],
+    );
     const [orientation, setOrientation] = useState(image?.orientation ?? 'landscape');
     const [printSize, setPrintSize] = useState(image?.size ?? DEFAULT_PHOTO_PRINT_SIZE);
     const [placement, setPlacement] = useState(
@@ -940,7 +952,7 @@ const PhotoPrintAdjustModal = ({
                                 <div>
                                     <span className="block text-sm font-medium text-gray-700 mb-2">צבע רקע</span>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        {BACKGROUND_PRESETS.map((color) => (
+                                        {backgroundColors.map((color) => (
                                             <button
                                                 key={color}
                                                 type="button"
@@ -961,13 +973,13 @@ const PhotoPrintAdjustModal = ({
                                             onClick={() => colorInputRef.current?.click()}
                                             disabled={isSaving}
                                             className={`w-8 h-8 rounded-md border border-gray-200 flex items-center justify-center ${
-                                                !BACKGROUND_PRESETS.includes(backgroundColor)
+                                                !backgroundColors.includes(backgroundColor)
                                                     ? 'ring-2 ring-[#f2665e] ring-offset-1'
                                                     : ''
                                             }`}
                                             aria-label="בחר צבע מותאם"
                                         >
-                                            {!BACKGROUND_PRESETS.includes(backgroundColor) ? (
+                                            {!backgroundColors.includes(backgroundColor) ? (
                                                 <span
                                                     className="w-full h-full rounded-md"
                                                     style={{ backgroundColor }}

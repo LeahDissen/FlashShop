@@ -56,9 +56,9 @@ import useAuthStore from '../store/authStore';
 import { getUnitPriceForQuantity } from '../utils/productQuantityPricing';
 import { withTieredPricingFields } from '../utils/cartItem';
 import { withMagnetPrintDimensions } from '../utils/magnetSize';
+import { EMPTY_EDITOR_ASSETS } from '../utils/mapEditorAssets';
 
 /** העמוד צריך מהספרייה רק את הצבעים; שאר הקטגוריות נטענות בסרגל הצד */
-const EMPTY_EDITOR_ASSETS = { shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] };
 
 const CANVAS_KEY_STORAGE_PREFIX = 'active_editor_canvas_key';
 const ACTIVE_ELEMENTS_STORAGE_PREFIX = 'active_editor_elements';
