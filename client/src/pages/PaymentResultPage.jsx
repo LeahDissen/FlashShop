@@ -6,8 +6,8 @@ import { clearCheckoutDraft } from '../utils/checkoutDraft';
 import { saveLastOrder } from '../utils/orderConfirmation';
 
 /**
- * לכאן Hyp מחזירים את הלקוחה אחרי תשלום מוצלח (הכתובת מוגדרת בפורטל של Hyp).
- * השרת מאמת את העסקה, ורק אז הסל מתרוקן ועוברים לאישור ההזמנה.
+ * Hyp sends the customer back here after a successful payment (the URL is set in the Hyp portal).
+ * The server verifies the transaction, and only then the cart is emptied and the order confirmation is shown.
  */
 export default function PaymentResultPage() {
     const navigate = useNavigate();

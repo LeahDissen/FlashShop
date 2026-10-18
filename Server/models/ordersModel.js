@@ -46,7 +46,7 @@ let orderSchema = new mongoose.Schema({
         type: String,
         default: "pending"
     },
-    /** תשלום בדף המאובטח של Hyp. הזמנה ממתינה לתשלום נמצאת בסטטוס awaiting_payment */
+    /** Payment on Hyp's secure page. An order waiting for payment has the status awaiting_payment */
     payment: {
         provider: { type: String },
         status: { type: String, enum: ["pending", "paid"] },

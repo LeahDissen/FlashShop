@@ -12,7 +12,7 @@ exports.config = {
     USER: process.env.EMAIL_USER || process.env.USER,
     PASS: process.env.EMAIL_PASS || process.env.PASS,
     BCRYPT_SALT: process.env.BCRYPT_SALT,
-    // סליקה – Hyp Pay (דף תשלום מאובטח). בלי שלושתם ההזמנה נשמרת בלי מעבר לתשלום
+    // Payment – Hyp Pay (secure payment page). Without all three the order is saved without going to payment
     HYP_MASOF: process.env.HYP_MASOF,
     HYP_KEY: process.env.HYP_KEY,
     HYP_PASSP: process.env.HYP_PASSP,
