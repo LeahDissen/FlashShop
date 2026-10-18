@@ -104,11 +104,19 @@ select:disabled,
   direction: ltr;
 }
 
+/* flex ולא grid כדי ששורה אחרונה לא מלאה (למשל 6 ריבועים: 4 + 2) תהיה ממורכזת */
 .home-products__grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(1rem, 2.2vw, 1.75rem);
+  --home-tile-columns: 4;
+  --home-tile-gap: clamp(1rem, 2.2vw, 1.75rem);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--home-tile-gap);
   width: 100%;
+}
+
+.home-products__grid > * {
+  flex: 0 0 calc((100% - (var(--home-tile-columns) - 1) * var(--home-tile-gap)) / var(--home-tile-columns));
 }
 
 .home-products__tile {
@@ -371,7 +379,7 @@ select:disabled,
   }
 
   .home-products__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    --home-tile-columns: 2;
   }
 
   .home-products__grid {
