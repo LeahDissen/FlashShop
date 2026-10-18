@@ -43,7 +43,7 @@ const ProductSelectionPage = () => {
         referenceImage: null
     });
 
-    // תוכן דף "products" ב-CMS: תמונת הבאנר וטקסטים של כפתורי האפשרויות
+    // Content of the "products" CMS page: the banner image and the option button texts
     const [productsPageContent, setProductsPageContent] = useState({});
     const fileInputRef = useRef(null);
     const magnetFileRef = useRef(null);
