@@ -6,7 +6,7 @@ import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
 
 export default function Footer() {
-    // המפה של Google שוקלת כ-400KB – נטענת רק כשהגולשת מגיעה קרוב לתחתית הדף
+    // The Google map weighs ~400KB – loaded only when the visitor scrolls near the bottom of the page
     const mapSlotRef = useRef(null);
     const [showMap, setShowMap] = useState(false);
     useEffect(() => {

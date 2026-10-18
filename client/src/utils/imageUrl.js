@@ -1,10 +1,10 @@
 const CLOUDINARY_UPLOAD = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+)$/;
 
 /**
- * כתובת תמונה מוקטנת ודחוסה מ-Cloudinary: פורמט מודרני (WebP/AVIF) ואיכות אוטומטית,
- * ברוחב/גובה שמספיקים לתצוגה. תמונה שלא מ-Cloudinary חוזרת כמו שהיא.
+ * Resized, compressed Cloudinary image URL: modern format (WebP/AVIF) and automatic quality,
+ * at a width/height large enough for display. A non-Cloudinary image is returned as is.
  * @param {string} url
- * @param {{ width?: number, height?: number }} size פיקסלים בפועל (כבר כולל צפיפות מסך)
+ * @param {{ width?: number, height?: number }} size actual pixels (already including screen density)
  */
 export function optimizeImageUrl(url, { width, height } = {}) {
     const match = CLOUDINARY_UPLOAD.exec(String(url || ''));
@@ -16,7 +16,7 @@ export function optimizeImageUrl(url, { width, height } = {}) {
     return `${prefix}${transforms.join(',')}/${rest}`;
 }
 
-/** רוחב תמונה ברוחב המסך, מעוגל למדרגות של 400px כדי שהמטמון של Cloudinary יעבוד טוב */
+/** Image width at screen width, rounded to 400px steps so the Cloudinary cache works well */
 export function screenWidthImageSize(maxWidth = 2400) {
     if (typeof window === 'undefined') return 1600;
     const pixels = window.innerWidth * (window.devicePixelRatio || 1);
