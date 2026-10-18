@@ -9,8 +9,8 @@ const fontFormat = (url) => {
 const escapeCss = (text) => String(text).replace(/["\\\n]/g, '');
 
 /**
- * רושם בדף את הגופנים שהמנהלת העלתה (fonts עם url) כ-@font-face.
- * נעשה בתגית style (ולא FontFace API) כדי שגם צילום העיצוב לתמונה (html-to-image) יכלול אותם.
+ * Registers the fonts the admin uploaded (fonts with a url) on the page as @font-face.
+ * Done with a style tag (not the FontFace API) so the design snapshot (html-to-image) includes them too.
  * @param {{ value: string, url?: string }[]} fonts
  */
 export function registerCustomFonts(fonts = []) {
@@ -29,7 +29,7 @@ export function registerCustomFonts(fonts = []) {
     if (style.textContent !== rules) style.textContent = rules;
 }
 
-/** שם משפחת הגופן מתוך שם הקובץ: "FbAbrakadabra-Regular.otf" -> "FbAbrakadabra" */
+/** The font family from the file name: "FbAbrakadabra-Regular.otf" -> "FbAbrakadabra" */
 export function fontFamilyFromFileName(fileName) {
     return String(fileName || '')
         .replace(/\.[^.]+$/, '')

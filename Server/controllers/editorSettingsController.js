@@ -63,7 +63,7 @@ const normalizeFonts = (fonts) => {
             return {
                 label: String(font?.label || value).trim(),
                 value,
-                // רק קישור https לקובץ גופן; כל דבר אחר נזרק
+                // Only an https link to a font file; anything else is dropped
                 url: /^https:\/\/\S+$/i.test(url) ? url : "",
             };
         })

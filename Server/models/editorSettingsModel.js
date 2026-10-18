@@ -16,7 +16,7 @@ const fontOptionSchema = new mongoose.Schema(
     {
         label: { type: String, required: true, trim: true },
         value: { type: String, required: true, trim: true },
-        /** קובץ גופן שהמנהלת העלתה (OTF/TTF/WOFF); ריק = גופן מערכת או Google Fonts */
+        /** A font file the admin uploaded (OTF/TTF/WOFF); empty = a system font or Google Fonts */
         url: { type: String, trim: true, default: "" },
     },
     { _id: false },

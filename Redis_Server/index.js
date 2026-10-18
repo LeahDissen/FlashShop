@@ -10,7 +10,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 4000;
 const HOST_NAME = process.env.HOST_NAME || "0.0.0.0";
 
-// מקורות מורשים ל-CORS: כתובות הלקוח בפרודקשן מגיעות מ-CLIENT_URL (מופרדות בפסיק)
+// Origins allowed by CORS: the production client URLs come from CLIENT_URL (comma-separated)
 const allowedOrigins = Array.from(new Set([
     "http://localhost:5173",
     "http://127.0.0.1:5173",

@@ -99,7 +99,7 @@ export async function uploadImageToCloudinary(file) {
 const FONT_EXTENSIONS = ['otf', 'ttf', 'woff', 'woff2'];
 const MAX_FONT_BYTES = 5 * 1024 * 1024;
 
-/** מעלה קובץ גופן (OTF/TTF/WOFF/WOFF2) כקובץ גולמי ומחזיר את כתובתו */
+/** Uploads a font file (OTF/TTF/WOFF/WOFF2) as a raw file and returns its URL */
 export async function uploadFontToCloudinary(file) {
     const extension = String(file?.name || '').split('.').pop().toLowerCase();
     if (!FONT_EXTENSIONS.includes(extension)) {

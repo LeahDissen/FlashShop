@@ -12,7 +12,7 @@ const fetchSettingsOnce = () => {
         inflightRequest = getEditorSettings()
             .then((data) => {
                 cachedSettings = mergeEditorSettings(data);
-                // גופנים שהמנהלת העלתה זמינים בכל מקום שמשתמש בהגדרות (עורך המוצרים ועורך התמונות)
+                // Fonts the admin uploaded are available everywhere the settings are used (product editor and photo editor)
                 registerCustomFonts(cachedSettings.textToolbar?.fonts);
                 return cachedSettings;
             })
