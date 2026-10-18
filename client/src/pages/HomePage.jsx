@@ -24,6 +24,14 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
+/** גובה תמונת ה-Hero לפי בחירת המנהלת (בדסקטופ; במובייל קטן יותר באותו יחס) */
+const HERO_HEIGHTS = {
+    small: { label: "נמוכה", px: 240 },
+    medium: { label: "בינונית", px: 360 },
+    large: { label: "גבוהה", px: 480 },
+};
+const DEFAULT_HERO_HEIGHT = "medium";
+const DEFAULT_HERO_FOCUS = 50; // אחוז אנכי: 0 = החלק העליון של התמונה, 100 = התחתון
 /** כמה ריבועי מוצרים אפשר להגדיר בדף הבית (4 בשורה בדסקטופ, 2 במובייל) */
 const HOME_TILE_COUNT = 8;
 const PHOTO_DEVELOPMENT_PATH = '/photo-development';
@@ -33,6 +41,8 @@ const DEFAULT_UPLOAD_BADGE_TEXT = 'להעלאת תמונות להדפסה';
 const INITIAL_DATA = {
     title: "",
     mainImg: "",
+    heroHeight: DEFAULT_HERO_HEIGHT,
+    heroFocus: DEFAULT_HERO_FOCUS,
     products: [],
     goToAll: "",
     uploadBadgeText: "",
@@ -134,6 +144,9 @@ export default function HomePage() {
         updateDraft({ testimonials: list.filter((_, i) => i !== index) });
     };
 
+    const heroHeightKey = HERO_HEIGHTS[draft.heroHeight] ? draft.heroHeight : DEFAULT_HERO_HEIGHT;
+    const heroFocus = Number.isFinite(Number(draft.heroFocus)) ? Number(draft.heroFocus) : DEFAULT_HERO_FOCUS;
+
     /** ריבוע בלי קישור מפורש מוביל לעמוד המוצרים מסונן לפי שם הקטגוריה שלו */
     const tileLink = (prod) => {
         const link = (prod?.link || '').trim();
@@ -176,6 +189,31 @@ export default function HomePage() {
                     className="w-full border p-2 rounded ltr"
                     previewClassName="h-[80px] w-[80px] rounded object-cover border border-gray-200"
                 />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                    <span className="font-bold block mb-1">גובה התמונה:</span>
+                    <select
+                        value={heroHeightKey}
+                        onChange={(e) => updateDraft({ heroHeight: e.target.value })}
+                        className="w-full border rounded p-2"
+                    >
+                        {Object.entries(HERO_HEIGHTS).map(([key, { label }]) => (
+                            <option key={key} value={key}>{label}</option>
+                        ))}
+                    </select>
+                </label>
+                <label className="block">
+                    <span className="font-bold block mb-1">איזה חלק מהתמונה יוצג: {heroFocus <= 20 ? "למעלה" : heroFocus >= 80 ? "למטה" : "אמצע"}</span>
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={heroFocus}
+                        onChange={(e) => updateDraft({ heroFocus: Number(e.target.value) })}
+                        className="w-full accent-[#f2665e]"
+                    />
+                </label>
             </div>
             <div>
                 <label className="font-bold block mb-2">{HOME_TILE_COUNT} מוצרים — תמונה + שם + קישור (4 בשורה):</label>
@@ -321,7 +359,8 @@ export default function HomePage() {
                             backgroundColor: '#f8dcdb',
                             backgroundImage: draft.mainImg ? `url(${draft.mainImg})` : 'none',
                             backgroundSize: 'cover',
-                            backgroundPosition: 'center',
+                            backgroundPosition: `center ${heroFocus}%`,
+                            '--hero-height': `${HERO_HEIGHTS[heroHeightKey].px}px`,
                         }}
                     >
                         {draft.mainImg ? <div className="home-hero__banner-overlay" /> : null}
