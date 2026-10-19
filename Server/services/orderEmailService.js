@@ -8,7 +8,7 @@ const { sendEmail } = require("../utils/sendEmail");
 
 const FULFILLMENT_LABELS = { pickup: "איסוף עצמי", delivery: "משלוח" };
 
-/** טוען את כל התבניות; סטטוס שעדיין אין לו תבנית מקבל את ברירת המחדל */
+/** Loads all the templates; a status that has no template yet gets the default */
 const loadOrderEmailTemplates = async () => {
     const existing = await OrderEmailTemplateModel.find({ status: { $in: ORDER_EMAIL_STATUSES } }).lean();
     const byStatus = new Map(existing.map((template) => [template.status, template]));
@@ -41,13 +41,13 @@ const buildTemplateVars = (order, customerName) => ({
     fulfillment: FULFILLMENT_LABELS[order.fulfillment_method] || FULFILLMENT_LABELS.pickup,
 });
 
-/** החלפת {{key}} בערכים; מפתח לא מוכר נשאר כמו שהוא כדי שהמנהלת תראה את הטעות */
+/** Replaces {{key}} with values; an unknown key is left as is so the admin sees the mistake */
 const renderTemplate = (text, vars) =>
     String(text || "").replace(/{{\s*(\w+)\s*}}/g, (match, key) =>
         Object.prototype.hasOwnProperty.call(vars, key) ? vars[key] : match,
     );
 
-/** נמען: המייל שהוזן בקופה, ואם אין – המייל של חשבון המשתמש */
+/** Recipient: the email entered at checkout, or if there is none – the user account's email */
 const resolveRecipient = async (order) => {
     if (order.customer?.email) {
         return { email: order.customer.email, name: order.customer.name };
@@ -59,8 +59,8 @@ const resolveRecipient = async (order) => {
 };
 
 /**
- * שולח ללקוח את מייל הסטטוס המתאים. לעולם לא זורק – כשל במייל
- * לא אמור להכשיל יצירת הזמנה או עדכון סטטוס.
+ * Sends the customer the matching status email. Never throws – an email failure
+ * must not fail order creation or a status update.
  */
 exports.sendOrderStatusEmail = async (order, status) => {
     try {

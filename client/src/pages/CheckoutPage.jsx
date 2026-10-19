@@ -151,7 +151,7 @@ export default function CheckoutPage() {
 
             paymentSubmittedRef.current = true;
 
-            // סליקה מחוברת: עוברים לדף התשלום המאובטח. הסל נשמר עד שהתשלום מאומת (PaymentResultPage)
+            // Payment connected: go to the secure payment page. The cart is kept until the payment is verified (PaymentResultPage)
             if (order.paymentUrl) {
                 window.location.assign(order.paymentUrl);
                 return;

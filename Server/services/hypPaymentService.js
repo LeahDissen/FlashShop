@@ -1,7 +1,7 @@
 const axios = require("axios");
 const { config } = require("../config/secret");
 
-/** דף התשלום וה-API של Hyp Pay (https://developers.hyp.co.il/pay) */
+/** Hyp Pay's payment page and API (https://developers.hyp.co.il/pay) */
 const HYP_URL = "https://pay.hyp.co.il/p/";
 const REQUEST_TIMEOUT_MS = 15_000;
 /** What the payment page shows when the signature does not match the terminal (usually a wrong or truncated KEY) */
@@ -24,8 +24,8 @@ const splitName = (fullName = "") => {
 };
 
 /**
- * מבקש מ-Hyp קישור חתום לדף התשלום של ההזמנה.
- * @returns {Promise<string>} הכתובת שאליה מעבירים את הלקוחה
+ * Requests a signed link to the order's payment page from Hyp.
+ * @returns {Promise<string>} the URL the customer is redirected to
  */
 exports.createPaymentUrl = async (order) => {
     const { first, last } = splitName(order.customer?.name);
@@ -42,6 +42,9 @@ exports.createPaymentUrl = async (order) => {
         email: order.customer?.email,
         cell: String(order.customer?.phone || "").replace(/\D/g, ""),
         PageLang: "HEB",
+        // Values are sent as UTF-8; without this the payment page (windows-1255) shows Hebrew as gibberish
+        UTF8: "True",
+        UTF8out: "True",
     });
 
     const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });
@@ -49,13 +52,13 @@ exports.createPaymentUrl = async (order) => {
     if (!/(^|&)signature=/.test(response)) {
         throw new Error(`Hyp SIGN failed (CCode=${readCode(response) ?? "?"})`);
     }
-    // התשובה מוצמדת כמו שהיא, באותו סדר, לכתובת דף התשלום
+    // The response is appended as is, in the same order, to the payment page URL
     return `${HYP_URL}?${response}`;
 };
 
 /**
- * מאמת מול Hyp שהחזרה לדף ההצלחה אמיתית ולא זויפה.
- * @param {string} redirectQuery מחרוזת הפרמטרים שהגיעה לדף ההצלחה, כמו שהיא ובאותו סדר
+ * Verifies with Hyp that the return to the success page is genuine and not forged.
+ * @param {string} redirectQuery the query string that reached the success page, as is and in the same order
  * @returns {Promise<boolean>}
  */
 exports.verifyPaymentRedirect = async (redirectQuery) => {

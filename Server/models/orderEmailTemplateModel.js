@@ -1,9 +1,9 @@
 const mongoose = require("mongoose");
 
-/** הסטטוסים שמנהלת ההזמנות יכולה לקבוע (תואם ל-STATUS_OPTIONS בלקוח) */
+/** The statuses the order admin can set (matches STATUS_OPTIONS on the client) */
 const ORDER_EMAIL_STATUSES = ["processing", "shipped", "delivered", "cancelled"];
 
-/** משתנים שאפשר לשלב בנושא ובגוף המייל */
+/** Variables that can be used in the email subject and body */
 const ORDER_EMAIL_PLACEHOLDERS = [
     { key: "name", label: "שם הלקוח" },
     { key: "orderNumber", label: "מספר הזמנה" },
@@ -35,7 +35,7 @@ const DEFAULT_ORDER_EMAIL_TEMPLATES = {
     },
 };
 
-/** נוסח המייל שנשלח ללקוח בכל סטטוס – המנהלת עורכת אותו בלוח הבקרה */
+/** The email text sent to the customer for each status – the admin edits it in the dashboard */
 const orderEmailTemplateSchema = new mongoose.Schema(
     {
         status: { type: String, required: true, unique: true, enum: ORDER_EMAIL_STATUSES },

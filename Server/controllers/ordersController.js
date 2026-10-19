@@ -575,8 +575,8 @@ exports.updateOrderStatus = async (req, res) => {
             { new: true }
         );
 
-        // הלקוח מקבל מייל בכל שינוי סטטוס (לפי הנוסח שהמנהלת הגדירה).
-        // נשלח ברקע: המנהלת לא מחכה לשרת המייל, וכשל נרשם בלוג בלבד.
+        // The customer gets an email on every status change (per the text the admin defined).
+        // Sent in the background: the admin does not wait for the mail server, and a failure is only logged.
         if (previous.status !== status) {
             sendOrderStatusEmail(order, status);
         }
@@ -659,7 +659,7 @@ exports.syncOrderDrive = async (req, res) => {
 // יצירת הזמנה חדשה וסגירת עגלת הקניות (מאובטח לחלוטין מפני זיוף מחירים)
 const AWAITING_PAYMENT = "awaiting_payment";
 
-/** מה שקורה כשהזמנה נכנסת לטיפול: מימוש הקופון, ניקוי הסל ומייל אישור ללקוח */
+/** What happens when an order moves to processing: redeem the coupon, clear the cart and send the customer a confirmation email */
 async function completeOrder(order, userId) {
     if (order.coupon_code) {
         await markCouponAsUsed(order.coupon_code, userId);
@@ -668,7 +668,7 @@ async function completeOrder(order, userId) {
         { user_id: userId, status: "pending" },
         { $set: { items: [], total_price: 0, subtotal: 0, discount: 0, coupon_code: null } },
     );
-    sendOrderStatusEmail(order, "processing"); // ברקע, לא מעכב את התשובה
+    sendOrderStatusEmail(order, "processing"); // In the background, does not delay the response
 }
 
 exports.createOrder = async (req, res) => {
@@ -836,7 +836,7 @@ exports.createOrder = async (req, res) => {
             customer: customerDetails,
             shipping_address: method === "delivery" ? shippingDetails : undefined,
             total_price,
-            // כשהסליקה מחוברת, ההזמנה נכנסת לטיפול רק אחרי שהתשלום אומת
+            // When payment is connected, the order moves to processing only after the payment is verified
             ...(isHypConfigured()
                 ? { status: AWAITING_PAYMENT, payment: { provider: "hyp", status: "pending" } }
                 : { status: "processing" }),
@@ -853,7 +853,7 @@ exports.createOrder = async (req, res) => {
         }
 
         if (saved.status === AWAITING_PAYMENT) {
-            // הקופון, המייל והסל מטופלים רק אחרי תשלום (confirmPayment)
+            // The coupon, email and cart are handled only after payment (confirmPayment)
             try {
                 const paymentUrl = await createPaymentUrl(saved);
                 return res.status(201).json({ ...saved.toObject(), paymentUrl });
@@ -895,7 +895,7 @@ exports.getOrderById = async (req, res) => {
         res.status(500).json({ msg: "שגיאה בטעינת ההזמנה" });
     }
 };
-// --- נוסחי המיילים האוטומטיים (מנהלת) ---
+// --- Automatic email texts (admin) ---
 exports.getOrderEmailTemplates = async (req, res) => {
     try {
         const templates = await loadOrderEmailTemplates();
@@ -932,14 +932,14 @@ exports.updateOrderEmailTemplate = async (req, res) => {
     }
 };
 
-// --- סליקה (Hyp Pay) ---
+// --- Payment (Hyp Pay) ---
 
-/** פרמטרים שהשרת מוסיף בעצמו לבקשת האימות – אסור שיגיעו מהדפדפן */
+/** Parameters the server adds itself to the verification request – they must not come from the browser */
 const RESERVED_PAYMENT_PARAMS = new Set(["action", "what", "key", "passp", "masof"]);
 
 /**
- * הלקוחה חזרה מדף התשלום לדף ההצלחה. מאמתים מול Hyp שהחזרה אמיתית ושהסכום וההזמנה תואמים,
- * ואז ההזמנה נכנסת לטיפול. בטוח לקרוא שוב (רענון הדף) – הזמנה ששולמה לא מעובדת פעמיים.
+ * The customer came back from the payment page to the success page. Verify with Hyp that the return is genuine and that the amount and order match,
+ * then the order moves to processing. Safe to call again (page refresh) – a paid order is never processed twice.
  */
 exports.confirmPayment = async (req, res) => {
     try {
@@ -951,7 +951,7 @@ exports.confirmPayment = async (req, res) => {
         const query = String(req.body?.query || "").replace(/^\?/, "");
         const params = new URLSearchParams(query);
         const keys = [...params.keys()];
-        // פרמטר כפול או פרטי מסוף בתוך החזרה = ניסיון לגרום ל-Hyp לאמת ערכים אחרים ממה שבדקנו כאן
+        // A duplicate parameter or terminal details inside the return = an attempt to make Hyp verify different values than the ones checked here
         const tampered = new Set(keys).size !== keys.length
             || keys.some((key) => RESERVED_PAYMENT_PARAMS.has(key.toLowerCase()));
         if (tampered) {
@@ -967,7 +967,7 @@ exports.confirmPayment = async (req, res) => {
             return res.status(400).json({ msg: "לא הצלחנו לאמת את התשלום. אם חויבת – צרי איתנו קשר." });
         }
 
-        // עדכון אטומי: רק בקשה אחת מעבירה את ההזמנה למצב "שולם"
+        // Atomic update: only one request moves the order to "paid"
         const paid = await OrderModel.findOneAndUpdate(
             { _id: order._id, "payment.status": { $ne: "paid" } },
             {
@@ -991,7 +991,7 @@ exports.confirmPayment = async (req, res) => {
     }
 };
 
-/** בדיקה למנהלת: האם פרטי Hyp ב-Railway נכונים (בלי חיוב) */
+/** Admin check: are the Hyp credentials in Railway correct (without charging) */
 exports.checkPaymentConnection = async (req, res) => {
     if (!isHypConfigured()) {
         return res.json({ configured: false, ok: false, msg: "חסרים HYP_MASOF / HYP_KEY / HYP_PASSP" });
