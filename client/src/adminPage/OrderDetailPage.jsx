@@ -20,7 +20,8 @@ import {
 } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
-import { getOrderById, syncOrderDrive, updateOrderStatus } from "../api/orders";
+import { getOrderById, updateOrderStatus } from "../api/orders";
+import { buildOrderFileList, downloadOrderZip, extensionFromSrc } from "../utils/orderDownloads";
 import { useEditorSettings } from "../hooks/useEditorSettings";
 import {
     STATUS_ACTIVE,
@@ -55,15 +56,6 @@ const getStatusBadge = (status) => {
         default:
             return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">לא ידוע</span>;
     }
-};
-
-const extensionFromSrc = (src) => {
-    if (!src || typeof src !== "string") return "jpg";
-    if (src.startsWith("data:image/png")) return "png";
-    if (src.startsWith("data:image/webp")) return "webp";
-    if (src.startsWith("data:image/gif")) return "gif";
-    const fromUrl = src.split("?")[0].match(/\.(png|jpe?g|webp|gif|svg)$/i);
-    return fromUrl ? fromUrl[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
 };
 
 const downloadAsset = async (src, filename) => {
@@ -350,8 +342,8 @@ export default function OrderDetailPage() {
     const [error, setError] = useState("");
     const [showStatusEdit, setShowStatusEdit] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
-    const [syncingDrive, setSyncingDrive] = useState(false);
-    const [driveError, setDriveError] = useState("");
+    const [zipProgress, setZipProgress] = useState(null);
+    const [zipMessage, setZipMessage] = useState(null);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PAGE_SIZE);
 
     useEffect(() => {
@@ -389,17 +381,18 @@ export default function OrderDetailPage() {
         }
     };
 
-    const handleSyncDrive = async () => {
-        if (!order) return;
-        setSyncingDrive(true);
-        setDriveError("");
+    const handleDownloadAll = async () => {
+        setZipMessage(null);
+        setZipProgress({ done: 0, total: orderFileCount });
         try {
-            const updated = await syncOrderDrive(order._id);
-            setOrder(updated);
-        } catch (err) {
-            setDriveError(err.response?.data?.msg || "שגיאה בשליחה ל-Google Drive");
+            const { total, failed } = await downloadOrderZip(order, (done, all) => setZipProgress({ done, total: all }));
+            if (failed) {
+                setZipMessage({ tone: "warn", text: `${failed} מתוך ${total} קבצים לא ירדו. הם רשומים בקובץ "פרטי-ההזמנה" שבתוך ה-ZIP, ואפשר להוריד אותם אחד-אחד למטה.` });
+            }
+        } catch {
+            setZipMessage({ tone: "error", text: "לא הצלחנו להכין את הקובץ. נסו שוב, או הורידו את התמונות אחת-אחת למטה." });
         } finally {
-            setSyncingDrive(false);
+            setZipProgress(null);
         }
     };
 
@@ -421,10 +414,7 @@ export default function OrderDetailPage() {
         );
     }
 
-    const hasPhotoPrints = order.items.some(
-        (item) => item.itemType === "photo-print" || String(item.name || "").startsWith("פיתוח תמונה"),
-    );
-    const showDriveCard = hasPhotoPrints || Boolean(order.drive?.folderUrl);
+    const orderFileCount = buildOrderFileList(order).length;
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans" dir="rtl">
@@ -531,60 +521,33 @@ export default function OrderDetailPage() {
                         </div>
                     </section>
 
-                    {showDriveCard && (
+                    {orderFileCount > 0 && (
                         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                             <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                                <FaGoogleDrive className="text-[#f2665e]" />
-                                Google Drive
+                                <FaDownload className="text-[#f2665e]" />
+                                קבצים להדפסה
                             </h2>
-                            {order.drive?.folderUrl ? (
-                                <>
-                                    <p className="text-sm text-gray-500 mb-4">
-                                        {order.drive.folderName || "תיקיית ההזמנה"}
-                                        {order.drive.fileCount ? ` · ${order.drive.fileCount} קבצים` : ""}
-                                    </p>
-                                    <a
-                                        href={order.drive.folderUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] flex items-center justify-center gap-2 no-underline"
-                                    >
-                                        <FaExternalLinkAlt size={12} />
-                                        פתיחת התיקייה ב-Google Drive
-                                    </a>
-                                    <button
-                                        type="button"
-                                        onClick={() => copyText(order.drive.folderUrl)}
-                                        className="mt-2 w-full py-2 text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center gap-2"
-                                    >
-                                        <FaCopy size={11} />
-                                        העתקת הקישור
-                                    </button>
-                                </>
-                            ) : order.driveConfigured === false ? (
-                                <p className="text-sm text-gray-500">
-                                    שמירה אוטומטית של התמונות לתיקייה עוד לא הוגדרה. בינתיים אפשר להוריד כל תמונה בכפתור &quot;הורדת תמונה&quot; שליד הפריט.
+                            <p className="text-sm text-gray-500 mb-4">
+                                {orderFileCount} קבצים, בקובץ ZIP אחד. בשם כל קובץ מופיעים מספר השורה, הגודל ומספר העותקים.
+                            </p>
+                            {zipMessage && (
+                                <p className={`text-sm rounded-lg px-3 py-2 mb-3 border ${zipMessage.tone === "error" ? "text-red-600 bg-red-50 border-red-100" : "text-amber-800 bg-amber-50 border-amber-200"}`}>
+                                    {zipMessage.text}
                                 </p>
-                            ) : (
-                                <>
-                                    <p className="text-sm text-gray-500 mb-4">
-                                        תמונות הפיתוח עדיין לא הועלו ל-Drive. לחצו כדי לשלוח אותן עכשיו.
-                                    </p>
-                                    {driveError && (
-                                        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">
-                                            {driveError}
-                                        </p>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={handleSyncDrive}
-                                        disabled={syncingDrive}
-                                        className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] disabled:opacity-50"
-                                    >
-                                        {syncingDrive ? "שולח ל-Drive..." : "שליחה ל-Google Drive"}
-                                    </button>
-                                </>
                             )}
+                            <button
+                                type="button"
+                                onClick={handleDownloadAll}
+                                disabled={zipProgress !== null}
+                                className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                                <FaDownload size={12} />
+                                {zipProgress === null
+                                    ? "הורדת כל התמונות"
+                                    : zipProgress.done < zipProgress.total
+                                        ? `מוריד ${zipProgress.done} מתוך ${zipProgress.total}...`
+                                        : "מכין את הקובץ..."}
+                            </button>
                         </section>
                     )}
 
