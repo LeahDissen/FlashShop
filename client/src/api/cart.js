@@ -46,6 +46,7 @@ export const saveCartToDB = async (userId, cartItems) => {
     }
 };
 
+/** The account's saved cart items, or null if the request failed (so a failed load is never mistaken for an empty cart) */
 export const fetchCartFromDB = async (userId) => {
     if (!userId) return [];
     try {
@@ -53,6 +54,6 @@ export const fetchCartFromDB = async (userId) => {
         return (response.data && response.data.length > 0) ? response.data[0].items : [];
     } catch (error) {
         console.error("Failed to fetch cart:", error);
-        return [];
+        return null;
     }
 };

@@ -1,12 +1,32 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { saveCartToDB, fetchCartFromDB } from '../api/cart';
+import { getPhotoPricing } from '../api/photo';
+import { getPrintsBySize, getPhotoUnitPrice, normalizeSize } from '../utils/photoQuantityPricing';
 import useAuthStore from './authStore';
 import useToastStore from './toastStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
-import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart } from '../utils/cartItem';
+import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart, mergeGuestCart } from '../utils/cartItem';
 
 export const CART_ADDED_MESSAGE = 'המוצר נוסף לסל בהצלחה!';
+
+/** Owner of a cart saved before carts tracked their owner: unknown, so it is never merged into an account */
+const UNKNOWN_OWNER = 'unknown';
+
+const isPhotoPrint = (item) => item?.itemType === 'photo-print';
+
+/**
+ * Photo prices depend on how many prints of each size are in the cart, so after merging two carts
+ * that both have photos, the per-photo price is recalculated (the server prices the order the same way).
+ */
+const repricePhotos = async (items) => {
+    const pricing = await getPhotoPricing().catch(() => null);
+    if (!pricing) return items;
+    const printsBySize = getPrintsBySize(items.filter(isPhotoPrint));
+    return items.map((item) => (isPhotoPrint(item)
+        ? { ...item, price: getPhotoUnitPrice(pricing, item.size, printsBySize[normalizeSize(item.size)]) }
+        : item));
+};
 
 const compactCartItem = (item) => {
   const compactCustomDesign = compactCustomDesignForCart(item?.customDesign);
@@ -32,15 +52,49 @@ export const useCartStore = create(
   persist(
     (set, get) => ({
       cartItems: [],
+      /** The account this browser's cart belongs to; null = a guest's cart */
+      ownerId: null,
+
+      /** On login: the account's saved cart plus anything added as a guest (a guest's items are never dropped) */
       loadCart: async (userId) => {
-          const dbItems = await fetchCartFromDB(userId);
-          if (dbItems && dbItems.length > 0) {
-              set({ cartItems: assignCartLineIds(dbItems.map((item) => normalizeCartItem(item))) });
+          const savedItems = await fetchCartFromDB(userId);
+          const { cartItems, ownerId } = get();
+          const isOtherAccount = ownerId !== null && ownerId !== userId && ownerId !== UNKNOWN_OWNER;
+          if (savedItems === null) {
+              // Couldn't reach the server: keep what is in the browser (unless it is another account's cart)
+              set(isOtherAccount ? { cartItems: [], ownerId: userId } : { ownerId: userId });
+              return;
           }
+          const dbItems = savedItems.map(normalizeCartItem);
+          if (ownerId !== null) {
+              // This browser's cart already belongs to an account. For that same account (or an old cart with no owner)
+              // nothing changes: the saved cart wins, and the local one is kept only when nothing is saved.
+              // Another account's cart is never shown to this one.
+              const items = dbItems.length || isOtherAccount ? assignCartLineIds(dbItems) : cartItems;
+              set({ cartItems: items, ownerId: userId });
+              return;
+          }
+          if (cartItems.length === 0) {
+              set({ cartItems: assignCartLineIds(dbItems), ownerId: userId });
+              return;
+          }
+          // A guest's cart: add it to the account's cart and save the result
+          let merged = mergeGuestCart(dbItems, cartItems);
+          if (dbItems.some(isPhotoPrint) && cartItems.some(isPhotoPrint)) {
+              merged = await repricePhotos(merged);
+          }
+          set({ cartItems: merged, ownerId: userId });
+          await saveCartToDB(userId, merged);
       },
 
+      /** Clears the cart from this browser (on logout); the account's cart stays saved on the server */
       resetCartLocal: () => {
-          set({ cartItems: [] });
+          set({ cartItems: [], ownerId: null });
+      },
+
+      /** Not logged in on load: keep a guest's cart, but drop a cart left by an account whose session ended */
+      dropOtherAccountCart: () => {
+          if (get().ownerId) set({ cartItems: [], ownerId: null });
       },
 
       /** Adds items to the cart and shows the customer a confirmation. The confirmation text can be replaced with successMessage */
@@ -141,8 +195,11 @@ export const useCartStore = create(
     }),
     {
       name: 'cart-storage',
+      version: 1,
+      migrate: (persisted, version) => (version < 1 ? { ...persisted, ownerId: UNKNOWN_OWNER } : persisted),
       partialize: (state) => ({
         cartItems: assignCartLineIds(state.cartItems).map((item) => compactCartItem(item)),
+        ownerId: state.ownerId,
       }),
       onRehydrateStorage: () => (state) => {
         if (state?.cartItems?.length) {
