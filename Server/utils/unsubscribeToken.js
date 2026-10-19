@@ -2,8 +2,8 @@ const crypto = require("crypto");
 const { config } = require("../config/secret");
 
 /**
- * טוקן הסרה מתפוצה שנגזר ממזהה החבר – לא צריך לשמור אותו ב-DB,
- * ואי אפשר לזייף אותו בלי JWT_SECRET.
+ * Unsubscribe token derived from the member id – no need to store it in the DB,
+ * and it cannot be forged without JWT_SECRET.
  */
 const signMemberId = (memberId) =>
     crypto.createHmac("sha256", String(config.JWT_SECRET || "")).update(String(memberId)).digest("hex").slice(0, 32);

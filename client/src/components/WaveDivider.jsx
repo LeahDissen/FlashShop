@@ -1,7 +1,7 @@
 /**
- * קו גלי – אותו SVG כמו בעמוד המוצרים.
- * תמיד עם rotate-180 (כמו ב-productsPage).
- * שימוש: fill = צבע האזור שמתחת לגל.
+ * Wavy line – the same SVG as on the products page.
+ * Always with rotate-180 (as in productsPage).
+ * Usage: fill = the color of the area below the wave.
  */
 export default function WaveDivider({ fill = '#ffffff', className = '' }) {
   return (

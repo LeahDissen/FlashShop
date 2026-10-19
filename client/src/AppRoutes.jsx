@@ -7,10 +7,8 @@ import HomePage from "./pages/HomePage";
 import { getReturnPathAfterAdd } from './utils/photoOrderDraft';
 import { useProductStore } from './store/productStore';
 import { lazyWithReload } from "./utils/lazyWithReload";
-import { GoogleOAuthProvider } from "@react-oauth/google";
-import { GOOGLE_CLIENT_ID } from "./config/api";
 
-// עמודים שלא נדרשים בטעינה הראשונה נטענים רק כשנכנסים אליהם (חבילת JS קטנה יותר לדף הבית)
+// Pages not needed on the first load are loaded only when visited (a smaller JS bundle for the home page)
 const AdminDashboardPage = lazyWithReload(() => import("./adminPage/AdminDashboardPage"));
 const EditPages = lazyWithReload(() => import("./adminPage/EditPages"));
 const OrderDetailPage = lazyWithReload(() => import("./adminPage/OrderDetailPage"));
@@ -43,12 +41,7 @@ const OrderConfirmationPage = lazyWithReload(() => import("./pages/OrderConfirma
 const PaymentResultPage = lazyWithReload(() => import("./pages/PaymentResultPage"));
 const CheckoutPage = lazyWithReload(() => import("./pages/CheckoutPage"));
 
-/** סקריפט ההתחברות של Google (כ-100KB) נטען רק בעמודי ההתחברות וההרשמה */
-const GoogleAuth = ({ children }) => (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>
-);
-
-/** מוצג לרגע בזמן שקוד העמוד נטען */
+/** Shown briefly while the page's code loads */
 const PageLoader = () => (
     <div className="flex justify-center items-center min-h-[50vh]" role="status" aria-label="טוען">
         <div className="w-10 h-10 rounded-full border-4 border-[#f2665e]/20 border-t-[#f2665e] animate-spin" />
@@ -73,8 +66,8 @@ export default function AppRoutes() {
             <Suspense fallback={<PageLoader />}>
                 <Routes>
                     {/* Login route - without Layout */}
-                    <Route path="/login" element={<GoogleAuth><LoginPage /></GoogleAuth>} />
-                    <Route path="/signup" element={<GoogleAuth><SignUpPage /></GoogleAuth>} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignUpPage />} />
                     <Route path="/forgot" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     {/* All other routes - with Layout */}

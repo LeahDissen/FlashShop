@@ -1,9 +1,9 @@
 const normalizeHex = (value) => String(value || '').trim().toUpperCase();
 
 /**
- * פלטת הצבעים שהלקוח רואה בעורך – לטקסט, לצבע אלמנט ולרקע הקנבס.
- * מאחדת את "צבעים מוכנים" מהגדרות העורך עם פריטי הצבע בספריית העורך,
- * כך שכל צבע שהמנהלת הגדירה באחד המקומות מופיע בכל הבוררים.
+ * The color palette the customer sees in the editor – for text, element color and canvas background.
+ * Merges the "preset colors" from the editor settings with the color items in the editor library,
+ * so every color the admin defined in either place appears in all the pickers.
  */
 export const buildEditorPalette = (presetValues = [], assetColors = []) => {
     const seen = new Set();

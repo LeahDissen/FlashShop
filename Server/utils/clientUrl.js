@@ -1,6 +1,6 @@
 /**
- * CLIENT_URL מכיל רשימת origins מורשים (מופרדים בפסיק) ל-CORS.
- * לקישורים שנשלחים במייל (איפוס סיסמה, הסרה מתפוצה) משתמשים בראשון ברשימה.
+ * CLIENT_URL holds a comma-separated list of origins allowed by CORS.
+ * Links sent by email (password reset, unsubscribe) use the first one in the list.
  */
 exports.getClientUrl = () => {
     const first = String(process.env.CLIENT_URL || "")

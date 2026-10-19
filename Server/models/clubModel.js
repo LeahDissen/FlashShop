@@ -28,7 +28,7 @@ let clubSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    /** ביקש/ה להסיר את עצמו/ה מרשימת התפוצה – לא מקבל/ת דיוור שיווקי */
+    /** Asked to be removed from the mailing list – receives no marketing emails */
     unsubscribed: {
         type: Boolean,
         default: false

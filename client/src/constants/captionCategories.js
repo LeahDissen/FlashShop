@@ -1,6 +1,6 @@
 export const CAPTION_CATEGORIES = ["כללי", "משפחה", "אהבה", "יום הולדת", "מצחיק", "מתנות"];
 
-/** מפרק עמודת אקסל: "משפט|קטגוריה;משפט2" */
+/** Parses an Excel column: "sentence|category;sentence2" */
 export function parseCaptionsFromCell(value) {
     const raw = String(value ?? "").trim();
     if (!raw) return [];

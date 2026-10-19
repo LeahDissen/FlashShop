@@ -26,22 +26,22 @@ const parseJsonField = (value, fallback) => {
     }
 };
 
-/** גובה תמונת ה-Hero לפי בחירת המנהלת (בדסקטופ; במובייל קטן יותר באותו יחס) */
+/** Hero image height by the admin's choice (on desktop; smaller on mobile by the same ratio) */
 const HERO_HEIGHTS = {
     small: { label: "נמוכה", px: 240 },
     medium: { label: "בינונית", px: 360 },
     large: { label: "גבוהה", px: 480 },
 };
 const DEFAULT_HERO_HEIGHT = "medium";
-const DEFAULT_HERO_FOCUS = 50; // אחוז אנכי: 0 = החלק העליון של התמונה, 100 = התחתון
-/** כמה ריבועי מוצרים אפשר להגדיר בדף הבית (4 בשורה בדסקטופ, 2 במובייל) */
+const DEFAULT_HERO_FOCUS = 50; // Vertical percent: 0 = top of the image, 100 = bottom
+/** How many product tiles can be set on the home page (4 per row on desktop, 2 on mobile) */
 const HOME_TILE_COUNT = 8;
 const PHOTO_DEVELOPMENT_PATH = '/photo-development';
 const DEFAULT_UPLOAD_BADGE_TEXT = 'להעלאת תמונות להדפסה';
 
 const HOME_CACHE_KEY = 'flashshop_home_page';
 
-/** תוכן דף הבית מהביקור הקודם – מוצג מיד, ומתעדכן כשהגרסה העדכנית מגיעה מהשרת */
+/** Home page content from the previous visit – shown immediately, and updated when the fresh version arrives from the server */
 const readHomeCache = () => {
     try {
         const cached = JSON.parse(localStorage.getItem(HOME_CACHE_KEY) || 'null');
@@ -55,7 +55,7 @@ const writeHomeCache = (data) => {
     try {
         localStorage.setItem(HOME_CACHE_KEY, JSON.stringify(data));
     } catch {
-        // אחסון מלא או חסום – פשוט בלי מטמון
+        // Storage full or blocked – just no cache
     }
 };
 
@@ -86,7 +86,7 @@ const INITIAL_DATA = {
  */
 export default function HomePage() {
     const [cachedHome] = useState(readHomeCache);
-    // עד שהתוכן מגיע לא מציירים את הדף, כדי שהוא לא "יקפוץ" כשהתמונה והריבועים נטענים
+    // Don't draw the page until the content arrives, so it does not "jump" when the image and tiles load
     const [isLoaded, setIsLoaded] = useState(Boolean(cachedHome));
     const adminControls = useAdminControl(cachedHome ? { ...INITIAL_DATA, ...cachedHome } : INITIAL_DATA, "home");
     const { draft, updateDraft, editMode } = adminControls;
@@ -171,7 +171,7 @@ export default function HomePage() {
         updateDraft({ testimonials: list.filter((_, i) => i !== index) });
     };
 
-    /** ריבוע בלי קישור מפורש מוביל לעמוד המוצרים מסונן לפי שם הקטגוריה שלו */
+    /** A tile without an explicit link leads to the products page filtered by its category name */
     const tileLink = (prod) => {
         const link = (prod?.link || '').trim();
         if (link) return link;
@@ -184,7 +184,7 @@ export default function HomePage() {
 
     const uploadBadgeText = (draft.uploadBadgeText || '').trim() || DEFAULT_UPLOAD_BADGE_TEXT;
 
-    /** משבצות העריכה באדמין: תמיד HOME_TILE_COUNT, כולל ריקות */
+    /** The admin's edit slots: always HOME_TILE_COUNT, including empty ones */
     const editTiles = useMemo(() => {
         const list = Array.isArray(draft.products) ? draft.products : [];
         return [
@@ -193,7 +193,7 @@ export default function HomePage() {
         ];
     }, [draft.products]);
 
-    /** בחנות מוצגים רק ריבועים שיש להם תמונה – בלי משבצות ריקות */
+    /** The shop shows only tiles that have an image – no empty slots */
     const visibleTiles = useMemo(() => editTiles.filter((prod) => prod?.image), [editTiles]);
 
     // ─── Admin Edit Panel ─────────────────────────────────────────────────────

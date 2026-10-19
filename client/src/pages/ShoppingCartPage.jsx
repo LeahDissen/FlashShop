@@ -18,7 +18,7 @@ import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 const DEFAULT_CART_HERO_IMG = "https://images.unsplash.com/photo-1515488042361-ee00e616997e?w=1600&q=80";
 const DEFAULT_RECOMMENDED_TITLE = "אולי תאהבו גם את אלה...";
 
-/** כותרות ישנות/שגויות ב-Redis — מוחלפות בברירת המחדל */
+/** Old/wrong titles in Redis — replaced by the default */
 const LEGACY_RECOMMENDED_TITLES = new Set([
   "מוצרים מומלצים",
   "מיצרים מומלצים",
@@ -170,7 +170,7 @@ export default function ShoppingCartPage() {
     <AdminControls editMode={editMode} previewContent={EditContent} adminControls={adminControls}>
       <div className="bg-white min-h-screen text-gray-800 font-sans" dir="rtl">
         
-        {/* באנר עליון */}
+        {/* Top banner */}
         <header className="w-full relative select-none">
           <div
             className="relative h-[260px] sm:h-[320px] flex items-center justify-center overflow-hidden bg-[#f8dcdb]"
@@ -188,20 +188,20 @@ export default function ShoppingCartPage() {
           </div>
         </header>
 
-        {/* תוכן מרכזי */}
+        {/* Main content */}
         <div className="max-w-4xl mx-auto px-4 py-4">
           
           {cartItems.length > 0 ? (
             <div className="space-y-6">
               
-              {/* באנר עליון: כמות הפריטים בסל - עודכן לגודל text-xl */}
+              {/* Top banner: number of items in the cart - updated to text-xl */}
               <div className="w-full bg-[#f2665e] rounded-full py-2.5 sm:py-3 px-4 sm:px-6 text-center shadow-sm max-w-2xl mx-auto">
                 <p className="text-base sm:text-xl font-bold text-white tracking-wide">
                   יש לי {totalItems} פריטים בסל
                 </p>
               </div>
 
-              {/* כותרות + פריטים */}
+              {/* Headers + items */}
               <div className="max-w-2xl mx-auto">
                 <div className="hidden sm:grid grid-cols-12 px-6 text-base font-bold text-slate-800 pb-2 border-b border-gray-100">
                   <div className="col-span-6 text-right">פריטים</div>
@@ -218,7 +218,7 @@ export default function ShoppingCartPage() {
                 ))}
               </div>
 
-              {/* באר סיכום הזמנה ותשלום */}
+              {/* Order summary and payment bar */}
               <div className="max-w-2xl mx-auto pt-2">
                 <CartCheckoutBar
                   totalPrice={totalPrice}
@@ -241,7 +241,7 @@ export default function ShoppingCartPage() {
           )}
         </div>
 
-        {/* מומלצים */}
+        {/* Recommended */}
         <section className="relative mt-20 bg-[#f8dcdb] pb-16 pt-16">
           <div className="absolute top-0 left-0 right-0 h-12 bg-white" style={{ clipPath: "ellipse(60% 100% at 50% 0%)" }} />
           <div className="max-w-4xl mx-auto px-4">

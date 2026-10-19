@@ -1,6 +1,6 @@
 /**
- * שמירת בחירת התמונות בפיתוח תמונות לאורך הביקור (sessionStorage),
- * כדי שלקוחה שיוצאת לבחור אלבום תחזור ותמצא את התמונות שבחרה.
+ * Keeps the photo selection in photo development for the whole visit (sessionStorage),
+ * so a customer who leaves to pick an album comes back and finds the photos she chose.
  */
 import { ALBUM_CATEGORY } from './photoQuantityPricing';
 
@@ -21,7 +21,7 @@ const write = (key, value) => {
     try {
         sessionStorage.setItem(key, value);
     } catch (err) {
-        // אחסון מלא או חסום – הבחירה פשוט לא תישמר, ההזמנה עצמה ממשיכה לעבוד
+        // Storage full or blocked – the selection just won't be saved, the order itself keeps working
         console.warn('Could not save photo order draft:', err.message);
     }
 };
@@ -43,27 +43,27 @@ export function clearPhotoDraft() {
     try {
         sessionStorage.removeItem(PHOTO_DRAFT_KEY);
     } catch {
-        // אין מה לנקות
+        // Nothing to clear
     }
 }
 
-/** מסמן שהלקוחה יצאה מפיתוח התמונות לבחירת אלבום */
+/** Marks that the customer left photo development to pick an album */
 export function startAlbumDetour() {
     write(ALBUM_DETOUR_KEY, '1');
 }
 
-/** הלקוחה חזרה לפיתוח התמונות בעצמה – אין צורך להחזיר אותה לשם אחר כך */
+/** The customer returned to photo development on her own – no need to send her back there later */
 export function endAlbumDetour() {
     try {
         sessionStorage.removeItem(ALBUM_DETOUR_KEY);
     } catch {
-        // אין סימון
+        // No marker
     }
 }
 
 /**
- * לאן לחזור אחרי הוספה לסל: לפיתוח התמונות אם הגיעו משם לבחירת אלבום והמוצר שנוסף הוא אלבום,
- * אחרת לברירת המחדל. החזרה קורית פעם אחת בלבד.
+ * Where to return after adding to the cart: to photo development if the customer came from there to pick an album and the added product is an album,
+ * otherwise to the default. The return happens only once.
  */
 export function getReturnPathAfterAdd(product, defaultPath) {
     const isAlbumDetour = readJson(ALBUM_DETOUR_KEY) === 1 && product?.category === ALBUM_CATEGORY;

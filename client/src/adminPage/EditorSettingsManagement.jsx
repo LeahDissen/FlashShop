@@ -55,7 +55,7 @@ export default function EditorSettingsManagement() {
         loadSettings();
     }, [loadSettings]);
 
-    // תצוגה מקדימה של גופנים שהועלו, גם לפני השמירה
+    // Preview of uploaded fonts, even before saving
     useEffect(() => {
         registerCustomFonts(form.textToolbar.fonts);
     }, [form.textToolbar.fonts]);
@@ -111,7 +111,7 @@ export default function EditorSettingsManagement() {
         setNewFont('');
     };
 
-    /** מעלה קובץ גופן ומוסיף אותו לרשימה; שם הגופן נגזר משם הקובץ */
+    /** Uploads a font file and adds it to the list; the font name is derived from the file name */
     const handleFontFile = async (e) => {
         const file = e.target.files?.[0];
         e.target.value = '';

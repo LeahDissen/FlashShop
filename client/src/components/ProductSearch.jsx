@@ -5,7 +5,7 @@ import { useProducts } from '../hooks/useProducts';
 import { searchProducts } from '../utils/productSearch';
 
 /**
- * שורת חיפוש מוצרים עם תוצאות מיידיות. בחירה בתוצאה עוברת לעמוד המוצר.
+ * Product search bar with instant results. Choosing a result opens the product page.
  * @param {{ className?: string }} props
  */
 export default function ProductSearch({ className = '' }) {

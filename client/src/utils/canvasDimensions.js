@@ -1,18 +1,18 @@
-/** המרת ס"מ לפיקסלים במסך העורך */
+/** Converts cm to pixels on the editor screen */
 export const CM_TO_PX = 30;
 export const MAX_CANVAS_PX = 520;
 export const MIN_CANVAS_PX = 200;
 export const DEFAULT_WIDTH_CM = 12;
 export const DEFAULT_HEIGHT_CM = 18;
 export const PRINT_DPI = 300;
-/** כמה ס"מ מקטינים ממידות משטח ההדפסה למסגרת הבטוחה (רוחב−1, אורך−1) */
+/** How many cm to subtract from the print canvas size for the safe frame (width−1, height−1) */
 export const SAFE_ZONE_TRIM_CM = 1;
 
 const DEFAULT_TEXT_WIDTH = 280;
 const DEFAULT_TEXT_HEIGHT = 64;
 const DEFAULT_TEXT_FONT_SIZE = 32;
 
-/** ממיר מחרוזת יחס גובה-רוחב (למשל "4:3") לאובייקט */
+/** Converts an aspect ratio string (e.g. "4:3") to an object */
 export function parseAspectRatio(ratio) {
     if (!ratio) return null;
     const parts = String(ratio).split(':').map(Number);
@@ -23,11 +23,11 @@ export function parseAspectRatio(ratio) {
 }
 
 /**
- * מחשב גודל משטח העבודה בעורך לפי מידות ההדפסה שהמנהל הגדיר במוצר.
- * מידות המוצר נשארות קבועות – מסגרות גלובליות מותאמות לתוך המשטח (לא משנות אותו).
+ * Computes the editor canvas size from the print dimensions the admin set on the product.
+ * The product dimensions stay fixed – global frames are fitted inside the canvas (they do not change it).
  * @param {object|null} product
- * @param {string|null} _frameAspectRatio - נשמר לתאימות לאחור; אינו משנה את מידות המשטח
- * @param {boolean} orientationFlipped - כאשר true, מחליף בין רוחב לאורך (אורך/רוחב)
+ * @param {string|null} _frameAspectRatio - kept for backward compatibility; does not change the canvas size
+ * @param {boolean} orientationFlipped - when true, swaps width and height (portrait/landscape)
  * @returns {{ width: number, height: number, widthCm: number, heightCm: number, productWidthCm: number, productHeightCm: number, orientationFlipped: boolean }}
  */
 export function getCanvasDimensions(product, _frameAspectRatio = null, orientationFlipped = false) {
@@ -74,13 +74,13 @@ export function formatPrintSizeLabel(widthCm, heightCm) {
     return `${widthCm} × ${heightCm} ס"מ`;
 }
 
-/** ממיר ס"מ לפיקסלים על משטח העורך (מתחשב בקנה מידה כשהמשטח מוקטן) */
+/** Converts cm to pixels on the editor canvas (accounts for the scale when the canvas is shrunk) */
 export function cmToCanvasPx(cm, canvasWidthPx, widthCm) {
     if (!widthCm || widthCm <= 0) return Math.round(cm * CM_TO_PX);
     return Math.round((canvasWidthPx / widthCm) * cm);
 }
 
-/** מפתח לשמירת טיוטה – מפריד בין מוצרים, מידות, כיוון ומסגרות שונות */
+/** Draft storage key – separates different products, sizes, orientations and frames */
 export function getCanvasStorageKey(product, dims, frameAspectRatio = null, orientationFlipped = false) {
     const id = product?._id || product?.id || 'no-product';
     const framePart = frameAspectRatio
@@ -97,7 +97,7 @@ export function centerPosition(elementWidth, elementHeight, canvasWidth, canvasH
     };
 }
 
-/** ממרכז אלמנט בתוך אזור הבטוח (בתוך הקו המקווקו) */
+/** Centers an element within the safe area (inside the dashed line) */
 export function centerInSafeZone(elementWidth, elementHeight, dims) {
     const safe = getSafeInnerSizePx(dims);
     const marginX = Math.round((dims.width - safe.width) / 2);
@@ -117,7 +117,7 @@ function getSafeInnerSizePx(dims) {
     };
 }
 
-/** גודל תיבת טקסט ברירת מחדל – מתאים למשטחים קטנים כדי שלא יחרוג מאזור הבטוח */
+/** Default text box size – suits small canvases so it does not overflow the safe area */
 export function getDefaultTextBoxMetrics(dims) {
     const safe = getSafeInnerSizePx(dims);
     const width = Math.max(60, Math.min(DEFAULT_TEXT_WIDTH, Math.floor(safe.width * 0.82)));
@@ -129,7 +129,7 @@ export function getDefaultTextBoxMetrics(dims) {
     return { width, height, fontSize };
 }
 
-/** אלמנט טקסט ברירת מחדל במרכז המשטח */
+/** Default text element at the center of the canvas */
 export function createDefaultTextElement(dims) {
     const { width, height, fontSize } = getDefaultTextBoxMetrics(dims);
     const { left, top } = centerInSafeZone(width, height, dims);
@@ -165,8 +165,8 @@ export function createDefaultTextElement(dims) {
 }
 
 /**
- * כתובית לתמונה – תיבת טקסט ברוחב האזור הבטוח, ממוקמת בתחתית המשטח.
- * ברירות המחדל (גופן, גודל, צבע, טקסט) מגיעות מהגדרות שהמנהלת עורכת.
+ * Photo caption – a text box as wide as the safe area, placed at the bottom of the canvas.
+ * The defaults (font, size, color, text) come from the settings the admin edits.
  */
 export function createCaptionTextElement(dims, captionDefaults = {}) {
     const safe = getSafeInnerSizePx(dims);
@@ -206,14 +206,14 @@ export function createCaptionTextElement(dims, captionDefaults = {}) {
 
 const DEFAULT_TEXT_CONTENT = 'טקסט ניתן לעריכה';
 
-/** מנקה טיוטות שבורות ומחזיר תיבת טקסט אחת במרכז */
+/** Cleans up broken drafts and returns a single text box in the center */
 export function normalizeEditorElements(elements, dims) {
     if (!Array.isArray(elements) || elements.length === 0) {
         return [createDefaultTextElement(dims)];
     }
 
     const nonText = elements.filter((el) => el.type !== 'text');
-    // כתוביות הן חלק מהעיצוב הסופי ולכן לא מתאחדות לתיבת טקסט אחת
+    // Captions are part of the final design, so they are not merged into a single text box
     const captions = elements.filter((el) => el.type === 'text' && el.role === 'caption');
     let textElements = elements.filter((el) => el.type === 'text' && el.role !== 'caption');
 
@@ -259,7 +259,7 @@ export function normalizeEditorElements(elements, dims) {
     return [normalizedText, ...nonText, ...captions];
 }
 
-/** מתאים את מידות תיבת התמונה ליחס הגובה-רוחב המקורי (object-fit: contain) */
+/** Fits the image box dimensions to the original aspect ratio (object-fit: contain) */
 export function fitImageElementBounds(el) {
     if (el.type !== 'image' || !el.width || !el.height) return el;
     if (!el.naturalWidth || !el.naturalHeight) return el;
@@ -288,7 +288,7 @@ export function fitImageElementBounds(el) {
     };
 }
 
-/** משנה מיקום וגודל אלמנטים כשמשטח ההדפסה משתנה */
+/** Repositions and resizes elements when the print canvas changes */
 export function scaleElementsToCanvas(elements, fromW, fromH, toW, toH) {
     if (!fromW || !fromH || (fromW === toW && fromH === toH)) {
         return elements;
@@ -324,7 +324,7 @@ export function scaleElementsToCanvas(elements, fromW, fromH, toW, toH) {
 }
 
 /**
- * יחס פיקסלים לייצוא הדפסה (~300 DPI לפי מידות ס"מ של המוצר).
+ * Pixel ratio for print export (~300 DPI based on the product's cm dimensions).
  */
 export function getPrintExportPixelRatio(dims) {
     const targetWidthPx = Math.round((dims.widthCm / 2.54) * PRINT_DPI);

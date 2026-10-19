@@ -46,7 +46,7 @@ const sanitizePopupBody = (body = {}) => {
     return { data };
 };
 
-/** הפופאפים הפעילים כרגע לעמוד נתון (ציבורי – הלקוח בוחר מהם מה להציג) */
+/** The popups currently active for a given page (public – the client chooses which to show) */
 exports.getActivePopups = async (req, res) => {
     try {
         const now = new Date();

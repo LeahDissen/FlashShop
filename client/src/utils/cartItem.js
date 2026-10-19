@@ -21,7 +21,7 @@ export const normalizeCartItem = (item) => {
     return productId ? { ...rest, productId } : rest;
 };
 
-/** מוודא שלכל שורה בעגלה יש מזהה שורה ייחודי — בלי לדרוס מזהים קיימים */
+/** Makes sure every cart row has a unique row id — without overwriting existing ids */
 export const assignCartLineIds = (items) => {
     const seen = new Set();
     return items.map((item, index) => {
@@ -36,7 +36,7 @@ export const assignCartLineIds = (items) => {
     });
 };
 
-/** שומר נתוני מדרגות מחיר על פריט עגלה לחישוב מחדש בעת שינוי כמות */
+/** Keeps price tier data on a cart item to recalculate when the quantity changes */
 export const withTieredPricingFields = (item, product, { priceAddon = 0 } = {}) => {
     if (!product || !hasTieredPricing(product)) {
         return item;
@@ -74,7 +74,7 @@ export const applyQuantityToCartItem = (item, quantity) => {
     };
 };
 
-/** שומר בחירת מסגרת וכתוביות עם הפריט בעגלה ובהזמנה */
+/** Keeps the frame choice and captions with the item in the cart and in the order */
 export const compactCustomDesignForCart = (customDesign) => {
     if (!customDesign || typeof customDesign !== 'object') return undefined;
 
@@ -108,4 +108,30 @@ export const toCheckoutItem = (item) => {
         customDesign: normalized.customDesign,
         customization: normalized.customization,
     };
+};
+
+/** A plain catalog product (no design, customization or photo print): the same product in two carts is one row */
+const plainProductKey = (item) => {
+    if (!item.productId || item.customDesign || item.customization || item.itemType) return null;
+    return `${item.productId}|${item.size || ''}`;
+};
+
+/**
+ * Adds the items a guest put in the cart to the account's saved cart, so nothing is lost on login.
+ * The same plain product is merged into one row with the quantities added up; designs and photos stay separate rows.
+ */
+export const mergeGuestCart = (accountItems, guestItems) => {
+    const merged = accountItems.map(normalizeCartItem);
+    const ids = new Set(merged.map((item) => item.id));
+    for (const guestItem of guestItems.map(normalizeCartItem)) {
+        if (ids.has(guestItem.id)) continue;
+        const key = plainProductKey(guestItem);
+        const index = key ? merged.findIndex((item) => plainProductKey(item) === key) : -1;
+        if (index >= 0) {
+            merged[index] = applyQuantityToCartItem(merged[index], merged[index].quantity + guestItem.quantity);
+        } else {
+            merged.push(guestItem);
+        }
+    }
+    return assignCartLineIds(merged);
 };

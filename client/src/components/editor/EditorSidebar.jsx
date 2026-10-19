@@ -518,8 +518,8 @@ const ImagePanel = ({ addImageElement, uploadedImages, deleteUploadedImage }) =>
 };
 
 /**
- * מסגרות גלובליות שהמנהלת מעלה בלוח הבקרה – אותו בורר תיקיות-מידה כמו בפיתוח תמונות.
- * הטעינה מתבצעת רק כשהטאב נפתח.
+ * Global frames the admin uploads in the dashboard – the same size-folder picker as in photo development.
+ * Loaded only when the tab is opened.
  */
 const FramesPanel = ({
     editorSettings,
@@ -598,7 +598,7 @@ const EditorSidebar = ({
     const { assets } = useEditorAssets(FALLBACK_EDITOR_ASSETS);
     const [activeTab, setActiveTab] = useState('background');
     const [isCollapsed, setIsCollapsed] = useState(false);
-    /** במובייל: האם פאנל הכלים פתוח מעל הטאבים */
+    /** On mobile: whether the tools panel is open above the tabs */
     const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
 
     const tabs = [
@@ -670,7 +670,7 @@ const EditorSidebar = ({
 
     return (
         <>
-            {/* —— מובייל: פאנל תחתון + טאבים אופקיים —— */}
+            {/* —— Mobile: bottom panel + horizontal tabs —— */}
             <aside className="md:hidden shrink-0 z-30 flex flex-col bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
                 {mobilePanelOpen && (
                     <div className="relative border-b border-gray-100">
@@ -706,7 +706,7 @@ const EditorSidebar = ({
                 </div>
             </aside>
 
-            {/* —— דסקטופ: סרגל צד קלאסי —— */}
+            {/* —— Desktop: classic sidebar —— */}
             <aside
                 className={`hidden md:flex bg-white shadow-lg flex-col transition-all duration-300 relative z-10 h-full flex-1 ${
                     isCollapsed ? 'w-24' : 'w-80 lg:w-96'

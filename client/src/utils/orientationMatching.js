@@ -6,7 +6,7 @@ export const ORIENTATION = {
     SQUARE: 'square',
 };
 
-/** ריבוע "כמעט מושלם" נחשב מרובע ולא מתנגש עם אף כיוון */
+/** A "nearly perfect" square counts as square and does not conflict with either orientation */
 const SQUARE_TOLERANCE = 0.04;
 
 export function getOrientation(width, height) {
@@ -19,7 +19,7 @@ export function getOrientation(width, height) {
     return ratio > 1 ? ORIENTATION.LANDSCAPE : ORIENTATION.PORTRAIT;
 }
 
-/** כיוון המסגרת – לפי בחירת המנהלת, ואם לא הוגדרה לפי יחס הגובה-רוחב */
+/** The frame's orientation – by the admin's choice, and if not set, by the aspect ratio */
 export function getFrameOrientation(frame) {
     if (!frame) return null;
     if (frame.orientation === ORIENTATION.LANDSCAPE || frame.orientation === ORIENTATION.PORTRAIT) {
@@ -33,7 +33,7 @@ export function getCanvasOrientation(canvasDimensions) {
     return getOrientation(canvasDimensions?.widthCm, canvasDimensions?.heightCm);
 }
 
-/** יעד ההתאמה: קודם כל המסגרת שנבחרה, ואם אין מסגרת – משטח ההדפסה */
+/** The match target: the selected frame first, and if there is no frame – the print canvas */
 export function getTargetOrientation(frame, canvasDimensions) {
     return getFrameOrientation(frame) || getCanvasOrientation(canvasDimensions);
 }
@@ -51,8 +51,8 @@ export function orientationLabel(orientation, labels) {
 }
 
 /**
- * מסובב אלמנט תמונה ב-90° סביב מרכזו.
- * התפוסה החזותית מתחלפת, לכן התמונה מוקטנת אם היא חורגת מהמשטח.
+ * Rotates a photo element by 90° around its center.
+ * The visual footprint swaps, so the photo is scaled down if it overflows the canvas.
  */
 export function rotateImageElement90(el, canvasWidth, canvasHeight) {
     if (!el) return el;

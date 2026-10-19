@@ -2,7 +2,7 @@ import { formatShekel, getSizePriceRows, normalizeSize } from '../utils/photoQua
 import { formatPrintSizeCm } from '../utils/printSizes';
 
 /**
- * מדרגות המחיר לתמונה – טבלה קטנה לכל גודל.
+ * Price per photo tiers – a small table for each size.
  * @param {{ pricing: object, printsBySize?: Record<string, number> }} props
  */
 export const PhotoPricingTableContent = ({ pricing, printsBySize = {} }) => {

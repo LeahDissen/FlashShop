@@ -1,5 +1,5 @@
 const { ProductModel } = require("../models/productModel");
-const { generatePersonalizedProduct, generateGiftIdea } = require("../utils/aiService");
+const { generateGiftIdea } = require("../utils/aiService");
 const { isMagnetProductDoc, parseMagnetSize } = require("../utils/magnetSize");
 
 function normalizeMaxQuantity(value) {
@@ -156,25 +156,15 @@ exports.getProductImage = async (req, res) => {
   }
 };
 
-exports.generateMockup = async (req, res) => {
-    console.log("Controller: Received request for generateMockup");
-    try {
-        const { productName, designImage } = req.body;
-        if (!productName) console.log("Controller Warning: productName is missing");
-        if (!designImage) console.log("Controller Warning: designImage is missing (length: 0)");
-        else console.log(`Controller: designImage received (length: ${designImage.length})`);
+const AI_MOCKUP_UNAVAILABLE_MESSAGE = "יצירת הדמיה של המוצר עדיין לא פעילה. היא תהיה זמינה בקרוב.";
 
-        console.log("Controller: Calling aiService.generatePersonalizedProduct...");
-        
-        const result = await generatePersonalizedProduct(productName, designImage);
-        
-        console.log("Controller: Success! Sending result back to client.");
-        res.json({ result });
-
-    } catch (error) {
-        console.error("❌ Controller Error Caught:", error); 
-        res.status(500).json({ error: error.message });
-    }
+/**
+ * The AI product mockup is turned off for now: the route needs no login and every call is a paid
+ * Gemini request, so anyone could run up the bill. No page on the site uses it yet.
+ * To turn it back on, put it behind auth and a rate limit, then call generatePersonalizedProduct again.
+ */
+exports.generateMockup = (req, res) => {
+    res.status(503).json({ msg: AI_MOCKUP_UNAVAILABLE_MESSAGE });
 };
 
 exports.generateGiftIdeaController = async (req, res) => {

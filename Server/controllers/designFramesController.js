@@ -28,7 +28,7 @@ const normalizeDropzones = (dropzones) => {
 
 const ORIENTATIONS = ["landscape", "portrait", "any"];
 
-/** מסיק כיוון מסגרת מיחס הגובה-רוחב כשהמנהלת לא בחרה ידנית */
+/** Infers the frame orientation from the aspect ratio when the admin did not choose one manually */
 const orientationFromAspectRatio = (aspectRatio) => {
     const [width, height] = String(aspectRatio || "").split(":").map(Number);
     if (!(width > 0) || !(height > 0)) return "any";
@@ -58,7 +58,7 @@ exports.getAllDesignFrames = async (req, res) => {
         const includeInactive = req.query.includeInactive === "true";
         const filter = includeInactive ? {} : { isActive: true };
 
-        // סינון אופציונלי לפי תיקיית מידה וכיוון (משמש את בורר המסגרות בעורך)
+        // Optional filtering by size folder and orientation (used by the frame picker in the editor)
         const printSizeKey = req.query.printSizeKey?.trim();
         if (printSizeKey) {
             filter.printSizeKey = printSizeKey;

@@ -17,7 +17,7 @@ let orderSchema = new mongoose.Schema({
     subtotal: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
     coupon_code: { type: String },
-    /** תיקיית Google Drive שנוצרה להזמנה עם קבצי העיצוב הסופיים */
+    /** The Google Drive folder created for the order with the final design files */
     drive: {
         folderId: { type: String },
         folderName: { type: String },

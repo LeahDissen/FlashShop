@@ -14,7 +14,7 @@ export default function Layout({ children, compact = false }) {
             <ToastHost />
             {!compact && <PopupHost />}
 
-            {/* בעורך: מסתירים את הניווט במובייל כדי לפנות מקום לקנבס */}
+            {/* In the editor: hide the navigation on mobile to make room for the canvas */}
             <header
                 className={`w-full bg-white/60 backdrop-blur-md shadow-sm sticky top-0 z-50 h-20 transition-all duration-300 overflow-visible ${
                     compact ? 'hidden lg:block' : ''

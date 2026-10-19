@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
 /**
- * הגדרות חנות יחידות (singleton) — קישור תשלום חיצוני ועוד.
- * המנהלת עורכת את הקישור בפאנל הניהול בלי שינוי קוד.
+ * Single shop settings document (singleton) — external payment link and more.
+ * The admin edits the link in the admin panel without a code change.
  */
 const shopSettingsSchema = new mongoose.Schema(
     {

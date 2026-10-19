@@ -2,7 +2,7 @@ import { cmToCanvasPx, SAFE_ZONE_TRIM_CM } from './canvasDimensions';
 
 export { SAFE_ZONE_TRIM_CM };
 
-/** מרווח מינימלי מקצה אזור הבטוח לפני אזהרה (ס"מ) */
+/** Minimum distance from the safe area edge before a warning (cm) */
 export const SAFE_ZONE_EDGE_BUFFER_CM = 0.4;
 
 export function getSafeZoneInsets(canvasWidth, canvasHeight, widthCm, heightCm) {
@@ -103,7 +103,7 @@ export function getComfortZoneRect(canvasWidth, canvasHeight, widthCm, heightCm)
     };
 }
 
-/** גבולות משוערים לטקסט בפועל — לא לכל תיבת הטקסט הריקה */
+/** Estimated bounds of the actual text — not of the whole empty text box */
 export function getTextElementVisualBounds(el) {
     const boxLeft = el.left ?? 0;
     const boxTop = el.top ?? 0;

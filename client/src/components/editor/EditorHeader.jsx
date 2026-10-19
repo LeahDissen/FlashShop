@@ -18,7 +18,7 @@ const EditorHeader = ({
   return (
     <header className="editor-header bg-white shadow-md relative z-50 shrink-0 border-b overflow-visible">
       <div className="flex flex-col gap-2 p-2 sm:p-2 md:flex-row md:items-center md:justify-between md:gap-3">
-        {/* שורה עליונה במובייל: יציאה + פעולות עיקריות */}
+        {/* Top row on mobile: exit + main actions */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div
             className="flex items-center cursor-pointer hover:text-red-500 transition-colors rounded-md px-1 shrink-0"
@@ -102,7 +102,7 @@ const EditorHeader = ({
           </div>
         </div>
 
-        {/* שם פרויקט + פרטי מוצר */}
+        {/* Project name + product details */}
         <div className="flex flex-col items-center gap-0.5 min-w-0 px-1 md:flex-1">
           <input
             type="text"

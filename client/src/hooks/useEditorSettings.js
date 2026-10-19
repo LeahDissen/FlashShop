@@ -12,7 +12,7 @@ const fetchSettingsOnce = () => {
         inflightRequest = getEditorSettings()
             .then((data) => {
                 cachedSettings = mergeEditorSettings(data);
-                // גופנים שהמנהלת העלתה זמינים בכל מקום שמשתמש בהגדרות (עורך המוצרים ועורך התמונות)
+                // Fonts the admin uploaded are available everywhere the settings are used (product editor and photo editor)
                 registerCustomFonts(cachedSettings.textToolbar?.fonts);
                 return cachedSettings;
             })
@@ -23,14 +23,14 @@ const fetchSettingsOnce = () => {
     return inflightRequest;
 };
 
-/** מאפס את המטמון אחרי שמירה בלוח הבקרה */
+/** Clears the cache after saving in the dashboard */
 export const invalidateEditorSettingsCache = () => {
     cachedSettings = null;
 };
 
 /**
- * טוען את הגדרות העורך שהמנהלת מגדירה (מידות, גופנים, צבעים וטקסטים).
- * עד שהבקשה חוזרת, מוחזרות ברירות המחדל כדי שהעורך יעבוד תמיד.
+ * Loads the editor settings the admin defines (sizes, fonts, colors and texts).
+ * Until the request returns, the defaults are returned so the editor always works.
  */
 export const useEditorSettings = () => {
     const [settings, setSettings] = useState(cachedSettings || DEFAULT_EDITOR_SETTINGS);

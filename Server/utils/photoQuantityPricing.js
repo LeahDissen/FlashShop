@@ -1,7 +1,7 @@
 /**
- * תמחור פיתוח תמונות: לכל גודל הדפסה יש מדרגות מחיר משלו (מכמה תמונות, ובכמה ₪ לתמונה).
- * הכמות שקובעת את המדרגה היא מספר ההדפסות באותו גודל בהזמנה.
- * ההגדרות נשמרות ב-DB (photoPricingModel) והמנהלת עורכת אותן במסך "מחירי פיתוח תמונות".
+ * Photo development pricing: each print size has its own price tiers (from how many photos, and how many ₪ per photo).
+ * The quantity that sets the tier is the number of prints of that size in the order.
+ * The settings are stored in the DB (photoPricingModel) and the admin edits them on the "photo development prices" screen.
  */
 const DEFAULT_PHOTO_PRICING = Object.freeze({
     sizes: [
@@ -33,7 +33,7 @@ const findSizeEntry = (pricing, size) => {
     return sizes.find((s) => normalizeSize(s.size) === normalizeSize(size)) || sizes[0];
 };
 
-/** מחיר לתמונה בגודל נתון כשמזמינים `quantity` הדפסות מהגודל הזה */
+/** Price per photo of a given size when ordering `quantity` prints of that size */
 const getPhotoUnitPrice = (pricing, size, quantity) => {
     const count = Math.max(1, Number(quantity) || 0);
     const tier = [...(findSizeEntry(pricing, size)?.tiers || [])]
@@ -42,7 +42,7 @@ const getPhotoUnitPrice = (pricing, size, quantity) => {
     return tier ? Number(tier.price) : 0;
 };
 
-/** כמה הדפסות יש מכל גודל (המפתח מנורמל, למשל "10x15") */
+/** How many prints there are of each size (the key is normalized, e.g. "10x15") */
 const countPrintsBySize = (items, getSize, getQuantity) => items.reduce((counts, item) => {
     const key = normalizeSize(getSize(item));
     counts[key] = (counts[key] || 0) + Math.max(1, Number(getQuantity(item)) || 1);
