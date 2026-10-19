@@ -760,6 +760,13 @@ export default function OrderDetailPage() {
                                     {order.payment.approvalCode && ` · אישור ${order.payment.approvalCode}`}
                                 </p>
                             )}
+                            {order.payment?.status === 'review' && (
+                                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                    Hyp אישרו חיוב (מספר עסקה {order.payment.transactionId}
+                                    {order.payment.approvalCode && `, אישור ${order.payment.approvalCode}`}), אבל האימות האוטומטי נכשל.
+                                    יש לבדוק את העסקה בפורטל של Hyp, ואם היא תקינה לעדכן את ההזמנה ל"בטיפול".
+                                </p>
+                            )}
                         </div>
                     </section>
 
