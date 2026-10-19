@@ -42,6 +42,9 @@ exports.createPaymentUrl = async (order) => {
         email: order.customer?.email,
         cell: String(order.customer?.phone || "").replace(/\D/g, ""),
         PageLang: "HEB",
+        // Values are sent as UTF-8; without this the payment page (windows-1255) shows Hebrew as gibberish
+        UTF8: "True",
+        UTF8out: "True",
     });
 
     const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });
