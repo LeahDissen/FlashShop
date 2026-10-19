@@ -16,7 +16,8 @@ const toQuery = (params) => Object.entries(params)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
 
-const readCode = (responseText) => new URLSearchParams(String(responseText)).get("CCode");
+// Hyp ends its answers with a newline ("CCode=0\n"), so the text is trimmed before reading the code
+const readCode = (responseText) => new URLSearchParams(String(responseText).trim()).get("CCode");
 
 const splitName = (fullName = "") => {
     const [first, ...rest] = String(fullName).trim().split(/\s+/);
