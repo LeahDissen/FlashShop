@@ -8,7 +8,7 @@ import './App.css';
 function App() {
   const initializeAuth = useAuthStore(state => state.initialize);
   const loadCart = useCartStore(state => state.loadCart);
-  const resetCartLocal = useCartStore(state => state.resetCartLocal);
+  const dropOtherAccountCart = useCartStore(state => state.dropOtherAccountCart);
 
   useEffect(() => {
     const boot = async () => {
@@ -16,7 +16,7 @@ function App() {
       if (user?._id) {
         await loadCart(user._id);
       } else {
-        resetCartLocal();
+        dropOtherAccountCart();
       }
     };
     boot();
