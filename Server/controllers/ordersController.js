@@ -965,8 +965,24 @@ exports.confirmPayment = async (req, res) => {
             return res.status(400).json({ msg: "התשלום לא הושלם" });
         }
         if (!(await verifyPaymentRedirect(query))) {
-            console.warn(`[Payment][order=${order._id}] Hyp verification failed`);
-            return res.status(400).json({ msg: "לא הצלחנו לאמת את התשלום. אם חויבת – צרי איתנו קשר." });
+            // Hyp reported an approved charge but the signature check failed. The customer was most likely
+            // charged, so the order is flagged for the admin to check in the Hyp portal instead of reported as failed.
+            console.warn(`[Payment][order=${order._id}] Hyp verification failed, flagged for review`);
+            await OrderModel.updateOne(
+                { _id: order._id, "payment.status": { $ne: "paid" } },
+                {
+                    $set: {
+                        "payment.status": "review",
+                        "payment.transactionId": params.get("Id"),
+                        "payment.approvalCode": params.get("ACode"),
+                        "payment.returnQuery": query.slice(0, 2000),
+                    },
+                },
+            );
+            return res.status(202).json({
+                review: true,
+                msg: "התשלום התקבל ונמצא בבדיקה. נאשר את ההזמנה בהקדם וניצור קשר אם יידרש.",
+            });
         }
 
         // Atomic update: only one request moves the order to "paid"

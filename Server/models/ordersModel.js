@@ -49,10 +49,12 @@ let orderSchema = new mongoose.Schema({
     /** Payment on Hyp's secure page. An order waiting for payment has the status awaiting_payment */
     payment: {
         provider: { type: String },
-        status: { type: String, enum: ["pending", "paid"] },
+        status: { type: String, enum: ["pending", "review", "paid"] },
         transactionId: { type: String },
         approvalCode: { type: String },
         paidAt: { type: Date },
+        /** The raw return from Hyp, kept only when automatic verification failed (for checking by hand) */
+        returnQuery: { type: String },
     },
     date_created: {
         type: Date,
