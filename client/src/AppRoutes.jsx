@@ -7,8 +7,6 @@ import HomePage from "./pages/HomePage";
 import { getReturnPathAfterAdd } from './utils/photoOrderDraft';
 import { useProductStore } from './store/productStore';
 import { lazyWithReload } from "./utils/lazyWithReload";
-import { GoogleOAuthProvider } from "@react-oauth/google";
-import { GOOGLE_CLIENT_ID } from "./config/api";
 
 // Pages not needed on the first load are loaded only when visited (a smaller JS bundle for the home page)
 const AdminDashboardPage = lazyWithReload(() => import("./adminPage/AdminDashboardPage"));
@@ -43,11 +41,6 @@ const OrderConfirmationPage = lazyWithReload(() => import("./pages/OrderConfirma
 const PaymentResultPage = lazyWithReload(() => import("./pages/PaymentResultPage"));
 const CheckoutPage = lazyWithReload(() => import("./pages/CheckoutPage"));
 
-/** The Google sign-in script (~100KB) loads only on the login and signup pages */
-const GoogleAuth = ({ children }) => (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{children}</GoogleOAuthProvider>
-);
-
 /** Shown briefly while the page's code loads */
 const PageLoader = () => (
     <div className="flex justify-center items-center min-h-[50vh]" role="status" aria-label="טוען">
@@ -73,8 +66,8 @@ export default function AppRoutes() {
             <Suspense fallback={<PageLoader />}>
                 <Routes>
                     {/* Login route - without Layout */}
-                    <Route path="/login" element={<GoogleAuth><LoginPage /></GoogleAuth>} />
-                    <Route path="/signup" element={<GoogleAuth><SignUpPage /></GoogleAuth>} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/signup" element={<SignUpPage />} />
                     <Route path="/forgot" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     {/* All other routes - with Layout */}
