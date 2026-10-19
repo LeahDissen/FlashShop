@@ -632,7 +632,8 @@ exports.syncOrderDrive = async (req, res) => {
         }
         if (!isDriveConfigured()) {
             return res.status(503).json({
-                msg: "Google Drive אינו מוגדר בשרת. יש להגדיר GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY ו-GOOGLE_DRIVE_ROOT_FOLDER_ID.",
+                msg: "שמירה אוטומטית לתיקייה עוד לא הוגדרה. בינתיים אפשר להוריד כל תמונה בכפתור \"הורדת תמונה\".",
+                code: "DRIVE_NOT_CONFIGURED",
             });
         }
 
@@ -831,6 +832,10 @@ exports.getOrderById = async (req, res) => {
             return res.status(403).json({ msg: "אין הרשאה לצפות בהזמנה זו" });
         }
 
+        if (req.tokenData.role === "admin") {
+            // Lets the admin page hide the Drive button instead of offering an action that cannot work yet
+            return res.json({ ...order.toObject(), driveConfigured: isDriveConfigured() });
+        }
         res.json(order);
     } catch (err) {
         console.log(err);

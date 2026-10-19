@@ -561,6 +561,10 @@ export default function OrderDetailPage() {
                                         העתקת הקישור
                                     </button>
                                 </>
+                            ) : order.driveConfigured === false ? (
+                                <p className="text-sm text-gray-500">
+                                    שמירה אוטומטית של התמונות לתיקייה עוד לא הוגדרה. בינתיים אפשר להוריד כל תמונה בכפתור &quot;הורדת תמונה&quot; שליד הפריט.
+                                </p>
                             ) : (
                                 <>
                                     <p className="text-sm text-gray-500 mb-4">
