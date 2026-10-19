@@ -12,24 +12,29 @@ function resolveOutputFormat(file) {
         return { mimeType: 'image/png', quality: 1 };
     }
     if (file?.type === 'image/webp') {
-        return { mimeType: 'image/webp', quality: 0.92 };
+        return { mimeType: 'image/webp', quality: 0.95 };
     }
-    return { mimeType: 'image/jpeg', quality: 0.92 };
+    return { mimeType: 'image/jpeg', quality: 0.95 };
 }
 
-const OUTPUT_LONG_EDGE = 2000;
+/** Never below 300dpi for a 10x15 print */
+const MIN_OUTPUT_LONG_EDGE = 2000;
+/** Keeps the canvas inside what every browser can allocate (about 30MP) */
+const MAX_OUTPUT_LONG_EDGE = 7200;
 
-function resolveOutputDimensions(aspect) {
+/**
+ * The print keeps the photo's own resolution: the output is sized so the photo is drawn at 1:1,
+ * within the bounds above. A fixed size would throw away detail on large prints (A4 and up).
+ */
+function resolveOutputDimensions(aspect, image, placement) {
+    const nativeLongEdge = aspect >= 1
+        ? image.naturalWidth / Number(placement.w)
+        : image.naturalHeight / Number(placement.h);
+    const longEdge = Math.round(Math.min(MAX_OUTPUT_LONG_EDGE, Math.max(MIN_OUTPUT_LONG_EDGE, nativeLongEdge || 0)));
     if (aspect >= 1) {
-        return {
-            width: OUTPUT_LONG_EDGE,
-            height: Math.round(OUTPUT_LONG_EDGE / aspect),
-        };
+        return { width: longEdge, height: Math.round(longEdge / aspect) };
     }
-    return {
-        width: Math.round(OUTPUT_LONG_EDGE * aspect),
-        height: OUTPUT_LONG_EDGE,
-    };
+    return { width: Math.round(longEdge * aspect), height: longEdge };
 }
 
 /**
@@ -137,7 +142,7 @@ export async function getPrintCropBlob({
     }
 
     const image = await createImage(imageSrc);
-    const { width: outputWidth, height: outputHeight } = resolveOutputDimensions(aspect);
+    const { width: outputWidth, height: outputHeight } = resolveOutputDimensions(aspect, image, placement);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 

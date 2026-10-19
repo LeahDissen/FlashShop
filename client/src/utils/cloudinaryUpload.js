@@ -4,10 +4,11 @@ const CLOUDINARY_UPLOAD_URL =
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 const UPLOAD_PRESET = CLOUDINARY_UPLOAD_PRESET;
 
-/** Cloudinary unsigned uploads are typically capped at ~10MB */
+/** Cloudinary unsigned uploads are capped at 10MB per image */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const MAX_DIMENSION = 2048;
-const JPEG_QUALITY = 0.82;
+/** Only for files over the cap: re-encode at full size first, and shrink only if that is not enough */
+const OVERSIZE_JPEG_QUALITIES = [0.95, 0.9, 0.85];
+const OVERSIZE_SHRINK_STEP = 0.9;
 
 const loadImageFromFile = (file) =>
     new Promise((resolve, reject) => {
@@ -24,47 +25,50 @@ const loadImageFromFile = (file) =>
         img.src = url;
     });
 
+const encodeJpeg = (img, width, height, quality) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            (b) => (b ? resolve(b) : reject(new Error('דחיסת התמונה נכשלה'))),
+            'image/jpeg',
+            quality,
+        );
+    });
+};
+
 /**
- * Resize/compress images before upload so uploads are faster and stay under Cloudinary limits.
+ * Photos are printed, so the customer's original file is uploaded untouched.
+ * Only a file over Cloudinary's 10MB cap is re-encoded, keeping as much of its size and quality as fits.
  */
 export async function prepareImageForUpload(file) {
     if (!file?.type?.startsWith('image/')) {
         throw new Error('יש לבחור קובץ תמונה בלבד');
     }
-
-    // Skip compression only for small files (faster upload path)
-    if (file.size < 500_000) {
+    if (file.size <= MAX_UPLOAD_BYTES) {
         return file;
     }
 
     const img = await loadImageFromFile(file);
-    let { width, height } = img;
-    const scale = Math.min(1, MAX_DIMENSION / Math.max(width, height));
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
+    let width = img.naturalWidth || img.width;
+    let height = img.naturalHeight || img.height;
+    let blob = null;
 
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, width, height);
-
-    const blob = await new Promise((resolve, reject) => {
-        canvas.toBlob(
-            (b) => (b ? resolve(b) : reject(new Error('דחיסת התמונה נכשלה'))),
-            'image/jpeg',
-            JPEG_QUALITY,
-        );
-    });
-
-    if (blob.size > MAX_UPLOAD_BYTES) {
-        throw new Error(
-            'התמונה גדולה מדי גם אחרי דחיסה. נסו תמונה קטנה יותר.',
-        );
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+        for (const quality of OVERSIZE_JPEG_QUALITIES) {
+            blob = await encodeJpeg(img, width, height, quality);
+            if (blob.size <= MAX_UPLOAD_BYTES) {
+                const baseName = (file.name || 'image').replace(/\.[^.]+$/, '');
+                return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+            }
+        }
+        width = Math.round(width * OVERSIZE_SHRINK_STEP);
+        height = Math.round(height * OVERSIZE_SHRINK_STEP);
     }
 
-    const baseName = (file.name || 'image').replace(/\.[^.]+$/, '');
-    return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+    throw new Error('התמונה גדולה מדי. נסו תמונה קטנה יותר.');
 }
 
 function parseCloudinaryError(data) {
