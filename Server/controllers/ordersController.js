@@ -510,6 +510,8 @@ exports.getOrdersByUserId = async (req, res) => {
         const orders = await OrderModel.find({
             user_id: userId,
             status: { $ne: "pending" },
+            // A payment page that was opened but never paid is not an order; a charge awaiting review is
+            $nor: [{ status: AWAITING_PAYMENT, "payment.status": { $ne: "review" } }],
         }).sort({ date_created: -1 });
 
         res.json(orders);
