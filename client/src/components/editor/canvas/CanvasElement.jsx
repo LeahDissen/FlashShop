@@ -1,9 +1,12 @@
 import { ReactCrop } from 'react-image-crop';
+// The crop tool measures the photo through its own layout: without its stylesheet the crop height is 0 and nothing is saved
+import 'react-image-crop/dist/ReactCrop.css';
 import ElementContent from './ElementContent';
 
 const FIXED_SIZE_TYPES = ['image', 'shape', 'text', 'globalFrame'];
-const CROPPING_Z_INDEX = 50;
 const EDITING_TEXT_Z_INDEX = 1100;
+/** The photo being cropped is above everything – texts, the frame and the dimming – so its crop handles can be reached */
+export const CROPPING_Z_INDEX = 1200;
 
 /** A short description for screen readers */
 function ariaLabelOf(el, isSelected) {

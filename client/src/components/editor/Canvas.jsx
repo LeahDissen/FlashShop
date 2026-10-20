@@ -3,7 +3,7 @@ import { FlipHorizontalIcon } from '../icons';
 import { partitionElementsByLayer } from '../../utils/editorLayering';
 import { isMultiDropzoneFrame, resolveDropzones } from '../../utils/dropzoneUtils';
 import { shapeMaskStyle } from '../../utils/productShapes';
-import CanvasElement from './canvas/CanvasElement';
+import CanvasElement, { CROPPING_Z_INDEX } from './canvas/CanvasElement';
 import { GridOverlay, SafeZoneFrame, ShapeOutline, ZoneWarningToast } from './canvas/CanvasOverlays';
 import { CollagePhotos, CollageWindows } from './canvas/CollageLayers';
 import FrameLayer from './canvas/FrameLayer';
@@ -213,7 +213,8 @@ const Canvas = ({
                             )}
 
                             {croppingElementId && (
-                                <div className="absolute inset-0 bg-black bg-opacity-50 z-40" onClick={onCancelCrop} />
+                                // Dims the rest of the design while a photo is cropped (just below that photo)
+                                <div className="absolute inset-0 bg-black bg-opacity-50" style={{ zIndex: CROPPING_Z_INDEX - 1 }} onClick={onCancelCrop} />
                             )}
                         </div>
                     </div>
