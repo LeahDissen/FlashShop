@@ -81,10 +81,12 @@ const orderSummaryText = (order, entries, failed) => {
 /**
  * Downloads every file of the order into one ZIP, in the browser.
  * A file that cannot be fetched is listed in the summary file instead of stopping the download.
+ * Pass items to download only some of them (e.g. the photo prints), and nameSuffix to tell the archives apart.
  * @returns {Promise<{ total: number, failed: number }>}
  */
-export async function downloadOrderZip(order, onProgress = () => {}) {
-    const entries = buildOrderFileList(order);
+export async function downloadOrderZip(order, onProgress = () => {}, { items, nameSuffix = '' } = {}) {
+    const scoped = items ? { ...order, items } : order;
+    const entries = buildOrderFileList(scoped);
     const fetched = new Array(entries.length);
     const failed = [];
     let done = 0;
@@ -109,14 +111,14 @@ export async function downloadOrderZip(order, onProgress = () => {}) {
     await Promise.all(Array.from({ length: Math.min(PARALLEL_FETCHES, entries.length) }, worker));
 
     const files = [
-        { name: 'פרטי-ההזמנה.txt', input: orderSummaryText(order, entries, failed) },
+        { name: 'פרטי-ההזמנה.txt', input: orderSummaryText(scoped, entries, failed) },
         ...fetched.filter(Boolean),
     ];
     const blob = await downloadZip(files).blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `הזמנה-${String(order._id).slice(-8).toUpperCase()}.zip`;
+    link.download = `הזמנה-${String(order._id).slice(-8).toUpperCase()}${nameSuffix}.zip`;
     document.body.appendChild(link);
     link.click();
     link.remove();

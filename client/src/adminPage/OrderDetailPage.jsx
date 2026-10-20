@@ -22,6 +22,8 @@ import { FiArrowLeft } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
 import { getOrderById, updateOrderStatus } from "../api/orders";
 import { buildOrderFileList, downloadOrderZip, extensionFromSrc } from "../utils/orderDownloads";
+import { optimizeImageUrl } from "../utils/imageUrl";
+import OrderPhotoFolder from "./OrderPhotoFolder";
 import { useEditorSettings } from "../hooks/useEditorSettings";
 import {
     STATUS_ACTIVE,
@@ -415,6 +417,10 @@ export default function OrderDetailPage() {
     }
 
     const orderFileCount = buildOrderFileList(order).length;
+    // Photo prints are shown as one folder; every other item keeps its own card (and its line number)
+    const isPhotoItem = (item) => item.itemType === "photo-print" || String(item.name || "").startsWith("פיתוח תמונה");
+    const photoItems = order.items.filter(isPhotoItem);
+    const otherItems = order.items.map((item, index) => ({ item, index })).filter(({ item }) => !isPhotoItem(item));
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans" dir="rtl">
@@ -563,7 +569,10 @@ export default function OrderDetailPage() {
                             פריטים להפקה
                         </h2>
                         <div className="space-y-4">
-                            {order.items.slice(0, visibleCount).map((item, i) => {
+                            {photoItems.length > 0 && (
+                                <OrderPhotoFolder order={order} photos={photoItems} purged={Boolean(order.photosPurgedAt)} />
+                            )}
+                            {otherItems.slice(0, visibleCount).map(({ item, index: i }) => {
                                 const downloads = collectItemDownloads(item, order._id, i);
                                 const printSize = item.customDesign?.printSizeCm;
                                 const driveFile = item.customDesign?.driveFile || item.customDesign?.designFile;
@@ -575,8 +584,9 @@ export default function OrderDetailPage() {
                                                 <a href={item.image} target="_blank" rel="noreferrer" className="block w-full sm:w-36 shrink-0">
                                                     <span className="block aspect-square w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
                                                         <img
-                                                            src={item.image}
+                                                            src={optimizeImageUrl(item.image, { width: 288, height: 288 })}
                                                             alt={item.name}
+                                                            loading="lazy"
                                                             className="w-full h-full object-cover"
                                                         />
                                                     </span>
@@ -659,13 +669,13 @@ export default function OrderDetailPage() {
                                 );
                             })}
                         </div>
-                        {visibleCount < order.items.length && (
+                        {visibleCount < otherItems.length && (
                             <button
                                 type="button"
                                 onClick={() => setVisibleCount((count) => count + ITEMS_PAGE_SIZE)}
                                 className="mt-4 w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-600 text-sm font-medium hover:border-[#f2665e] hover:text-[#f2665e] transition-colors"
                             >
-                                טען עוד ({order.items.length - visibleCount} נוספים)
+                                טען עוד ({otherItems.length - visibleCount} נוספים)
                             </button>
                         )}
                     </section>
