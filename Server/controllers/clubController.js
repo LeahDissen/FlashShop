@@ -49,6 +49,8 @@ const sendWelcomeEmail = async ({ email, name, code }) => {
     const page = await PageModel.findOne({ key: "club" }).lean();
     const settings = page?.data || {};
     const vars = { name, code };
+    // Without the join gift there is no code: lines of the admin's body that show {{code}} are left out
+    const withoutCodeLines = (text) => (code ? text : String(text || "").split("\n").filter((line) => !/{{\s*code\s*}}/.test(line)).join("\n"));
     const subject = renderWelcomeText(settings.welcomeSubject || DEFAULT_WELCOME_SUBJECT, vars);
     const attachments = await fetchWelcomeAttachment(settings.welcomeAttachmentUrl);
 
@@ -56,7 +58,7 @@ const sendWelcomeEmail = async ({ email, name, code }) => {
         return sendEmail(
             email,
             subject,
-            { title: subject, message: renderWelcomeText(settings.welcomeBody, vars) },
+            { title: subject, message: renderWelcomeText(withoutCodeLines(settings.welcomeBody), vars) },
             "./template/generalMail.handlebars",
             attachments,
         );
