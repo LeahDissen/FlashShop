@@ -56,6 +56,10 @@ let orderSchema = new mongoose.Schema({
         /** The raw return from Hyp, kept only when automatic verification failed (for checking by hand) */
         returnQuery: { type: String },
     },
+    /** Discounts given, for the order page and emails: [{ kind, label, amount }] */
+    discounts: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    /** The club member whose join gift this order used; marked used once the order is paid */
+    clubGiftMemberId: { type: mongoose.Schema.Types.ObjectId },
     /** When the status last changed – the 30-day photo retention counts from a printed/cancelled status */
     statusChangedAt: { type: Date },
     /** Set once the customer's uploaded photos were deleted from Cloudinary */

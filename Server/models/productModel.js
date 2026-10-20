@@ -13,6 +13,11 @@ let productSchema = new mongoose.Schema({
     stock: { type: Number, required: true },
     /** "Sale" badge on the product – the price itself is updated manually, there is no discount logic */
     isOnSale: { type: Boolean, default: false },
+    /** Club members' discount on this product: a percent off, or a final price. Given at checkout to members only */
+    memberDiscount: {
+        type: { type: String, enum: ["percent", "price"] },
+        value: { type: Number, min: 0 },
+    },
     /** The price before the sale – shown struck through next to the current price when the product is on sale */
     originalPrice: { type: Number, min: 0, default: null },
     /** Print area dimensions in cm – used for the editor canvas size */
