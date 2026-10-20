@@ -165,6 +165,8 @@ const compactCustomDesign = (customDesign) => {
     return hasValue ? compact : undefined;
 };
 
+const MAX_DESIGNER_IMAGES = 6;
+
 const compactCustomization = (customization) => {
     if (!customization || typeof customization !== "object") return undefined;
     const compact = {
@@ -178,9 +180,13 @@ const compactCustomization = (customization) => {
         height: customization.height,
         originalImage: maybeStoreImage(customization.originalImage),
         referenceImage: maybeStoreImage(customization.referenceImage),
+        // "עיצוב מותאם": up to 6 photos for the designer
+        referenceImages: Array.isArray(customization.referenceImages)
+            ? customization.referenceImages.map(maybeStoreImage).filter((src) => typeof src === "string" && src).slice(0, MAX_DESIGNER_IMAGES)
+            : undefined,
     };
     Object.keys(compact).forEach((key) => {
-        if (compact[key] === undefined || compact[key] === "") {
+        if (compact[key] === undefined || compact[key] === "" || (Array.isArray(compact[key]) && !compact[key].length)) {
             delete compact[key];
         }
     });

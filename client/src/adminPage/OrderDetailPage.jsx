@@ -104,7 +104,10 @@ const collectItemDownloads = (item, orderId, index) => {
     };
 
     if (item.customization?.type === "designer-service") {
-        add(item.customization.referenceImage, "הורדת התמונה המצורפת", "reference");
+        const references = item.customization.referenceImages?.length
+            ? item.customization.referenceImages
+            : [item.customization.referenceImage];
+        references.forEach((src, index) => add(src, references.length > 1 ? `הורדת תמונה מצורפת ${index + 1}` : "הורדת התמונה המצורפת", `reference-${index + 1}`));
         return files;
     }
 

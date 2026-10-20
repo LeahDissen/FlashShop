@@ -29,7 +29,10 @@ const originalFileName = (itemName) => {
 
 const itemFiles = (item) => {
     if (item.customization?.type === 'designer-service') {
-        return [{ src: item.customization.referenceImage, kind: 'מצורף' }];
+        const references = item.customization.referenceImages?.length
+            ? item.customization.referenceImages
+            : [item.customization.referenceImage];
+        return references.map((src, index) => ({ src, kind: references.length > 1 ? `מצורף${index + 1}` : 'מצורף' }));
     }
     return [
         { src: item.image, kind: '' },
