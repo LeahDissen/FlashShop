@@ -365,7 +365,7 @@ export default function ProductsManagement() {
                     resetForm();
                 }
                 loadProducts();
-            } catch (err) {
+            } catch {
                 alert("שגיאה במחיקה");
             }
         }

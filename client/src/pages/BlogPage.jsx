@@ -7,7 +7,7 @@ import { useTipsStore } from "../store/tipsStore.js";
 
 export default function BlogPage() {
     const isAdmin = useAuthStore(state => state.isAdmin());
-    const { currentTip, setCurrentTip, tipsList, setTipsList, updateTipInList } = useTipsStore();
+    const { currentTip, setCurrentTip, tipsList, updateTipInList } = useTipsStore();
     const [editMode, setEditMode] = useState(false);
     const [draft, setDraft] = useState({});
 

@@ -28,7 +28,7 @@ export default function ViewMessages() {
             try {
                 await deleteMessageRequest(id);
                 setMessages(messages.filter(msg => msg._id !== id));
-            } catch (error) {
+            } catch {
                 alert("שגיאה במחיקת ההודעה");
             }
         }
