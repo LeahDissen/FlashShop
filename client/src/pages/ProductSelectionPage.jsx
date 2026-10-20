@@ -300,4 +300,8 @@ const ProductSelectionPage = () => {
     );
 };
 
-export default ProductSelectionPage;
+/** A new product address starts the page fresh: its product, quantity, uploaded photo and designer form */
+export default function ProductSelectionRoute() {
+    const { productId } = useParams();
+    return <ProductSelectionPage key={productId} />;
+}

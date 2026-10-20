@@ -2,7 +2,7 @@
 // an in-memory database, every external service switched off, the shop's public catalog copied from the
 // live site (read-only GET requests), plus a test admin, a test customer and test orders.
 //
-//   node tests/dev-server.js            -> API on http://localhost:10200
+//   node tests/dev-server.js            -> API on http://localhost:10300 (10200 is taken by the integration suites)
 //   then the "client-testapi" preview   -> http://localhost:5174
 //
 // Test accounts (local only, exist only in this in-memory database):
@@ -14,7 +14,7 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 const SERVER = process.env.SERVER || path.resolve(__dirname, "../Server");
 const req = (m) => require(path.join(SERVER, "node_modules", m));
 const LIVE_API = process.env.LIVE_API || "https://api.flaash.co.il";
-const PORT = process.env.PORT || "10200";
+const PORT = process.env.PORT || "10300";
 
 const TEST_ADMIN = { name: "מנהלת בדיקה", email: "admin@example.com", password: "local-admin-123", role: "admin" };
 const TEST_CUSTOMER = { name: "לקוחה בדיקה", email: "customer@example.com", password: "local-customer-123", role: "user" };
