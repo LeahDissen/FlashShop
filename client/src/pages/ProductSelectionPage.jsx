@@ -263,7 +263,8 @@ const ProductSelectionPage = () => {
         const productForEditor = withMagnetPrintDimensions(product);
         setSelectedProduct(productForEditor);
         setOrderQuantity(quantity);
-        navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity } });
+        // A photo already uploaded here comes along, so it is not uploaded again in the editor
+        navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity, initialImage: uploadedImage || undefined } });
     };
 
     // Submit the designer form with extended validation

@@ -1,6 +1,6 @@
 import { toPng } from 'html-to-image';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { getProductById } from '../api/products';
 import {
     getCanvasDimensions,
@@ -100,6 +100,7 @@ const resolveDraftProductKey = (product, fallbackProductId) =>
 const EditorPage = ({ onNavigateToHome }) => {
     const { productId } = useParams();
     const location = useLocation();
+    const navigate = useNavigate();
 
     // Get the selected product from the products store
     const { selectedProduct, setSelectedProduct, orderQuantity } = useProductStore();
@@ -1114,6 +1115,40 @@ const EditorPage = ({ onNavigateToHome }) => {
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
         detectOrientationMismatch(newElement.id, naturalWidth, naturalHeight);
     }, [elements, updateElementsWithHistory, canvasDimensions, detectOrientationMismatch]);
+
+    // A photo the customer uploaded on the product page before choosing "עיצוב עצמי" is placed on the canvas,
+    // fitted inside it, so she designs around it instead of uploading it again.
+    const initialImageRef = useRef(location.state?.initialImage || null);
+    const [pendingInitialImage, setPendingInitialImage] = useState(null);
+
+    useEffect(() => {
+        const src = initialImageRef.current;
+        if (!src || !selectedProduct || !canvasDimensions.width || !canvasDimensions.height) return;
+        initialImageRef.current = null;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            const scale = Math.min(canvasDimensions.width / img.naturalWidth, canvasDimensions.height / img.naturalHeight);
+            setPendingInitialImage({
+                src,
+                width: img.naturalWidth * scale,
+                height: img.naturalHeight * scale,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+            });
+        };
+        img.src = src;
+    }, [selectedProduct, canvasDimensions.width, canvasDimensions.height]);
+
+    // Added in its own render, after the draft was restored, so it is not overwritten
+    useEffect(() => {
+        if (!pendingInitialImage) return;
+        const { src, width, height, naturalWidth, naturalHeight } = pendingInitialImage;
+        setPendingInitialImage(null);
+        addImageElement(src, width, height, naturalWidth, naturalHeight);
+        // Off the history entry, so a refresh (which restores the draft) does not add it a second time
+        navigate(location.pathname, { replace: true, state: { ...location.state, initialImage: undefined } });
+    }, [pendingInitialImage, addImageElement, navigate, location.pathname, location.state]);
 
     const addImageToDropzone = useCallback((dropzoneId, src, naturalWidth, naturalHeight) => {
         const frame = getActiveGlobalFrame(elements);
