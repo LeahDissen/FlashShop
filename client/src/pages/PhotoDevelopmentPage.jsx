@@ -443,7 +443,7 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                             <p className="text-gray-600 text-sm">{uploadStatus}</p>
                         )}
                         <p className="text-gray-400 text-xs mt-3">
-                            התמונות נדחסות ומועלות — אל תסגרו את הדף
+                            התמונות מועלות — אל תסגרו את הדף
                         </p>
                     </div>
                 </div>

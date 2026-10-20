@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import useAuthStore from '../store/authStore';
 import { useProducts } from '../hooks/useProducts';
 import SalePrice from './SalePrice';
+import ClubGiftBadge from './ClubGiftBadge';
 import { optimizeImageUrl } from '../utils/imageUrl';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const [, setSearchParams] = useSearchParams();
+    const isAdmin = useAuthStore((state) => state.isAdmin());
+    const [linkCopied, setLinkCopied] = useState(false);
     const { products, loading, error } = useProducts();
     const loadError = error ? 'לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.' : null;
     const categories = useMemo(
@@ -44,6 +50,26 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
     const handleCategoryChange = (category) => {
         setActiveCategory(category);
         onSelectProduct(null);
+        setLinkCopied(false);
+        // On the products page the address follows the category, so it can be copied and sent to customers
+        if (location.pathname === '/products') {
+            setSearchParams((params) => {
+                const next = new URLSearchParams(params);
+                if (category === "הכל") next.delete('category');
+                else next.set('category', category);
+                return next;
+            }, { replace: true });
+        }
+    };
+
+    const categoryLink = `${window.location.origin}/products?category=${encodeURIComponent(activeCategory)}`;
+    const copyCategoryLink = async () => {
+        try {
+            await navigator.clipboard.writeText(categoryLink);
+            setLinkCopied(true);
+        } catch {
+            window.prompt('הקישור לקטגוריה:', categoryLink);
+        }
     };
 
     const handleProductClick = (product) => {
@@ -72,6 +98,16 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                         </button>
                     ))}
                 </div>
+
+                {isAdmin && activeCategory !== "הכל" && (
+                    <button
+                        type="button"
+                        onClick={copyCategoryLink}
+                        className="-mt-6 mb-8 text-xs text-gray-500 hover:text-[#f2665e] underline underline-offset-2"
+                    >
+                        {linkCopied ? 'הקישור הועתק ✓' : `העתקת קישור ישיר לקטגוריה "${activeCategory}" (מנהלת)`}
+                    </button>
+                )}
 
                 {loading && (
                     <p className="text-gray-500 py-12">טוען מוצרים...</p>
@@ -103,7 +139,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                 <img src={optimizeImageUrl(product.image, { width: 500 })} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
                                 {product.isOnSale && (
                                     <span className="absolute top-2 right-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#f2665e] text-white shadow-md">
-                                        מבצע
+                                        מוצר במבצע
                                     </span>
                                 )}
                             </div>
@@ -117,6 +153,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                         <SalePrice product={product} priceClassName="text-gray-500" />
                                     </span>
                                 )}
+                                <ClubGiftBadge product={product} className="mt-1" />
                                 {product.size && (
                                     <span className="text-gray-400 text-xs">
                                         {product.size}

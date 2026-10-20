@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getPage } from '../api/pages';
 import { getAllTips, createTip } from '../api/tips';
+import TipsImport from '../components/TipsImport';
 import AdminControls from "../components/AdminControls.jsx";
 import SmartImageInput from "../components/SmartImageInput";
 import { useAdminControl } from "../hooks/useAdminControl.jsx";
@@ -272,6 +273,17 @@ export default function TipsPage() {
                     ) : (
                         <button onClick={enterEditMode} className="bg-[#f2665e] text-white px-8 py-3 rounded-full hover:bg-[#d95248] transition shadow-lg font-bold transform hover:-translate-y-1"> הוסף טיפ</button>
                     )}
+                </div>
+            )}
+            {isAdmin && !editModeTip && (
+                <div className="max-w-3xl mx-auto px-4 pb-12">
+                    <TipsImport
+                        onImported={(saved) => {
+                            useTipsStore.getState().setTipsList([...saved, ...tipsList]);
+                            setTotalTipsCount((count) => count + saved.length);
+                            setCurrentPage(1);
+                        }}
+                    />
                 </div>
             )}
         </>

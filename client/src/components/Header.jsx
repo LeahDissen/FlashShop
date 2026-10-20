@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import useAppStore from "../store/appStore";
+import { NAV_ITEMS } from "../constants/navItems";
 import { Link } from "react-router-dom";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
@@ -17,6 +19,14 @@ export default function Header() {
         });
     }, []);
 
+    // The menu follows the draft, so renaming shows in the menu while editing
+    const setNavLabels = useAppStore((state) => state.setNavLabels);
+    useEffect(() => {
+        setNavLabels(draft.navLabels);
+    }, [draft.navLabels, setNavLabels]);
+
+    const updateNavLabel = (key, value) => updateDraft({ navLabels: { ...(draft.navLabels || {}), [key]: value } });
+
     const EditContent = (
         <>
             <label className="block mb-2 font-semibold">🔗 Logo URL:</label>
@@ -25,6 +35,22 @@ export default function Header() {
                 onChange={(url) => updateDraft({ logo: url })}
                 className="w-full p-2 border border-gray-300 rounded"
             />
+            <label className="block mt-4 mb-2 font-semibold">שמות בתפריט העליון</label>
+            <div className="space-y-2">
+                {NAV_ITEMS.map((item) => (
+                    <input
+                        key={item.key}
+                        id={`nav-label-${item.key}`}
+                        type="text"
+                        value={draft.navLabels?.[item.key] ?? ""}
+                        onChange={(e) => updateNavLabel(item.key, e.target.value)}
+                        placeholder={item.label}
+                        aria-label={`שם בתפריט במקום "${item.label}"`}
+                        className="w-full p-2 border border-gray-300 rounded"
+                    />
+                ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">שדה ריק משאיר את השם הרגיל.</p>
         </>
     );
 

@@ -1,6 +1,8 @@
 const crypto = require("crypto");
 const { ClubModel } = require("../models/clubModel");
 const { CouponModel } = require("../models/couponModel");
+const { ProductModel } = require("../models/productModel");
+const { loadShopSettings } = require("./shopSettingsController");
 const { sendEmail } = require("../utils/sendEmail");
 const { getClientUrl } = require("../utils/clientUrl");
 const { createUnsubscribeToken, verifyUnsubscribeToken } = require("../utils/unsubscribeToken");
@@ -47,6 +49,8 @@ const sendWelcomeEmail = async ({ email, name, code }) => {
     const page = await PageModel.findOne({ key: "club" }).lean();
     const settings = page?.data || {};
     const vars = { name, code };
+    // Without the join gift there is no code: lines of the admin's body that show {{code}} are left out
+    const withoutCodeLines = (text) => (code ? text : String(text || "").split("\n").filter((line) => !/{{\s*code\s*}}/.test(line)).join("\n"));
     const subject = renderWelcomeText(settings.welcomeSubject || DEFAULT_WELCOME_SUBJECT, vars);
     const attachments = await fetchWelcomeAttachment(settings.welcomeAttachmentUrl);
 
@@ -54,12 +58,28 @@ const sendWelcomeEmail = async ({ email, name, code }) => {
         return sendEmail(
             email,
             subject,
-            { title: subject, message: renderWelcomeText(settings.welcomeBody, vars) },
+            { title: subject, message: renderWelcomeText(withoutCodeLines(settings.welcomeBody), vars) },
             "./template/generalMail.handlebars",
             attachments,
         );
     }
     return sendEmail(email, subject, vars, "./template/clubWelcome.handlebars", attachments);
+};
+
+const DEFAULT_GIFT_SUBJECT = "מתנת הצטרפות למועדון 🎁";
+const DEFAULT_GIFT_BODY = "היי {{name}},\nשמחים שהצטרפת! מחכה לך מתנה: {{product}}.\nקוד המתנה שלך: {{code}}\nהמתנה תתווסף אוטומטית בקופה כשתזמיני את המוצר (מחוברת עם המייל הזה), או בהזנת הקוד.";
+
+/** The join gift email: the product and the personal code, in the text the admin wrote */
+const sendJoinGiftEmail = async ({ email, name, code, clubGift }) => {
+    const product = await ProductModel.findById(clubGift.productId).select("name").lean().catch(() => null);
+    const vars = { name, code, product: product?.name || "" };
+    const subject = renderWelcomeText(clubGift.emailSubject || DEFAULT_GIFT_SUBJECT, vars);
+    return sendEmail(
+        email,
+        subject,
+        { title: subject, message: renderWelcomeText(clubGift.emailBody || DEFAULT_GIFT_BODY, vars) },
+        "./template/generalMail.handlebars",
+    );
 };
 
 const CASE_INSENSITIVE = { locale: "en", strength: 2 };
@@ -83,20 +103,28 @@ exports.joinClub = async (req, res) => {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
         }
         const newCode = generateGiftCode();
+        const { clubGift } = await loadShopSettings();
+        const giftOn = Boolean(clubGift?.enabled && clubGift.productId);
         const newMember = new ClubModel({
             user_id: user_id || null,
             email,
             name,
             birthDate,
             giftCode: newCode,
+            // The code gives the join gift only while it is turned on; otherwise it is just a member id
+            giftType: giftOn ? "join-gift" : "none",
             isUsed: false
         });
         await newMember.save();
-        // The email is sent in the background: the signup is already saved, and the customer does not need to wait for the mail server
-        sendWelcomeEmail({ email, name, code: newCode })
+        // The emails are sent in the background: the signup is already saved, and the customer does not need to wait for the mail server
+        sendWelcomeEmail({ email, name, code: giftOn ? newCode : "" })
             .then(() => console.log("Welcome email sent to " + email))
             .catch((emailErr) => console.error("Failed to send welcome email:", emailErr.message));
-        res.status(201).json({ msg: "הצטרפת בהצלחה!", code: newCode });
+        if (giftOn) {
+            sendJoinGiftEmail({ email, name, code: newCode, clubGift })
+                .catch((emailErr) => console.error("Failed to send join gift email:", emailErr.message));
+        }
+        res.status(201).json({ msg: "הצטרפת בהצלחה!", code: giftOn ? newCode : null });
     } catch (err) {
         if (err.code === 11000) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
@@ -135,12 +163,19 @@ exports.checkGiftCode = async (req, res) => {
             if (member.isUsed) {
                 return res.json({ valid: false, msg: "הקוד הזה כבר נוצל בעבר" });
             }
-            return res.json({ 
-                valid: true, 
-                msg: "קוד חבר מועדון התקבל! קיבלת 15% הנחה", 
-                discountType: 'percent', 
+            if (member.giftType === "join-gift") {
+                // Calculated at checkout on the gift product, not as a cart discount
+                return res.json({ valid: true, msg: "קוד מתנת ההצטרפות התקבל! המתנה תחושב בשלב התשלום", discountType: "percent", discountValue: 0, isMemberCode: true });
+            }
+            if (member.giftType === "none") {
+                return res.json({ valid: false, msg: "קוד לא נמצא" });
+            }
+            return res.json({
+                valid: true,
+                msg: "קוד חבר מועדון התקבל! קיבלת 15% הנחה",
+                discountType: 'percent',
                 discountValue: 15,
-                isMemberCode: true 
+                isMemberCode: true
             });
         }
 
@@ -274,6 +309,8 @@ exports.addClubMember = async (req, res) => {
             email,
             birthDate: birthDate && !Number.isNaN(birthDate.getTime()) ? birthDate : undefined,
             giftCode: generateGiftCode(),
+            // Added by hand: no join gift
+            giftType: "none",
             isUsed: false,
         });
         res.status(201).json(member);

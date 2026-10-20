@@ -22,6 +22,8 @@ exports.config = {
     HYP_KEY: process.env.HYP_KEY,
     HYP_PASSP: process.env.HYP_PASSP,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    // Cloudinary admin access (cloudinary://key:secret@cloud) – deletes customers' photos 30 days after printing
+    CLOUDINARY_URL: process.env.CLOUDINARY_URL,
     // Google Drive (optional) – stores the final design files per order
     GOOGLE_DRIVE_CLIENT_EMAIL: process.env.GOOGLE_DRIVE_CLIENT_EMAIL,
     GOOGLE_DRIVE_PRIVATE_KEY: process.env.GOOGLE_DRIVE_PRIVATE_KEY,

@@ -6,6 +6,12 @@ export const createOrder = async (orderData) => {
     const response = await axios.post(API_URL, orderData);
     return response.data;
 }
+/** The checkout's price preview: club discounts and coupon, calculated by the server like the order itself */
+export const quoteOrder = async (items, couponCode) => {
+    const response = await axios.post(`${API_URL}/quote`, { items, couponCode });
+    return response.data;
+};
+
 export const getPendingOrderForUser = async (userId) => {
     const response = await axios.get(`${API_URL}/pending/user/${userId}`);
     return response.data;

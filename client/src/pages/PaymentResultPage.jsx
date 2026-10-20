@@ -13,6 +13,7 @@ export default function PaymentResultPage() {
     const navigate = useNavigate();
     const clearCart = useCartStore((state) => state.clearCart);
     const [error, setError] = useState('');
+    const [reviewMessage, setReviewMessage] = useState('');
     const startedRef = useRef(false);
 
     useEffect(() => {
@@ -28,6 +29,13 @@ export default function PaymentResultPage() {
 
         confirmOrderPayment(orderId, redirectQuery)
             .then((order) => {
+                if (order.review) {
+                    // Charged but not verified automatically: the shop checks it by hand, so the cart is not offered again
+                    clearCheckoutDraft();
+                    clearCart();
+                    setReviewMessage(order.msg);
+                    return;
+                }
                 saveLastOrder(order);
                 clearCheckoutDraft();
                 clearCart();
@@ -39,7 +47,15 @@ export default function PaymentResultPage() {
     return (
         <div className="min-h-[60vh] flex items-center justify-center p-6" dir="rtl">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 max-w-md w-full text-center space-y-4">
-                {error ? (
+                {reviewMessage ? (
+                    <>
+                        <h1 className="text-xl font-bold text-gray-800">התשלום התקבל</h1>
+                        <p className="text-gray-600">{reviewMessage}</p>
+                        <Link to="/" className="inline-block bg-[#f2665e] text-white font-bold py-2.5 px-6 rounded-full hover:bg-[#d95248]">
+                            חזרה לדף הבית
+                        </Link>
+                    </>
+                ) : error ? (
                     <>
                         <h1 className="text-xl font-bold text-gray-800">התשלום לא הושלם</h1>
                         <p className="text-gray-600">{error}</p>

@@ -135,6 +135,7 @@ export default function SendMailToClub() {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">שליחת מייל לחברי מועדון</h1>
                     <p className="text-gray-500">שמירה על קשר עם הלקוחות שלך מעולם לא הייתה קלה יותר</p>
+                    <Link to="/shopsettings#club" className="text-sm text-[#f2665e] hover:underline">הגדרות מתנת ההצטרפות וההנחות למועדון ←</Link>
                 </div>
                 <Link
                     to="/admindashboard"

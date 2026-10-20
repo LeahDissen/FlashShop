@@ -1,4 +1,9 @@
 import QuantityInput from './QuantityInput';
+import { hasDesignPerCopy } from '../utils/cartItem';
+import { optimizeImageUrl } from '../utils/imageUrl';
+
+/** Thumbnails are shown at 56px; photos are uploaded at full size, so a small copy is requested */
+const THUMB_PIXELS = 112;
 
 export default function CartItem({ item, onRemove, onSetQuantity }) {
   const itemKey = item.id;
@@ -24,8 +29,9 @@ export default function CartItem({ item, onRemove, onSetQuantity }) {
           </button>
           {item.image ? (
             <img
-              src={item.image}
+              src={optimizeImageUrl(item.image, { width: THUMB_PIXELS, height: THUMB_PIXELS })}
               alt=""
+              loading="lazy"
               className="w-14 h-14 object-cover rounded border border-gray-200 bg-gray-50 shrink-0"
             />
           ) : (
@@ -52,11 +58,15 @@ export default function CartItem({ item, onRemove, onSetQuantity }) {
       <div className="flex items-center justify-between gap-3 sm:contents px-1">
         <div className="flex items-center gap-2 sm:col-span-3 sm:flex sm:justify-center">
           <span className="text-xs text-gray-500 sm:hidden">כמות</span>
-          <QuantityInput
-            quantity={item.quantity}
-            onQuantityChange={(qty) => onSetQuantity(itemKey, qty)}
-            variant="cart"
-          />
+          {hasDesignPerCopy(item) ? (
+            <span className="text-sm font-medium text-gray-700">{item.quantity} עותקים</span>
+          ) : (
+            <QuantityInput
+              quantity={item.quantity}
+              onQuantityChange={(qty) => onSetQuantity(itemKey, qty)}
+              variant="cart"
+            />
+          )}
         </div>
         <div className="font-semibold text-gray-800 whitespace-nowrap sm:col-span-3 sm:text-center">
           <span className="text-xs text-gray-500 font-normal ml-1 sm:hidden">מחיר </span>

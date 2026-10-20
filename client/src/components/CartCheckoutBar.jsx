@@ -13,6 +13,7 @@ export default function CartCheckoutBar({
   codeApplyLabel = 'החל',
   disabled = false,
   embedded = false,
+  onCouponToggle,
 }) {
   const [showCoupon, setShowCoupon] = useState(false);
   const [couponCode, setCouponCode] = useState('');
@@ -55,7 +56,7 @@ export default function CartCheckoutBar({
         <div className="flex flex-row w-full sm:w-auto items-stretch sm:items-center gap-2 sm:gap-3">
           <button
             type="button"
-            onClick={() => setShowCoupon((v) => !v)}
+            onClick={() => { setShowCoupon(!showCoupon); onCouponToggle?.(!showCoupon); }}
             className="flex-1 sm:flex-none text-sm bg-[#ffeae8] text-[#a83232] font-bold py-2.5 px-3 sm:px-4 rounded-full border border-white/40 hover:bg-white transition-colors shadow-sm whitespace-nowrap"
           >
             {couponBtnLabel}

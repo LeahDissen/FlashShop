@@ -23,3 +23,8 @@ export const updateTip = async (id, tipData) => {
     const response = await axios.put(`${API_URL}/${id}`, tipData);
     return response.data;
 };
+/** Admin: saves the tips approved from a Word document, in the document's order */
+export const importTips = async (tips) => {
+    const response = await axios.post(`${API_URL}/import`, { tips });
+    return response.data;
+};

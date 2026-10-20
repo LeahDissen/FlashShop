@@ -3,6 +3,7 @@ const orderController = require("../controllers/ordersController");
 const { auth, authAdmin } = require("../middlewares/auth");
 
 router.post("/", auth, orderController.createOrder);
+router.post("/quote", auth, orderController.quoteOrder);
 router.get("/pending/user/:userId", auth, orderController.getPendingOrderForUser);
 router.put("/pending/user/:userId", auth, orderController.updateOrder);
 router.get("/user/:userId", auth, orderController.getOrdersByUserId);

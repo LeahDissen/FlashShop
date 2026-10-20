@@ -20,7 +20,10 @@ import {
 } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
-import { getOrderById, syncOrderDrive, updateOrderStatus } from "../api/orders";
+import { getOrderById, updateOrderStatus } from "../api/orders";
+import { buildOrderFileList, downloadOrderZip, extensionFromSrc } from "../utils/orderDownloads";
+import { optimizeImageUrl } from "../utils/imageUrl";
+import OrderPhotoFolder from "./OrderPhotoFolder";
 import { useEditorSettings } from "../hooks/useEditorSettings";
 import {
     STATUS_ACTIVE,
@@ -55,15 +58,6 @@ const getStatusBadge = (status) => {
         default:
             return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">לא ידוע</span>;
     }
-};
-
-const extensionFromSrc = (src) => {
-    if (!src || typeof src !== "string") return "jpg";
-    if (src.startsWith("data:image/png")) return "png";
-    if (src.startsWith("data:image/webp")) return "webp";
-    if (src.startsWith("data:image/gif")) return "gif";
-    const fromUrl = src.split("?")[0].match(/\.(png|jpe?g|webp|gif|svg)$/i);
-    return fromUrl ? fromUrl[1].toLowerCase().replace("jpeg", "jpg") : "jpg";
 };
 
 const downloadAsset = async (src, filename) => {
@@ -110,10 +104,17 @@ const collectItemDownloads = (item, orderId, index) => {
     };
 
     if (item.customization?.type === "designer-service") {
-        add(item.customization.referenceImage, "הורדת התמונה המצורפת", "reference");
+        const references = item.customization.referenceImages?.length
+            ? item.customization.referenceImages
+            : [item.customization.referenceImage];
+        references.forEach((src, index) => add(src, references.length > 1 ? `הורדת תמונה מצורפת ${index + 1}` : "הורדת התמונה המצורפת", `reference-${index + 1}`));
         return files;
     }
 
+    if (item.customDesign?.copies?.length) {
+        item.customDesign.copies.forEach((copy, i) => add(copy.image, `עותק ${i + 1}`, `copy-${i + 1}`));
+        return files;
+    }
     add(item.image, "הורדת תמונה", "design");
     add(item.customization?.referenceImage, "הורדת קובץ מצורף", "reference");
     return files;
@@ -350,8 +351,8 @@ export default function OrderDetailPage() {
     const [error, setError] = useState("");
     const [showStatusEdit, setShowStatusEdit] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
-    const [syncingDrive, setSyncingDrive] = useState(false);
-    const [driveError, setDriveError] = useState("");
+    const [zipProgress, setZipProgress] = useState(null);
+    const [zipMessage, setZipMessage] = useState(null);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PAGE_SIZE);
 
     useEffect(() => {
@@ -389,17 +390,18 @@ export default function OrderDetailPage() {
         }
     };
 
-    const handleSyncDrive = async () => {
-        if (!order) return;
-        setSyncingDrive(true);
-        setDriveError("");
+    const handleDownloadAll = async () => {
+        setZipMessage(null);
+        setZipProgress({ done: 0, total: orderFileCount });
         try {
-            const updated = await syncOrderDrive(order._id);
-            setOrder(updated);
-        } catch (err) {
-            setDriveError(err.response?.data?.msg || "שגיאה בשליחה ל-Google Drive");
+            const { total, failed } = await downloadOrderZip(order, (done, all) => setZipProgress({ done, total: all }), { items: zipItems });
+            if (failed) {
+                setZipMessage({ tone: "warn", text: `${failed} מתוך ${total} קבצים לא ירדו. הם רשומים בקובץ "פרטי-ההזמנה" שבתוך ה-ZIP, ואפשר להוריד אותם אחד-אחד למטה.` });
+            }
+        } catch {
+            setZipMessage({ tone: "error", text: "לא הצלחנו להכין את הקובץ. נסו שוב, או הורידו את התמונות אחת-אחת למטה." });
         } finally {
-            setSyncingDrive(false);
+            setZipProgress(null);
         }
     };
 
@@ -421,10 +423,14 @@ export default function OrderDetailPage() {
         );
     }
 
-    const hasPhotoPrints = order.items.some(
-        (item) => item.itemType === "photo-print" || String(item.name || "").startsWith("פיתוח תמונה"),
-    );
-    const showDriveCard = hasPhotoPrints || Boolean(order.drive?.folderUrl);
+
+    // Photo prints are shown as one folder; every other item keeps its own card (and its line number)
+    const isPhotoItem = (item) => item.itemType === "photo-print" || String(item.name || "").startsWith("פיתוח תמונה");
+    const photoItems = order.items.filter(isPhotoItem);
+    // After the photos were purged, the ZIP still offers the rest of the order's files (designs etc.)
+    const zipItems = order.photosPurgedAt ? order.items.filter((item) => !isPhotoItem(item)) : order.items;
+    const orderFileCount = buildOrderFileList({ ...order, items: zipItems }).length;
+    const otherItems = order.items.map((item, index) => ({ item, index })).filter(({ item }) => !isPhotoItem(item));
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans" dir="rtl">
@@ -531,56 +537,39 @@ export default function OrderDetailPage() {
                         </div>
                     </section>
 
-                    {showDriveCard && (
+                    {order.photosPurgedAt && (
+                        <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+                            תמונות הפיתוח של ההזמנה נמחקו אוטומטית ב-{formatOrderDate(order.photosPurgedAt)}, 30 יום אחרי ההדפסה. פרטי ההזמנה נשמרים.
+                        </p>
+                    )}
+
+                    {orderFileCount > 0 && (
                         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                             <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                                <FaGoogleDrive className="text-[#f2665e]" />
-                                Google Drive
+                                <FaDownload className="text-[#f2665e]" />
+                                קבצים להדפסה
                             </h2>
-                            {order.drive?.folderUrl ? (
-                                <>
-                                    <p className="text-sm text-gray-500 mb-4">
-                                        {order.drive.folderName || "תיקיית ההזמנה"}
-                                        {order.drive.fileCount ? ` · ${order.drive.fileCount} קבצים` : ""}
-                                    </p>
-                                    <a
-                                        href={order.drive.folderUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] flex items-center justify-center gap-2 no-underline"
-                                    >
-                                        <FaExternalLinkAlt size={12} />
-                                        פתיחת התיקייה ב-Google Drive
-                                    </a>
-                                    <button
-                                        type="button"
-                                        onClick={() => copyText(order.drive.folderUrl)}
-                                        className="mt-2 w-full py-2 text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center gap-2"
-                                    >
-                                        <FaCopy size={11} />
-                                        העתקת הקישור
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="text-sm text-gray-500 mb-4">
-                                        תמונות הפיתוח עדיין לא הועלו ל-Drive. לחצו כדי לשלוח אותן עכשיו.
-                                    </p>
-                                    {driveError && (
-                                        <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">
-                                            {driveError}
-                                        </p>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={handleSyncDrive}
-                                        disabled={syncingDrive}
-                                        className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] disabled:opacity-50"
-                                    >
-                                        {syncingDrive ? "שולח ל-Drive..." : "שליחה ל-Google Drive"}
-                                    </button>
-                                </>
+                            <p className="text-sm text-gray-500 mb-4">
+                                {orderFileCount} קבצים, בקובץ ZIP אחד. בשם כל קובץ מופיעים מספר השורה, הגודל ומספר העותקים.
+                            </p>
+                            {zipMessage && (
+                                <p className={`text-sm rounded-lg px-3 py-2 mb-3 border ${zipMessage.tone === "error" ? "text-red-600 bg-red-50 border-red-100" : "text-amber-800 bg-amber-50 border-amber-200"}`}>
+                                    {zipMessage.text}
+                                </p>
                             )}
+                            <button
+                                type="button"
+                                onClick={handleDownloadAll}
+                                disabled={zipProgress !== null}
+                                className="w-full py-3 rounded-xl bg-[#f2665e] text-white text-sm font-bold hover:bg-[#d95248] disabled:opacity-60 flex items-center justify-center gap-2"
+                            >
+                                <FaDownload size={12} />
+                                {zipProgress === null
+                                    ? "הורדת כל התמונות"
+                                    : zipProgress.done < zipProgress.total
+                                        ? `מוריד ${zipProgress.done} מתוך ${zipProgress.total}...`
+                                        : "מכין את הקובץ..."}
+                            </button>
                         </section>
                     )}
 
@@ -590,7 +579,10 @@ export default function OrderDetailPage() {
                             פריטים להפקה
                         </h2>
                         <div className="space-y-4">
-                            {order.items.slice(0, visibleCount).map((item, i) => {
+                            {photoItems.length > 0 && (
+                                <OrderPhotoFolder order={order} photos={photoItems} purged={Boolean(order.photosPurgedAt)} />
+                            )}
+                            {otherItems.slice(0, visibleCount).map(({ item, index: i }) => {
                                 const downloads = collectItemDownloads(item, order._id, i);
                                 const printSize = item.customDesign?.printSizeCm;
                                 const driveFile = item.customDesign?.driveFile || item.customDesign?.designFile;
@@ -602,8 +594,9 @@ export default function OrderDetailPage() {
                                                 <a href={item.image} target="_blank" rel="noreferrer" className="block w-full sm:w-36 shrink-0">
                                                     <span className="block aspect-square w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
                                                         <img
-                                                            src={item.image}
+                                                            src={optimizeImageUrl(item.image, { width: 288, height: 288 })}
                                                             alt={item.name}
+                                                            loading="lazy"
                                                             className="w-full h-full object-cover"
                                                         />
                                                     </span>
@@ -647,6 +640,18 @@ export default function OrderDetailPage() {
                                                         (₪{Number(item.price).toFixed(2)} ליחידה)
                                                     </span>
                                                 </p>
+                                                {item.customDesign?.copies?.length > 0 && (
+                                                    <div className="mt-3">
+                                                        <p className="text-xs font-semibold text-gray-600 mb-1">תיקיית העותקים: {item.customDesign.copies.length} עיצובים, אחד לכל עותק</p>
+                                                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                                                            {item.customDesign.copies.map((copy, copyIndex) => (
+                                                                <a key={copy.image} href={copy.image} target="_blank" rel="noreferrer" title={`עותק ${copyIndex + 1}`}>
+                                                                    <img src={optimizeImageUrl(copy.image, { width: 160 })} alt={`עותק ${copyIndex + 1}`} loading="lazy" className="w-full aspect-square object-contain rounded border bg-gray-50" />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="flex flex-wrap gap-2 mt-3">
                                                     {downloads.map((file) => (
                                                         <button
@@ -686,13 +691,13 @@ export default function OrderDetailPage() {
                                 );
                             })}
                         </div>
-                        {visibleCount < order.items.length && (
+                        {visibleCount < otherItems.length && (
                             <button
                                 type="button"
                                 onClick={() => setVisibleCount((count) => count + ITEMS_PAGE_SIZE)}
                                 className="mt-4 w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-gray-600 text-sm font-medium hover:border-[#f2665e] hover:text-[#f2665e] transition-colors"
                             >
-                                טען עוד ({order.items.length - visibleCount} נוספים)
+                                טען עוד ({otherItems.length - visibleCount} נוספים)
                             </button>
                         )}
                     </section>
@@ -738,7 +743,14 @@ export default function OrderDetailPage() {
                                     <span>₪{Number(order.subtotal).toFixed(2)}</span>
                                 </div>
                             )}
-                            {Number(order.discount) > 0 && (
+                            {Array.isArray(order.discounts) && order.discounts.length > 0
+                                ? order.discounts.map((line) => (
+                                    <div key={line.kind} className="flex justify-between text-green-700">
+                                        <span>{line.label}</span>
+                                        <span>-₪{Number(line.amount).toFixed(2)}</span>
+                                    </div>
+                                ))
+                                : Number(order.discount) > 0 && (
                                 <div className="flex justify-between text-green-600">
                                     <span>הנחה{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
                                     <span>-₪{Number(order.discount).toFixed(2)}</span>
@@ -758,6 +770,13 @@ export default function OrderDetailPage() {
                                 <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
                                     שולם באשראי (Hyp) · מספר עסקה {order.payment.transactionId}
                                     {order.payment.approvalCode && ` · אישור ${order.payment.approvalCode}`}
+                                </p>
+                            )}
+                            {order.payment?.status === 'review' && (
+                                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                    Hyp אישרו חיוב (מספר עסקה {order.payment.transactionId}
+                                    {order.payment.approvalCode && `, אישור ${order.payment.approvalCode}`}), אבל האימות האוטומטי נכשל.
+                                    יש לבדוק את העסקה בפורטל של Hyp, ואם היא תקינה לעדכן את ההזמנה ל"בטיפול".
                                 </p>
                             )}
                         </div>

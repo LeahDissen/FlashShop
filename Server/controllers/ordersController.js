@@ -2,6 +2,9 @@ const mongoose = require("mongoose");
 const { OrderModel } = require("../models/ordersModel");
 const { CouponModel } = require("../models/couponModel");
 const { ClubModel } = require("../models/clubModel");
+const { UserModel } = require("../models/userModel");
+const { loadShopSettings } = require("./shopSettingsController");
+const { computeClubDiscounts, albumPercentFor } = require("../services/clubDiscountService");
 const { ProductModel } = require("../models/productModel"); // Import the products model for price verification
 const { getPhotoUnitPrice, countPrintsBySize, normalizeSize, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { loadPhotoPricing } = require("../services/photoPricingService");
@@ -149,6 +152,8 @@ const compactCaptions = (captions) => {
     }));
 };
 
+const MAX_DESIGN_COPIES = 200;
+
 const compactCustomDesign = (customDesign) => {
     if (!customDesign || typeof customDesign !== "object") return undefined;
     const compact = {
@@ -160,10 +165,20 @@ const compactCustomDesign = (customDesign) => {
         captions: compactCaptions(customDesign.captions),
         designFile: compactDriveFile(customDesign.designFile),
         driveFile: compactDriveFile(customDesign.driveFile),
+        // A separate design per copy: each copy's print file (https, uploaded by the editor)
+        copies: Array.isArray(customDesign.copies)
+            ? customDesign.copies
+                .map((copy) => (typeof copy?.image === "string" && /^https:\/\//.test(copy.image) ? { image: copy.image } : null))
+                .filter(Boolean)
+                .slice(0, MAX_DESIGN_COPIES)
+            : undefined,
     };
+    if (compact.copies && !compact.copies.length) delete compact.copies;
     const hasValue = Object.values(compact).some((value) => value != null);
     return hasValue ? compact : undefined;
 };
+
+const MAX_DESIGNER_IMAGES = 6;
 
 const compactCustomization = (customization) => {
     if (!customization || typeof customization !== "object") return undefined;
@@ -178,9 +193,13 @@ const compactCustomization = (customization) => {
         height: customization.height,
         originalImage: maybeStoreImage(customization.originalImage),
         referenceImage: maybeStoreImage(customization.referenceImage),
+        // "עיצוב מותאם": up to 6 photos for the designer
+        referenceImages: Array.isArray(customization.referenceImages)
+            ? customization.referenceImages.map(maybeStoreImage).filter((src) => typeof src === "string" && src).slice(0, MAX_DESIGNER_IMAGES)
+            : undefined,
     };
     Object.keys(compact).forEach((key) => {
-        if (compact[key] === undefined || compact[key] === "") {
+        if (compact[key] === undefined || compact[key] === "" || (Array.isArray(compact[key]) && !compact[key].length)) {
             delete compact[key];
         }
     });
@@ -242,14 +261,18 @@ async function calculateCouponDiscount(couponCode, userId, subtotal) {
             return { error: "כבר השתמשת בקופון זה בעבר" };
         }
 
-        let discount = 0;
-        if (generalCoupon.type === "percent") {
-            discount = subtotal * (generalCoupon.value / 100);
-        } else if (generalCoupon.type === "fixed") {
-            discount = generalCoupon.value;
-        }
+        // applyTo: the coupon's discount on an amount (the order prices it after the club discounts)
+        const applyTo = (amount) => {
+            let discount = 0;
+            if (generalCoupon.type === "percent") {
+                discount = amount * (generalCoupon.value / 100);
+            } else if (generalCoupon.type === "fixed") {
+                discount = generalCoupon.value;
+            }
+            return Math.min(discount, amount);
+        };
 
-        return { discount: Math.min(discount, subtotal), couponType: "general" };
+        return { discount: applyTo(subtotal), applyTo, couponType: "general" };
     }
 
     // 2. Check a club member's benefit code
@@ -258,8 +281,16 @@ async function calculateCouponDiscount(couponCode, userId, subtotal) {
         if (member.isUsed) {
             return { error: "הקוד הזה כבר נוצל בעבר" };
         }
-        const discount = subtotal * 0.15; // Fixed 15% club discount
-        return { discount: Math.min(discount, subtotal), couponType: "club" };
+        if (member.giftType === "join-gift") {
+            // The join gift is a product discount, calculated with the club discounts
+            return { discount: 0, couponType: "club-gift", giftMember: member };
+        }
+        if (member.giftType === "none") {
+            return { error: "קופון לא תקין" };
+        }
+        // A code sent before the join gift existed keeps its 15% off the order
+        const applyTo = (amount) => Math.min(amount * 0.15, amount);
+        return { discount: applyTo(subtotal), applyTo, couponType: "club" };
     }
 
     return { error: "קופון לא תקין" };
@@ -278,7 +309,8 @@ async function markCouponAsUsed(couponCode, userId) {
         return;
     }
 
-    await ClubModel.findOneAndUpdate({ giftCode: couponCode }, { isUsed: true });
+    // A join-gift code is used only when its gift was given (order.clubGiftMemberId, in completeOrder)
+    await ClubModel.findOneAndUpdate({ giftCode: couponCode, giftType: { $ne: "join-gift" } }, { isUsed: true });
 }
 
 const shortOrderLabel = (id) => String(id).slice(-8).toUpperCase();
@@ -514,6 +546,8 @@ exports.getOrdersByUserId = async (req, res) => {
         const orders = await OrderModel.find({
             user_id: userId,
             status: { $ne: "pending" },
+            // A payment page that was opened but never paid is not an order; a charge awaiting review is
+            $nor: [{ status: AWAITING_PAYMENT, "payment.status": { $ne: "review" } }],
         }).sort({ date_created: -1 });
 
         res.json(orders);
@@ -574,7 +608,7 @@ exports.updateOrderStatus = async (req, res) => {
 
         const order = await OrderModel.findOneAndUpdate(
             { _id: id },
-            { status },
+            previous.status !== status ? { status, statusChangedAt: new Date() } : { status },
             { new: true }
         );
 
@@ -630,7 +664,8 @@ exports.syncOrderDrive = async (req, res) => {
         }
         if (!isDriveConfigured()) {
             return res.status(503).json({
-                msg: "Google Drive אינו מוגדר בשרת. יש להגדיר GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY ו-GOOGLE_DRIVE_ROOT_FOLDER_ID.",
+                msg: "שמירה אוטומטית לתיקייה עוד לא הוגדרה. בינתיים אפשר להוריד כל תמונה בכפתור \"הורדת תמונה\".",
+                code: "DRIVE_NOT_CONFIGURED",
             });
         }
 
@@ -667,12 +702,171 @@ async function completeOrder(order, userId) {
     if (order.coupon_code) {
         await markCouponAsUsed(order.coupon_code, userId);
     }
+    if (order.clubGiftMemberId) {
+        await ClubModel.updateOne({ _id: order.clubGiftMemberId }, { $set: { isUsed: true } });
+    }
     await OrderModel.findOneAndUpdate(
         { user_id: userId, status: "pending" },
         { $set: { items: [], total_price: 0, subtotal: 0, discount: 0, coupon_code: null } },
     );
     sendOrderStatusEmail(order, "processing"); // In the background, does not delay the response
 }
+
+/**
+ * Trusted pricing of a cart, used both to create the order and to preview it at checkout:
+ * prices come from the products and the photo price list, then club discounts (member price,
+ * album discount, join gift) for a customer whose account email is a club member, then a coupon.
+ * @returns {Promise<{ error: string } | { verifiedItems, subtotal, discount, discounts, clubGiftMemberId, isMember, potentialMemberSavings }>}
+ */
+async function priceOrder({ items, couponCode, userId }) {
+    let subtotal = 0;
+    const verifiedItems = [];
+    const discountEntries = [];
+
+    const photoItems = items.filter(isPhotoPrintItem);
+    // Each size's price tier is set by the number of prints of that size in the order
+    const photoPrintsBySize = countPrintsBySize(photoItems, (item) => item.size, (item) => item.quantity);
+    const photoPricing = photoItems.length > 0 ? await loadPhotoPricing() : null;
+
+    for (const item of items) {
+        const qty = Number(item.quantity ?? 1);
+        if (!Number.isInteger(qty) || qty < 1 || qty > MAX_ITEM_QUANTITY) {
+            return { error: `כמות לא תקינה בעגלה: ${item.name || "ללא שם"}` };
+        }
+
+        if (isPhotoPrintItem(item)) {
+            // The price per photo is set here from the saved price list, by size and the number of prints of that size in the whole order.
+            // The cart price is not used: if the customer added photos in several rounds, the tier is calculated on all of them together.
+            const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, photoPrintsBySize[normalizeSize(item.size)]);
+
+            subtotal += photoUnitPrice * qty;
+            verifiedItems.push(withItemExtras({
+                name: item.name,
+                size: item.size,
+                price: photoUnitPrice,
+                quantity: qty,
+                image: typeof item.image === "string" && item.image.length > 500_000
+                    ? null
+                    : item.image,
+            }, item));
+            continue;
+        }
+
+        // Every other item must be a catalog product: the price always comes from the product, never from the cart
+        const productId = resolveProductId(item);
+        const product = productId ? await ProductModel.findById(productId) : null;
+        if (!product) {
+            return {
+                error: `המוצר "${item.name || "ללא שם"}" כבר לא קיים באתר. יש להסיר אותו מהעגלה ולהוסיף מחדש.`,
+            };
+        }
+
+        const copies = item.customDesign?.copies;
+        if (Array.isArray(copies) && copies.length && copies.length !== qty) {
+            return { error: `מספר העיצובים לא תואם לכמות: ${item.name || product.name}. יש לעצב שוב את העותקים.` };
+        }
+
+        const isCustom = Boolean(item.customDesign || item.customization);
+        const serviceFee = item.customization?.type === "designer-service" ? DESIGNER_SERVICE_FEE : 0;
+        const basePrice = getUnitPriceForQuantity(product, qty);
+        const unitPrice = basePrice + serviceFee;
+        // Club discounts apply to the product price, not to the designer fee
+        discountEntries.push({ productId: String(product._id), unitPrice: basePrice, quantity: qty, product });
+
+        subtotal += unitPrice * qty;
+        verifiedItems.push(withItemExtras({
+            productId: product._id,
+            name: isCustom && item.name ? item.name : product.name,
+            size: item.size,
+            price: unitPrice,
+            quantity: qty,
+            image: isCustom && item.image ? item.image : product.image,
+        }, item));
+    }
+
+    const user = userId ? await UserModel.findById(userId).select("email").lean() : null;
+    const member = user?.email
+        ? await ClubModel.findOne({ email: String(user.email).trim().toLowerCase() }).collation({ locale: "en", strength: 2 })
+        : null;
+    const settings = await loadShopSettings();
+    const giftSettings = settings.clubGift?.enabled && settings.clubGift.productId ? settings.clubGift : null;
+    const totalPrints = photoItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    const albumTiers = photoPricing?.albumDiscountTiers || (totalPrints ? (await loadPhotoPricing()).albumDiscountTiers : []);
+    const albumPercent = albumPercentFor(albumTiers, totalPrints);
+
+    const couponResult = await calculateCouponDiscount(couponCode, userId, subtotal);
+    if (couponResult.error) {
+        return { error: couponResult.error };
+    }
+    // The join gift: the logged-in member's own unused gift, or a gift code typed at checkout
+    const giftMember = [member, couponResult.giftMember]
+        .find((m) => m && m.giftType === "join-gift" && !m.isUsed) || null;
+    const gift = giftSettings && giftMember ? giftSettings : null;
+
+    const club = member || couponResult.giftMember
+        ? computeClubDiscounts({ entries: discountEntries, albumPercent: member ? albumPercent : 0, gift })
+        : { member: 0, album: 0, gift: 0, giftApplied: false };
+    // Member price and album discount need a member; the gift code alone gives only the gift
+    if (!member) { club.member = 0; club.album = 0; }
+
+    const discounts = [
+        club.member > 0 && { kind: "member", label: "הנחת חברות מועדון", amount: club.member },
+        club.album > 0 && { kind: "album", label: `הנחת אלבום לחברות מועדון (${albumPercent}%)`, amount: club.album },
+        club.gift > 0 && { kind: "gift", label: "מתנת הצטרפות למועדון", amount: club.gift },
+    ].filter(Boolean);
+    const clubTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
+    // A coupon applies to what is left after the club discounts
+    const couponDiscount = couponResult.applyTo ? couponResult.applyTo(Math.max(0, subtotal - clubTotal)) : 0;
+    if (couponDiscount > 0) discounts.push({ kind: "coupon", label: `קופון ${couponCode}`, amount: Math.round(couponDiscount * 100) / 100 });
+    const discount = Math.min(subtotal, discounts.reduce((sum, d) => sum + d.amount, 0));
+
+    // What a non-member would save by joining (shown at checkout with a join button)
+    let potentialMemberSavings = 0;
+    if (!member) {
+        const would = computeClubDiscounts({
+            entries: discountEntries,
+            albumPercent,
+            gift: giftSettings,
+        });
+        potentialMemberSavings = Math.round((would.member + would.album + would.gift) * 100) / 100;
+    }
+
+    return {
+        verifiedItems,
+        subtotal,
+        discount,
+        discounts,
+        clubGiftMemberId: club.giftApplied ? giftMember._id : undefined,
+        isMember: Boolean(member),
+        potentialMemberSavings,
+    };
+}
+
+/** The checkout's price preview: the same calculation as the order, without saving anything */
+exports.quoteOrder = async (req, res) => {
+    try {
+        const { items, couponCode } = req.body || {};
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ msg: "העגלה ריקה" });
+        }
+        const pricing = await priceOrder({ items, couponCode, userId: req.tokenData._id });
+        if (pricing.error) {
+            return res.status(400).json({ msg: pricing.error });
+        }
+        const settings = await loadShopSettings();
+        res.json({
+            subtotal: pricing.subtotal,
+            discount: pricing.discount,
+            discounts: pricing.discounts,
+            isMember: pricing.isMember,
+            potentialMemberSavings: pricing.potentialMemberSavings,
+            notMemberText: settings.notMemberText || "",
+        });
+    } catch (err) {
+        console.error("quote order error:", err.message);
+        res.status(500).json({ msg: "שגיאה בחישוב המחיר" });
+    }
+};
 
 exports.createOrder = async (req, res) => {
     try {
@@ -696,71 +890,11 @@ exports.createOrder = async (req, res) => {
             return res.status(400).json({ msg: checkoutErrorMessage });
         }
 
-        // --- Security: trusted price calculation by item type ---
-        let subtotal = 0;
-        const verifiedItems = [];
-
-        const photoItems = items.filter(isPhotoPrintItem);
-        // Each size's price tier is set by the number of prints of that size in the order
-        const photoPrintsBySize = countPrintsBySize(photoItems, (item) => item.size, (item) => item.quantity);
-        const photoPricing = photoItems.length > 0 ? await loadPhotoPricing() : null;
-
-        for (const item of items) {
-            const qty = Number(item.quantity ?? 1);
-            if (!Number.isInteger(qty) || qty < 1 || qty > MAX_ITEM_QUANTITY) {
-                return res.status(400).json({ msg: `כמות לא תקינה בעגלה: ${item.name || "ללא שם"}` });
-            }
-
-            if (isPhotoPrintItem(item)) {
-                // The price per photo is set here from the saved price list, by size and the number of prints of that size in the whole order.
-                // The cart price is not used: if the customer added photos in several rounds, the tier is calculated on all of them together.
-                const photoUnitPrice = getPhotoUnitPrice(photoPricing, item.size, photoPrintsBySize[normalizeSize(item.size)]);
-
-                subtotal += photoUnitPrice * qty;
-                verifiedItems.push(withItemExtras({
-                    name: item.name,
-                    size: item.size,
-                    price: photoUnitPrice,
-                    quantity: qty,
-                    image: typeof item.image === "string" && item.image.length > 500_000
-                        ? null
-                        : item.image,
-                }, item));
-                continue;
-            }
-
-            // Every other item must be a catalog product: the price always comes from the product, never from the cart
-            const productId = resolveProductId(item);
-            const product = productId ? await ProductModel.findById(productId) : null;
-            if (!product) {
-                return res.status(400).json({
-                    msg: `המוצר "${item.name || "ללא שם"}" כבר לא קיים באתר. יש להסיר אותו מהעגלה ולהוסיף מחדש.`,
-                });
-            }
-
-            const isCustom = Boolean(item.customDesign || item.customization);
-            const serviceFee = item.customization?.type === "designer-service" ? DESIGNER_SERVICE_FEE : 0;
-            const unitPrice = getUnitPriceForQuantity(product, qty) + serviceFee;
-
-            subtotal += unitPrice * qty;
-            verifiedItems.push(withItemExtras({
-                productId: product._id,
-                name: isCustom && item.name ? item.name : product.name,
-                size: item.size,
-                price: unitPrice,
-                quantity: qty,
-                image: isCustom && item.image ? item.image : product.image,
-            }, item));
+        const pricing = await priceOrder({ items, couponCode, userId });
+        if (pricing.error) {
+            return res.status(400).json({ msg: pricing.error });
         }
-        // ----------------==================================----------------
-
-        // Calculate the discount from the verified subtotal
-        const couponResult = await calculateCouponDiscount(couponCode, userId, subtotal);
-        if (couponResult.error) {
-            return res.status(400).json({ msg: couponResult.error });
-        }
-
-        const discount = couponResult.discount || 0;
+        const { verifiedItems, subtotal, discount, discounts, clubGiftMemberId } = pricing;
         const shipping_fee = method === "delivery" ? DELIVERY_FEE : 0;
         const total_price = Math.max(0, subtotal - discount + shipping_fee);
 
@@ -770,6 +904,8 @@ exports.createOrder = async (req, res) => {
             items: verifiedItems,
             subtotal,
             discount,
+            discounts: discounts.length ? discounts : undefined,
+            clubGiftMemberId,
             coupon_code: couponCode || undefined,
             shipping_fee,
             fulfillment_method: method,
@@ -829,6 +965,10 @@ exports.getOrderById = async (req, res) => {
             return res.status(403).json({ msg: "אין הרשאה לצפות בהזמנה זו" });
         }
 
+        if (req.tokenData.role === "admin") {
+            // Lets the admin page hide the Drive button instead of offering an action that cannot work yet
+            return res.json({ ...order.toObject(), driveConfigured: isDriveConfigured() });
+        }
         res.json(order);
     } catch (err) {
         console.log(err);
@@ -903,8 +1043,24 @@ exports.confirmPayment = async (req, res) => {
             return res.status(400).json({ msg: "התשלום לא הושלם" });
         }
         if (!(await verifyPaymentRedirect(query))) {
-            console.warn(`[Payment][order=${order._id}] Hyp verification failed`);
-            return res.status(400).json({ msg: "לא הצלחנו לאמת את התשלום. אם חויבת – צרי איתנו קשר." });
+            // Hyp reported an approved charge but the signature check failed. The customer was most likely
+            // charged, so the order is flagged for the admin to check in the Hyp portal instead of reported as failed.
+            console.warn(`[Payment][order=${order._id}] Hyp verification failed, flagged for review`);
+            await OrderModel.updateOne(
+                { _id: order._id, "payment.status": { $ne: "paid" } },
+                {
+                    $set: {
+                        "payment.status": "review",
+                        "payment.transactionId": params.get("Id"),
+                        "payment.approvalCode": params.get("ACode"),
+                        "payment.returnQuery": query.slice(0, 2000),
+                    },
+                },
+            );
+            return res.status(202).json({
+                review: true,
+                msg: "התשלום התקבל ונמצא בבדיקה. נאשר את ההזמנה בהקדם וניצור קשר אם יידרש.",
+            });
         }
 
         // Atomic update: only one request moves the order to "paid"
