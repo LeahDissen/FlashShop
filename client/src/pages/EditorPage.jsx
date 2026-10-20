@@ -267,6 +267,8 @@ const EditorPage = ({ onNavigateToHome }) => {
     }, []);
 
     useEffect(() => {
+        // Until the saved draft of this product was loaded, saving would overwrite it with the empty canvas
+        if (!canvasAppliedKeyRef.current) return;
         const savedElements = safeStorageSetItem(draftStorage.elements, JSON.stringify(elements));
         safeStorageSetItem(draftStorage.background, JSON.stringify(canvasBackground));
         safeStorageSetItem(draftStorage.projectName, projectName);
@@ -284,6 +286,9 @@ const EditorPage = ({ onNavigateToHome }) => {
 
     // Fit the workspace to the print dimensions of the selected product
     useEffect(() => {
+        // Before the product arrives this would apply an empty "no-product" canvas, and the autosave
+        // (which already uses the product id from the URL) would overwrite the product's saved draft
+        if (!selectedProduct) return;
         const storageKey = getCanvasStorageKey(
             selectedProduct,
             canvasDimensions,
@@ -1082,7 +1087,7 @@ const EditorPage = ({ onNavigateToHome }) => {
         setOrientationNotice({ elementId, imageOrientation, targetOrientation });
     }, [elements, canvasDimensions]);
 
-    const addImageElement = useCallback((src, width, height, naturalWidth, naturalHeight) => {
+    const addImageElement = useCallback((src, width, height, naturalWidth, naturalHeight, { atBack = false } = {}) => {
         const { left, top } = centerPosition(
             width,
             height,
@@ -1109,7 +1114,9 @@ const EditorPage = ({ onNavigateToHome }) => {
             sepia: 0,
             blur: 0,
         };
-        const newElements = enforceLayerOrder(insertBelowGlobalFrame(elements, newElement));
+        const inserted = insertBelowGlobalFrame(elements, newElement);
+        // A base photo goes under the existing elements (e.g. the default text) instead of covering them
+        const newElements = enforceLayerOrder(atBack ? moveElementToEdge(inserted, newElement.id, 'back') : inserted);
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
@@ -1145,7 +1152,7 @@ const EditorPage = ({ onNavigateToHome }) => {
         if (!pendingInitialImage) return;
         const { src, width, height, naturalWidth, naturalHeight } = pendingInitialImage;
         setPendingInitialImage(null);
-        addImageElement(src, width, height, naturalWidth, naturalHeight);
+        addImageElement(src, width, height, naturalWidth, naturalHeight, { atBack: true });
         // Off the history entry, so a refresh (which restores the draft) does not add it a second time
         navigate(location.pathname, { replace: true, state: { ...location.state, initialImage: undefined } });
     }, [pendingInitialImage, addImageElement, navigate, location.pathname, location.state]);
