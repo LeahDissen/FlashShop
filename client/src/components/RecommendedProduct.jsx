@@ -11,7 +11,7 @@ export default function RecommendedProduct({ product, onAddToCart }) {
         />
         {product.isOnSale && (
           <span className="absolute top-2 right-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#f2665e] text-white shadow-md">
-            מבצע
+            מוצר במבצע
           </span>
         )}
       </div>

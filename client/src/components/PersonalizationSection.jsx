@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { useProducts } from '../hooks/useProducts';
 import SalePrice from './SalePrice';
+import ClubGiftBadge from './ClubGiftBadge';
 import { optimizeImageUrl } from '../utils/imageUrl';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
@@ -138,7 +139,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                 <img src={optimizeImageUrl(product.image, { width: 500 })} alt={product.name} loading="lazy" className="w-full h-full object-cover" />
                                 {product.isOnSale && (
                                     <span className="absolute top-2 right-2 text-xs font-bold px-2.5 py-1 rounded-full bg-[#f2665e] text-white shadow-md">
-                                        מבצע
+                                        מוצר במבצע
                                     </span>
                                 )}
                             </div>
@@ -152,6 +153,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
                                         <SalePrice product={product} priceClassName="text-gray-500" />
                                     </span>
                                 )}
+                                <ClubGiftBadge product={product} className="mt-1" />
                                 {product.size && (
                                     <span className="text-gray-400 text-xs">
                                         {product.size}

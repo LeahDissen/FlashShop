@@ -16,6 +16,7 @@ import {
     formatPrice,
 } from '../utils/productQuantityPricing';
 import SalePrice from '../components/SalePrice';
+import ClubGiftBadge from '../components/ClubGiftBadge';
 import PrintOptionButton from '../components/PrintOptionButton';
 import PrintOptionsEditor from '../components/PrintOptionsEditor';
 import useAuthStore from '../store/authStore';
@@ -446,6 +447,10 @@ const ProductSelectionPage = () => {
                                                 )}
                                             </div>
 
+                                            <ClubGiftBadge product={product} className="!justify-start" />
+                                            {product.isOnSale && showTieredPricing && (
+                                                <p className="text-xs font-bold text-[#f2665e]">מוצר במבצע: חברות מועדון מקבלות הנחה בתשלום</p>
+                                            )}
                                             {!simpleProduct && !magnetProduct && (product.printWidth || product.printHeight) && (
                                                 <p className="text-xs text-[#f2665e]/70">
                                                     משטח הדפסה: {product.printWidth ?? 12} × {product.printHeight ?? 18} ס&quot;מ

@@ -727,7 +727,14 @@ export default function OrderDetailPage() {
                                     <span>₪{Number(order.subtotal).toFixed(2)}</span>
                                 </div>
                             )}
-                            {Number(order.discount) > 0 && (
+                            {Array.isArray(order.discounts) && order.discounts.length > 0
+                                ? order.discounts.map((line) => (
+                                    <div key={line.kind} className="flex justify-between text-green-700">
+                                        <span>{line.label}</span>
+                                        <span>-₪{Number(line.amount).toFixed(2)}</span>
+                                    </div>
+                                ))
+                                : Number(order.discount) > 0 && (
                                 <div className="flex justify-between text-green-600">
                                     <span>הנחה{order.coupon_code ? ` (${order.coupon_code})` : ""}</span>
                                     <span>-₪{Number(order.discount).toFixed(2)}</span>
