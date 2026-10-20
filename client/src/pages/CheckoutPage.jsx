@@ -32,8 +32,14 @@ export default function CheckoutPage() {
     const paymentSubmittedRef = useRef(false);
     const stepRef = useRef(null);
 
-    // A long order summary pushes the steps below the fold: bring the current step (and its button) into view
+    // A long order summary pushes the steps below the fold: bring the next step (and its button) into view
+    const firstStepRef = useRef(true);
     useEffect(() => {
+        // Not on arrival: the customer first sees the order summary and total
+        if (firstStepRef.current) {
+            firstStepRef.current = false;
+            return;
+        }
         stepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, [step]);
 

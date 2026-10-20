@@ -390,7 +390,7 @@ export default function OrderDetailPage() {
         setZipMessage(null);
         setZipProgress({ done: 0, total: orderFileCount });
         try {
-            const { total, failed } = await downloadOrderZip(order, (done, all) => setZipProgress({ done, total: all }));
+            const { total, failed } = await downloadOrderZip(order, (done, all) => setZipProgress({ done, total: all }), { items: zipItems });
             if (failed) {
                 setZipMessage({ tone: "warn", text: `${failed} מתוך ${total} קבצים לא ירדו. הם רשומים בקובץ "פרטי-ההזמנה" שבתוך ה-ZIP, ואפשר להוריד אותם אחד-אחד למטה.` });
             }
@@ -419,10 +419,13 @@ export default function OrderDetailPage() {
         );
     }
 
-    const orderFileCount = buildOrderFileList(order).length;
+
     // Photo prints are shown as one folder; every other item keeps its own card (and its line number)
     const isPhotoItem = (item) => item.itemType === "photo-print" || String(item.name || "").startsWith("פיתוח תמונה");
     const photoItems = order.items.filter(isPhotoItem);
+    // After the photos were purged, the ZIP still offers the rest of the order's files (designs etc.)
+    const zipItems = order.photosPurgedAt ? order.items.filter((item) => !isPhotoItem(item)) : order.items;
+    const orderFileCount = buildOrderFileList({ ...order, items: zipItems }).length;
     const otherItems = order.items.map((item, index) => ({ item, index })).filter(({ item }) => !isPhotoItem(item));
 
     return (
@@ -536,7 +539,7 @@ export default function OrderDetailPage() {
                         </p>
                     )}
 
-                    {orderFileCount > 0 && !order.photosPurgedAt && (
+                    {orderFileCount > 0 && (
                         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                             <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
                                 <FaDownload className="text-[#f2665e]" />

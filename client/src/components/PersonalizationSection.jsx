@@ -52,7 +52,12 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
         setLinkCopied(false);
         // On the products page the address follows the category, so it can be copied and sent to customers
         if (location.pathname === '/products') {
-            setSearchParams(category === "הכל" ? {} : { category }, { replace: true });
+            setSearchParams((params) => {
+                const next = new URLSearchParams(params);
+                if (category === "הכל") next.delete('category');
+                else next.set('category', category);
+                return next;
+            }, { replace: true });
         }
     };
 

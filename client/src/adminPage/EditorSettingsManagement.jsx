@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FaCheckCircle, FaExclamationCircle, FaPlus, FaSlidersH, FaTrash } from 'react-icons/fa';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
@@ -30,6 +30,8 @@ const sizeKeyFromDimensions = (widthCm, heightCm) => `${widthCm}x${heightCm}`;
 
 export default function EditorSettingsManagement() {
     const [form, setForm] = useState(DEFAULT_EDITOR_SETTINGS);
+    /** The settings as last saved on the server – a font upload saves on top of these, not the unsaved form */
+    const savedSettingsRef = useRef(DEFAULT_EDITOR_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
@@ -43,7 +45,8 @@ export default function EditorSettingsManagement() {
         setLoading(true);
         try {
             const data = await getEditorSettings();
-            setForm(mergeEditorSettings(data));
+            savedSettingsRef.current = mergeEditorSettings(data);
+            setForm(savedSettingsRef.current);
         } catch (err) {
             console.error(err);
             setMessage({ type: 'error', text: 'שגיאה בטעינת ההגדרות' });
@@ -137,11 +140,17 @@ export default function EditorSettingsManagement() {
         setFontNotice('');
         try {
             const url = await uploadFontToCloudinary(file);
-            const fonts = [...form.textToolbar.fonts.filter((font) => font.value !== value), { label: value, value, url }];
-            const nextForm = { ...form, textToolbar: { ...form.textToolbar, fonts } };
-            // Saved right away: an uploaded font that waits for the page's save button is easy to lose
-            const saved = await updateEditorSettings(settingsPayload(nextForm));
-            setForm(mergeEditorSettings(saved));
+            const font = { label: value, value, url };
+            const withFont = (fonts) => [...fonts.filter((f) => f.value !== value), font];
+            // Saved right away (an uploaded font that waits for the page's save button is easy to lose),
+            // on top of the last saved settings, so other unsaved edits on the page are neither saved nor lost
+            const base = savedSettingsRef.current;
+            const saved = mergeEditorSettings(await updateEditorSettings(settingsPayload({
+                ...base,
+                textToolbar: { ...base.textToolbar, fonts: withFont(base.textToolbar.fonts) },
+            })));
+            savedSettingsRef.current = saved;
+            setForm((prev) => ({ ...prev, textToolbar: { ...prev.textToolbar, fonts: withFont(prev.textToolbar.fonts) } }));
             invalidateEditorSettingsCache();
             setFontNotice(`הגופן "${value}" הועלה ונשמר. הוא זמין עכשיו בעורך המוצרים ובעורך התמונות.`);
         } catch (error) {
@@ -183,7 +192,8 @@ export default function EditorSettingsManagement() {
         setMessage({ type: '', text: '' });
         try {
             const saved = await updateEditorSettings(settingsPayload(form));
-            setForm(mergeEditorSettings(saved));
+            savedSettingsRef.current = mergeEditorSettings(saved);
+            setForm(savedSettingsRef.current);
             invalidateEditorSettingsCache();
             setMessage({ type: 'success', text: 'ההגדרות נשמרו בהצלחה' });
         } catch (err) {

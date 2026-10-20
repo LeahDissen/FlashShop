@@ -49,8 +49,6 @@ const findDueOrders = (now) => {
         photosPurgedAt: { $exists: false },
         $or: [
             { status: { $in: DONE_STATUSES }, statusChangedAt: { $lte: printedBefore } },
-            // Orders finished before the status date was recorded
-            { status: { $in: DONE_STATUSES }, statusChangedAt: { $exists: false }, date_created: { $lte: printedBefore } },
             // A charge under review is kept until the admin resolves it
             { status: UNPAID_STATUS, "payment.status": { $ne: "review" }, date_created: { $lte: unpaidBefore } },
         ],
@@ -77,6 +75,12 @@ exports.purgeDuePhotos = async (now = new Date()) => {
     const admin = cloudinaryAdmin();
     if (!admin) return { orders: 0, deleted: 0, kept: 0, skipped: "not-configured" };
 
+    // Orders finished before the status date was recorded start their 30 days now: their creation date says
+    // nothing about when they were printed (an old order may have been delivered yesterday)
+    await OrderModel.updateMany(
+        { status: { $in: DONE_STATUSES }, statusChangedAt: { $exists: false } },
+        { $set: { statusChangedAt: now } },
+    );
     const due = await findDueOrders(now);
     if (!due.length) return { orders: 0, deleted: 0, kept: 0 };
 
@@ -91,8 +95,10 @@ exports.purgeDuePhotos = async (now = new Date()) => {
     const publicIds = [...new Set(toDelete.map((url) => publicIdFromUrl(url, admin.cloudName)).filter(Boolean))];
     if (publicIds.length) await deleteFromCloudinary(publicIds, admin);
 
-    await OrderModel.updateMany({ _id: { $in: dueIds } }, { $set: { photosPurgedAt: now } });
-    return { orders: due.length, deleted: publicIds.length, kept: dueUrls.length - toDelete.length };
+    // Only orders whose photos are all gone are marked; one with a photo still in use is checked again tomorrow
+    const purgedIds = due.filter((order) => !photoUrlsOf(order).some((url) => stillUsed.has(url))).map((order) => order._id);
+    await OrderModel.updateMany({ _id: { $in: purgedIds } }, { $set: { photosPurgedAt: now } });
+    return { orders: purgedIds.length, deleted: publicIds.length, kept: dueUrls.length - toDelete.length };
 };
 
 /** Runs once a few minutes after start and then daily. Failures are logged and retried on the next run. */

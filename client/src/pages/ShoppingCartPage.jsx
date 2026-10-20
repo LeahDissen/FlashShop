@@ -37,6 +37,7 @@ function normalizeRecommendedTitle(value) {
 export default function ShoppingCartPage() {
   const cartItems = useCartStore((state) => state.cartItems);
   const removeItemsWhere = useCartStore((state) => state.removeItemsWhere);
+  const [couponOpen, setCouponOpen] = useState(false);
   // Photo prints are one grouped line; everything else is listed as before
   const photoItems = cartItems.filter(isPhotoPrint);
   const otherItems = cartItems.filter((item) => !isPhotoPrint(item));
@@ -231,8 +232,9 @@ export default function ShoppingCartPage() {
                 ))}
               </div>
 
-              {/* Order summary and payment bar – stays on screen while scrolling a long cart */}
-              <div className="max-w-2xl mx-auto pt-2 sticky bottom-3 z-20">
+              {/* Order summary and payment bar – stays on screen while scrolling a long cart
+                  (not while the coupon field is open, so the taller block does not cover the items) */}
+              <div className={`max-w-2xl mx-auto pt-2 z-20 ${couponOpen ? '' : 'sticky bottom-3'}`}>
                 <CartCheckoutBar
                   totalPrice={totalPrice}
                   subtotal={subtotal}
@@ -243,6 +245,7 @@ export default function ShoppingCartPage() {
                   couponBtnLabel={appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
                   codePlaceholder={draft.codePlaceholder || "הזן קוד קופון"}
                   codeApplyLabel={draft.codeBtn || "החל"}
+                  onCouponToggle={setCouponOpen}
                 />
               </div>
 
