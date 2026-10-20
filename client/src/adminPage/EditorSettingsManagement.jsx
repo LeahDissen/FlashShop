@@ -37,6 +37,7 @@ export default function EditorSettingsManagement() {
     const [newFont, setNewFont] = useState('');
     const [fontUploading, setFontUploading] = useState(false);
     const [fontError, setFontError] = useState('');
+    const [fontNotice, setFontNotice] = useState('');
 
     const loadSettings = useCallback(async () => {
         setLoading(true);
@@ -98,6 +99,16 @@ export default function EditorSettingsManagement() {
         framePrintSizes: form.framePrintSizes.filter((_, i) => i !== index),
     });
 
+    const settingsPayload = (source) => ({
+        framePrintSizes: source.framePrintSizes,
+        orientationLabels: source.orientationLabels,
+        frameFolders: source.frameFolders,
+        textToolbar: source.textToolbar,
+        captionDefaults: source.captionDefaults,
+        orientationPrompt: source.orientationPrompt,
+        drive: source.drive,
+    });
+
     const addFont = () => {
         const value = newFont.trim();
         if (!value) return;
@@ -123,10 +134,16 @@ export default function EditorSettingsManagement() {
         }
         setFontUploading(true);
         setFontError('');
+        setFontNotice('');
         try {
             const url = await uploadFontToCloudinary(file);
-            const fonts = form.textToolbar.fonts.filter((font) => font.value !== value);
-            patchSection('textToolbar', { fonts: [...fonts, { label: value, value, url }] });
+            const fonts = [...form.textToolbar.fonts.filter((font) => font.value !== value), { label: value, value, url }];
+            const nextForm = { ...form, textToolbar: { ...form.textToolbar, fonts } };
+            // Saved right away: an uploaded font that waits for the page's save button is easy to lose
+            const saved = await updateEditorSettings(settingsPayload(nextForm));
+            setForm(mergeEditorSettings(saved));
+            invalidateEditorSettingsCache();
+            setFontNotice(`הגופן "${value}" הועלה ונשמר. הוא זמין עכשיו בעורך המוצרים ובעורך התמונות.`);
         } catch (error) {
             setFontError(error.message || 'העלאת הגופן נכשלה');
         } finally {
@@ -165,15 +182,7 @@ export default function EditorSettingsManagement() {
         setSaving(true);
         setMessage({ type: '', text: '' });
         try {
-            const saved = await updateEditorSettings({
-                framePrintSizes: form.framePrintSizes,
-                orientationLabels: form.orientationLabels,
-                frameFolders: form.frameFolders,
-                textToolbar: form.textToolbar,
-                captionDefaults: form.captionDefaults,
-                orientationPrompt: form.orientationPrompt,
-                drive: form.drive,
-            });
+            const saved = await updateEditorSettings(settingsPayload(form));
             setForm(mergeEditorSettings(saved));
             invalidateEditorSettingsCache();
             setMessage({ type: 'success', text: 'ההגדרות נשמרו בהצלחה' });
@@ -391,6 +400,7 @@ export default function EditorSettingsManagement() {
                                 <span className="text-xs text-gray-500">הגופן זמין אחרי השמירה גם בעורך המוצרים וגם בעורך התמונות.</span>
                             </div>
                             {fontError && <p className="text-xs text-red-600 mt-1">{fontError}</p>}
+                            {fontNotice && <p className="text-xs text-green-700 mt-1">{fontNotice}</p>}
                         </div>
 
                         <div>
