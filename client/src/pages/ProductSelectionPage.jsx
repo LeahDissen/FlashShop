@@ -17,6 +17,8 @@ import {
 } from '../utils/productQuantityPricing';
 import SalePrice from '../components/SalePrice';
 import PrintOptionButton from '../components/PrintOptionButton';
+import PrintOptionsEditor from '../components/PrintOptionsEditor';
+import useAuthStore from '../store/authStore';
 import { getPrintOption } from '../constants/printOptions';
 import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
 import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
@@ -48,6 +50,7 @@ const ProductSelectionPage = () => {
 
     // Content of the "products" CMS page: the banner image and the option button texts
     const [productsPageContent, setProductsPageContent] = useState({});
+    const isAdmin = useAuthStore((state) => state.isAdmin());
     const fileInputRef = useRef(null);
     const magnetFileRef = useRef(null);
     const designerFileRef = useRef(null);
@@ -587,6 +590,9 @@ const ProductSelectionPage = () => {
                                             {captionsOption.label}
                                         </PrintOptionButton>
                                     </div>
+                                    {isAdmin && (
+                                        <PrintOptionsEditor content={productsPageContent} onSaved={setProductsPageContent} />
+                                    )}
 
                                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                                     </>

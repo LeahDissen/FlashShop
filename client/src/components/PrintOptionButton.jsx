@@ -21,7 +21,7 @@ export default function PrintOptionButton({ hint, className, children, ...button
                         aria-label="הסבר על האפשרות"
                         aria-expanded={hintOpen}
                         onClick={() => setHintOpen((open) => !open)}
-                        className="absolute top-1/2 -translate-y-1/2 left-2 p-1 text-current opacity-50 hover:opacity-100 cursor-pointer"
+                        className="absolute top-1/2 -translate-y-1/2 left-2 p-1 text-current opacity-70 hover:opacity-100 cursor-pointer"
                     >
                         <Info size={14} />
                     </button>
