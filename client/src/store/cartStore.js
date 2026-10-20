@@ -6,7 +6,7 @@ import { getPrintsBySize, getPhotoUnitPrice, normalizeSize } from '../utils/phot
 import useAuthStore from './authStore';
 import useToastStore from './toastStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
-import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart, mergeGuestCart } from '../utils/cartItem';
+import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart, hasDesignPerCopy, mergeGuestCart } from '../utils/cartItem';
 
 export const CART_ADDED_MESSAGE = 'המוצר נוסף לסל בהצלחה!';
 
@@ -164,7 +164,7 @@ export const useCartStore = create(
           set((state) => {
               const updatedCart = state.cartItems
                   .map((item) => {
-                      if (item.id !== itemId) return item;
+                      if (item.id !== itemId || hasDesignPerCopy(item)) return item;
                       const newQty = item.quantity + delta;
                       if (newQty < 1) return null;
                       return applyQuantityToCartItem(item, newQty);
@@ -186,7 +186,7 @@ export const useCartStore = create(
 
           set((state) => {
               const updatedCart = state.cartItems.map((item) =>
-                  item.id === itemId ? applyQuantityToCartItem(item, qty) : item,
+                  item.id === itemId && !hasDesignPerCopy(item) ? applyQuantityToCartItem(item, qty) : item,
               );
 
               const userId = useAuthStore.getState().userId;

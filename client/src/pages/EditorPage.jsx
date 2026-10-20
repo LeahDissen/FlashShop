@@ -2,7 +2,7 @@ import { toPng } from 'html-to-image';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { applyShapeMask } from '../utils/productShapes';
-import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
+import { uploadFilesInParallel } from '../utils/uploadQueue';
 import { getProductById } from '../api/products';
 import {
     getCanvasDimensions,
@@ -102,6 +102,8 @@ const resolveDraftProductKey = (product, fallbackProductId) =>
 const EditorPage = ({ onNavigateToHome }) => {
     const { productId } = useParams();
     const location = useLocation();
+    // A separate design for each copy (chosen on the product page); the copies' block is further down
+    const isPerCopyMode = Boolean(location.state?.perCopy);
     const navigate = useNavigate();
 
     // Get the selected product from the products store
@@ -269,8 +271,9 @@ const EditorPage = ({ onNavigateToHome }) => {
     }, []);
 
     useEffect(() => {
-        // Until the saved draft of this product was loaded, saving would overwrite it with the empty canvas
-        if (!canvasAppliedKeyRef.current) return;
+        // Until the saved draft of this product was loaded, saving would overwrite it with the empty canvas.
+        // A design per copy is saved separately (per-copy block below), so the regular draft is left as it was.
+        if (!canvasAppliedKeyRef.current || isPerCopyMode) return;
         const savedElements = safeStorageSetItem(draftStorage.elements, JSON.stringify(elements));
         safeStorageSetItem(draftStorage.background, JSON.stringify(canvasBackground));
         safeStorageSetItem(draftStorage.projectName, projectName);
@@ -284,7 +287,7 @@ const EditorPage = ({ onNavigateToHome }) => {
             storageWarningShownRef.current = true;
             alert('נפח האחסון המקומי מלא. השינויים ימשיכו לעבוד, אבל לא יישמרו מקומית עד לניקוי אחסון בדפדפן.');
         }
-    }, [elements, canvasBackground, projectName, frameSelection, draftStorage]);
+    }, [elements, canvasBackground, projectName, frameSelection, draftStorage, isPerCopyMode]);
 
     // Fit the workspace to the print dimensions of the selected product
     useEffect(() => {
@@ -1418,7 +1421,7 @@ const EditorPage = ({ onNavigateToHome }) => {
     }, []);
 
     // --- A separate design for each copy (quantity > 1, chosen on the product page) ---
-    const perCopyCount = location.state?.perCopy ? Math.max(2, Number(location.state?.quantity) || orderQuantity || 2) : 0;
+    const perCopyCount = isPerCopyMode ? Math.max(2, Number(location.state?.quantity) || orderQuantity || 2) : 0;
     const copiesStorageKey = `${ACTIVE_ELEMENTS_STORAGE_PREFIX}_copies_${draftProductKey}`;
     const [copyDesigns, setCopyDesigns] = useState(() => {
         if (!perCopyCount) return [];
@@ -1511,12 +1514,14 @@ const EditorPage = ({ onNavigateToHome }) => {
         try {
             const designs = currentCopyDesigns();
             const printImages = await captureAllCopies();
-            const copies = [];
-            for (let i = 0; i < printImages.length; i += 1) {
-                const blob = await (await fetch(printImages[i])).blob();
-                const url = await uploadImageToCloudinary(new File([blob], `copy-${i + 1}.png`, { type: 'image/png' }));
-                copies.push({ image: url });
-            }
+            const files = await Promise.all(printImages.map(async (dataUrl, i) => {
+                const blob = await (await fetch(dataUrl)).blob();
+                return new File([blob], `copy-${i + 1}.png`, { type: 'image/png' });
+            }));
+            // A few uploads at a time, with retries; one failed copy fails the whole order line
+            const { uploaded, failed } = await uploadFilesInParallel(files);
+            if (failed.length) throw failed[0].error;
+            const copies = uploaded.map(({ url }) => ({ image: url }));
             const product = typeof selectedProduct === 'object' ? selectedProduct : null;
             const unitPrice = product ? getUnitPriceForQuantity(product, perCopyCount) : 0;
             const cartItem = withTieredPricingFields({
@@ -1537,7 +1542,6 @@ const EditorPage = ({ onNavigateToHome }) => {
             await addToCart([cartItem], { successMessage: `${perCopyCount} העיצובים נוספו לסל הקניות!` });
             setCopyPreviews(null);
             localStorage.removeItem(copiesStorageKey);
-            clearDraft();
             if (onNavigateToHome) onNavigateToHome();
         } catch (error) {
             console.error('Failed to order copies', error);

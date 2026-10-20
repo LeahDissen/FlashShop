@@ -75,6 +75,9 @@ export const applyQuantityToCartItem = (item, quantity) => {
 };
 
 /** Keeps the frame choice and captions with the item in the cart and in the order */
+/** A line with a separate design per copy: its quantity is the number of designs and cannot be changed in the cart */
+export const hasDesignPerCopy = (item) => Array.isArray(item?.customDesign?.copies) && item.customDesign.copies.length > 0;
+
 export const compactCustomDesignForCart = (customDesign) => {
     if (!customDesign || typeof customDesign !== 'object') return undefined;
 
@@ -88,6 +91,10 @@ export const compactCustomDesignForCart = (customDesign) => {
             ? customDesign.captions
             : undefined,
         designFile: customDesign.designFile,
+        // A separate design per copy: each copy's uploaded print file
+        copies: Array.isArray(customDesign.copies) && customDesign.copies.length
+            ? customDesign.copies
+            : undefined,
     };
 
     const hasValue = Object.values(compact).some((value) => value != null);

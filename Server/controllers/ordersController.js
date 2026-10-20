@@ -261,14 +261,18 @@ async function calculateCouponDiscount(couponCode, userId, subtotal) {
             return { error: "כבר השתמשת בקופון זה בעבר" };
         }
 
-        let discount = 0;
-        if (generalCoupon.type === "percent") {
-            discount = subtotal * (generalCoupon.value / 100);
-        } else if (generalCoupon.type === "fixed") {
-            discount = generalCoupon.value;
-        }
+        // applyTo: the coupon's discount on an amount (the order prices it after the club discounts)
+        const applyTo = (amount) => {
+            let discount = 0;
+            if (generalCoupon.type === "percent") {
+                discount = amount * (generalCoupon.value / 100);
+            } else if (generalCoupon.type === "fixed") {
+                discount = generalCoupon.value;
+            }
+            return Math.min(discount, amount);
+        };
 
-        return { discount: Math.min(discount, subtotal), couponType: "general" };
+        return { discount: applyTo(subtotal), applyTo, couponType: "general" };
     }
 
     // 2. Check a club member's benefit code
@@ -285,8 +289,8 @@ async function calculateCouponDiscount(couponCode, userId, subtotal) {
             return { error: "קופון לא תקין" };
         }
         // A code sent before the join gift existed keeps its 15% off the order
-        const discount = subtotal * 0.15;
-        return { discount: Math.min(discount, subtotal), couponType: "club" };
+        const applyTo = (amount) => Math.min(amount * 0.15, amount);
+        return { discount: applyTo(subtotal), applyTo, couponType: "club" };
     }
 
     return { error: "קופון לא תקין" };
@@ -305,7 +309,8 @@ async function markCouponAsUsed(couponCode, userId) {
         return;
     }
 
-    await ClubModel.findOneAndUpdate({ giftCode: couponCode }, { isUsed: true });
+    // A join-gift code is used only when its gift was given (order.clubGiftMemberId, in completeOrder)
+    await ClubModel.findOneAndUpdate({ giftCode: couponCode, giftType: { $ne: "join-gift" } }, { isUsed: true });
 }
 
 const shortOrderLabel = (id) => String(id).slice(-8).toUpperCase();
@@ -714,9 +719,9 @@ async function completeOrder(order, userId) {
  * @returns {Promise<{ error: string } | { verifiedItems, subtotal, discount, discounts, clubGiftMemberId, isMember, potentialMemberSavings }>}
  */
 async function priceOrder({ items, couponCode, userId }) {
-let subtotal = 0;
-const verifiedItems = [];
-const discountEntries = [];
+    let subtotal = 0;
+    const verifiedItems = [];
+    const discountEntries = [];
 
     const photoItems = items.filter(isPhotoPrintItem);
     // Each size's price tier is set by the number of prints of that size in the order
@@ -754,6 +759,11 @@ const discountEntries = [];
             return {
                 error: `המוצר "${item.name || "ללא שם"}" כבר לא קיים באתר. יש להסיר אותו מהעגלה ולהוסיף מחדש.`,
             };
+        }
+
+        const copies = item.customDesign?.copies;
+        if (Array.isArray(copies) && copies.length && copies.length !== qty) {
+            return { error: `מספר העיצובים לא תואם לכמות: ${item.name || product.name}. יש לעצב שוב את העותקים.` };
         }
 
         const isCustom = Boolean(item.customDesign || item.customization);
@@ -806,9 +816,7 @@ const discountEntries = [];
     ].filter(Boolean);
     const clubTotal = discounts.reduce((sum, d) => sum + d.amount, 0);
     // A coupon applies to what is left after the club discounts
-    const couponDiscount = couponResult.couponType === "general" || couponResult.couponType === "club"
-        ? Math.min((await calculateCouponDiscount(couponCode, userId, Math.max(0, subtotal - clubTotal))).discount || 0, Math.max(0, subtotal - clubTotal))
-        : 0;
+    const couponDiscount = couponResult.applyTo ? couponResult.applyTo(Math.max(0, subtotal - clubTotal)) : 0;
     if (couponDiscount > 0) discounts.push({ kind: "coupon", label: `קופון ${couponCode}`, amount: Math.round(couponDiscount * 100) / 100 });
     const discount = Math.min(subtotal, discounts.reduce((sum, d) => sum + d.amount, 0));
 
