@@ -82,6 +82,17 @@ const sendJoinGiftEmail = async ({ email, name, code, clubGift }) => {
     );
 };
 
+/** The join gift is sent only after the member confirms her email, so made-up addresses get no gift */
+const sendGiftConfirmEmail = ({ email, name, confirmUrl }) => {
+    const subject = "אישור המייל לקבלת מתנת ההצטרפות 🎁";
+    return sendEmail(
+        email,
+        subject,
+        { title: subject, message: `היי ${name},\nכדי לקבל את מתנת ההצטרפות, יש לאשר את כתובת המייל בקישור הזה:\n${confirmUrl}\nמיד אחרי האישור נשלח אלייך קוד המתנה.` },
+        "./template/generalMail.handlebars",
+    );
+};
+
 const CASE_INSENSITIVE = { locale: "en", strength: 2 };
 
 const generateGiftCode = () => {
@@ -105,26 +116,30 @@ exports.joinClub = async (req, res) => {
         const newCode = generateGiftCode();
         const { clubGift } = await loadShopSettings();
         const giftOn = Boolean(clubGift?.enabled && clubGift.productId);
+        const verifyToken = giftOn ? crypto.randomBytes(24).toString("hex") : undefined;
         const newMember = new ClubModel({
             user_id: user_id || null,
             email,
             name,
             birthDate,
             giftCode: newCode,
-            // The code gives the join gift only while it is turned on; otherwise it is just a member id
-            giftType: giftOn ? "join-gift" : "none",
+            // The code gives the join gift only while it is turned on (after the email is confirmed); otherwise it is just a member id
+            giftType: giftOn ? "pending-gift" : "none",
+            verifyToken,
             isUsed: false
         });
         await newMember.save();
         // The emails are sent in the background: the signup is already saved, and the customer does not need to wait for the mail server
-        sendWelcomeEmail({ email, name, code: giftOn ? newCode : "" })
+        sendWelcomeEmail({ email, name, code: "" })
             .then(() => console.log("Welcome email sent to " + email))
             .catch((emailErr) => console.error("Failed to send welcome email:", emailErr.message));
         if (giftOn) {
-            sendJoinGiftEmail({ email, name, code: newCode, clubGift })
-                .catch((emailErr) => console.error("Failed to send join gift email:", emailErr.message));
+            const confirmUrl = `${req.protocol}://${req.get("host")}/club/confirm/${verifyToken}`;
+            sendGiftConfirmEmail({ email, name, confirmUrl })
+                .catch((emailErr) => console.error("Failed to send gift confirmation email:", emailErr.message));
         }
-        res.status(201).json({ msg: "הצטרפת בהצלחה!", code: giftOn ? newCode : null });
+        // The gift code is revealed only in the email sent after confirming the address
+        res.status(201).json({ msg: "הצטרפת בהצלחה!", code: null, pendingGift: giftOn });
     } catch (err) {
         if (err.code === 11000) {
             return res.status(409).json({ msg: "כתובת המייל הזו כבר רשומה למועדון", code: "ALREADY_MEMBER" });
@@ -167,7 +182,7 @@ exports.checkGiftCode = async (req, res) => {
                 // Calculated at checkout on the gift product, not as a cart discount
                 return res.json({ valid: true, msg: "קוד מתנת ההצטרפות התקבל! המתנה תחושב בשלב התשלום", discountType: "percent", discountValue: 0, isMemberCode: true });
             }
-            if (member.giftType === "none") {
+            if (member.giftType === "none" || member.giftType === "pending-gift") {
                 return res.json({ valid: false, msg: "קוד לא נמצא" });
             }
             return res.json({
@@ -333,9 +348,8 @@ exports.deleteClubMember = async (req, res) => {
     }
 };
 
-/** The unsubscribe link from the email – a small response page, no login */
-exports.unsubscribe = async (req, res) => {
-    const page = (title, text) => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
+/** A small response page for links opened from an email (no login) */
+const responsePage = (title, text) => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
 <body style="margin:0;background:#f4f5f7;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
 <div style="background:#fff;border:1px solid #e8eaef;border-radius:16px;padding:32px 40px;max-width:420px;text-align:center;">
 <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:1px;color:#f2665e;">FLASHSHOP</p>
@@ -344,6 +358,9 @@ exports.unsubscribe = async (req, res) => {
 <p style="margin:20px 0 0;"><a href="${getClientUrl()}" style="color:#f2665e;font-weight:700;">חזרה לאתר</a></p>
 </div></body></html>`;
 
+/** The unsubscribe link from the email – a small response page, no login */
+exports.unsubscribe = async (req, res) => {
+    const page = responsePage;
     try {
         const { id, token } = req.params;
         if (!verifyUnsubscribeToken(id, token)) {
@@ -354,5 +371,34 @@ exports.unsubscribe = async (req, res) => {
     } catch (err) {
         console.log(err);
         res.status(500).send(page("משהו השתבש", "נסו שוב מאוחר יותר."));
+    }
+};
+
+
+/** The link from the confirmation email: the member's address is real, so her join gift code is sent */
+exports.confirmGiftEmail = async (req, res) => {
+    try {
+        const token = String(req.params.token || "");
+        if (!/^[a-f0-9]{48}$/.test(token)) {
+            return res.status(400).send(responsePage("הקישור אינו תקין", "לא הצלחנו לזהות את הבקשה. אפשר לפנות אלינו דרך האתר."));
+        }
+        const member = await ClubModel.findOneAndUpdate(
+            { verifyToken: token, giftType: "pending-gift" },
+            { $set: { giftType: "join-gift" }, $unset: { verifyToken: 1 } },
+            { new: true },
+        );
+        if (!member) {
+            return res.status(400).send(responsePage("הקישור כבר שומש", "המייל כבר אושר, וקוד המתנה נשלח אלייך. אם לא מצאת אותו, כדאי לבדוק בתיקיית הספאם."));
+        }
+        const { clubGift } = await loadShopSettings();
+        if (clubGift?.enabled && clubGift.productId) {
+            sendJoinGiftEmail({ email: member.email, name: member.name, code: member.giftCode, clubGift })
+                .catch((emailErr) => console.error("Failed to send join gift email:", emailErr.message));
+            return res.send(responsePage("המייל אושר! 🎁", "קוד מתנת ההצטרפות נשלח אלייך עכשיו במייל."));
+        }
+        res.send(responsePage("המייל אושר", "תודה! כתובת המייל שלך אושרה."));
+    } catch (err) {
+        console.error("confirm gift email error:", err.message);
+        res.status(500).send(responsePage("משהו השתבש", "נסו שוב מאוחר יותר."));
     }
 };
