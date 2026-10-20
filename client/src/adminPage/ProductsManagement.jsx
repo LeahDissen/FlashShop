@@ -47,8 +47,8 @@ const INITIAL_FORM_DATA = {
     printHeight: 18,
     allowOrientationToggle: false,
     size: "",
-    isOnSale: false,
-    originalPrice: "",
+    memberDiscountType: "",
+    memberDiscountValue: "",
 };
 
 export default function ProductsManagement() {
@@ -258,8 +258,10 @@ export default function ProductsManagement() {
             displayType,
             stock: Number(formData.stock),
             image: formData.image.trim(),
-            isOnSale: Boolean(formData.isOnSale),
-            originalPrice: formData.isOnSale && formData.originalPrice !== "" ? Number(formData.originalPrice) : null,
+            // Members-only sale: percent off or a final price (the server derives "on sale" from it)
+            memberDiscount: formData.memberDiscountType && formData.memberDiscountValue !== ""
+                ? { type: formData.memberDiscountType, value: Number(formData.memberDiscountValue) }
+                : null,
             priceTiers: isMagnetCategory ? [] : serializedTiers,
             size: magnetSize,
             captionIdeas: isDesignCategory
@@ -322,8 +324,8 @@ export default function ProductsManagement() {
             printHeight: product.printHeight ?? 18,
             allowOrientationToggle: Boolean(product.allowOrientationToggle),
             size: product.size ?? "",
-            isOnSale: Boolean(product.isOnSale),
-            originalPrice: product.originalPrice ?? "",
+            memberDiscountType: product.memberDiscount?.type ?? "",
+            memberDiscountValue: product.memberDiscount?.value ?? "",
         });
         setProductCaptions(
             displayType === DISPLAY_TYPES.DESIGN ? (product.captionIdeas ?? []) : [],
@@ -555,39 +557,35 @@ export default function ProductsManagement() {
                             <div className="w-1/2">
                                 <label className="block text-sm font-medium text-gray-700">מלאי</label>
                                 <input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full p-2 border rounded-lg" required />
-                                <label className="flex items-center gap-2 cursor-pointer mt-3">
-                                    <input
-                                        type="checkbox"
-                                        name="isOnSale"
-                                        checked={Boolean(formData.isOnSale)}
-                                        onChange={(e) => setFormData((prev) => ({ ...prev, isOnSale: e.target.checked }))}
-                                        className="rounded border-gray-300 text-[#f2665e] focus:ring-[#f2665e]"
-                                    />
-                                    <span className="text-sm text-gray-700">מוצר במבצע (מציג תג "מבצע" בחנות)</span>
-                                </label>
-                                {formData.isOnSale && (
-                                    <div className="mt-2">
-                                        <label className="block text-sm font-medium text-gray-700">מחיר לפני המבצע (יוצג מחוק)</label>
+                                <div className="mt-3 space-y-2">
+                                    <label htmlFor="member-discount-type" className="block text-sm font-medium text-gray-700">מבצע לחברות מועדון</label>
+                                    <select
+                                        id="member-discount-type"
+                                        value={formData.memberDiscountType}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, memberDiscountType: e.target.value }))}
+                                        className="w-full p-2 border rounded-lg"
+                                    >
+                                        <option value="">אין מבצע</option>
+                                        <option value="percent">אחוז הנחה</option>
+                                        <option value="price">מחיר סופי אחרי ההנחה</option>
+                                    </select>
+                                    {formData.memberDiscountType && (
                                         <input
                                             type="number"
-                                            name="originalPrice"
                                             min="0"
+                                            max={formData.memberDiscountType === "percent" ? 100 : undefined}
                                             step="0.01"
-                                            value={formData.originalPrice}
-                                            onChange={handleChange}
+                                            value={formData.memberDiscountValue}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, memberDiscountValue: e.target.value }))}
                                             className="w-full p-2 border rounded-lg"
-                                            placeholder="למשל 100"
+                                            placeholder={formData.memberDiscountType === "percent" ? "למשל 20 (אחוז)" : "למשל 39.90 (ש\"ח)"}
+                                            aria-label="ערך ההנחה"
                                         />
-                                        {formData.originalPrice === "" && (
-                                            <p className="text-xs text-amber-700 mt-1">
-                                                כדי שהלקוחות יראו את ההנחה (המחיר הקודם מחוק ליד מחיר המבצע), יש למלא כאן את המחיר שלפני המבצע. שדה &quot;מחיר&quot; הוא מחיר המבצע.
-                                            </p>
-                                        )}
-                                        {formData.originalPrice !== "" && Number(formData.originalPrice) <= Number(formData.price) && (
-                                            <p className="text-xs text-amber-600 mt-1">המחיר הקודם צריך להיות גבוה מהמחיר הנוכחי, אחרת הוא לא יוצג.</p>
-                                        )}
-                                    </div>
-                                )}
+                                    )}
+                                    <p className="text-xs text-gray-500">
+                                        המחיר הרגיל מוצג לכולם עם תג &quot;מוצר במבצע&quot;. ההנחה ניתנת בתשלום לחברות מועדון בלבד.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 

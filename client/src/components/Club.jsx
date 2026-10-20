@@ -19,7 +19,7 @@ const EMPTY_JOIN_FORM = { name: "", email: "", birthdate: "", agreed: false };
 
 export default function Club() {
 
-    const { isClubOpen, setClubOpen, setTermsOpen, termsAgreed } = useAppStore();
+    const { isClubOpen, setClubOpen, setTermsOpen, termsAgreed, clubPrefillEmail, markClubJoined } = useAppStore();
 
     const userId = useAuthStore(state => state.userId);
 
@@ -91,6 +91,13 @@ export default function Club() {
 
 
 
+    // Opened from checkout or a gift product: the customer's email is already known
+    useEffect(() => {
+        if (isClubOpen && clubPrefillEmail) {
+            setFormData((prev) => (prev.email ? prev : { ...prev, email: clubPrefillEmail }));
+        }
+    }, [isClubOpen, clubPrefillEmail]);
+
     useEffect(() => {
 
         if (termsAgreed) {
@@ -160,6 +167,7 @@ export default function Club() {
             };
             const data = await joinClubRequest(payload);
             setJoinResult({ type: "success", code: data.code });
+            markClubJoined();
         } catch (error) {
             console.error("Club join error:", error);
             setJoinResult({

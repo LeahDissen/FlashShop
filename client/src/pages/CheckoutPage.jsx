@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createOrder } from '../api/orders';
+import { createOrder, quoteOrder } from '../api/orders';
 import { fetchUserInfo } from '../api/auth';
 import { getShopSettings } from '../api/shopSettings';
 import useAuthStore from '../store/authStore';
+import useAppStore from '../store/appStore';
 import { isPhotoPrint, useCartStore } from '../store/cartStore';
 import { clearCheckoutDraft, loadCheckoutDraft } from '../utils/checkoutDraft';
 import { toCheckoutItem } from '../utils/cartItem';
@@ -31,6 +32,11 @@ export default function CheckoutPage() {
     const [fieldErrors, setFieldErrors] = useState({});
     const paymentSubmittedRef = useRef(false);
     const stepRef = useRef(null);
+    const [quote, setQuote] = useState(null);
+    const [quoteError, setQuoteError] = useState('');
+    const [accountEmail, setAccountEmail] = useState('');
+    const openClubWithEmail = useAppStore((state) => state.openClubWithEmail);
+    const clubJoinedAt = useAppStore((state) => state.clubJoinedAt);
 
     // A long order summary pushes the steps below the fold: bring the next step (and its button) into view
     const firstStepRef = useRef(true);
@@ -75,6 +81,7 @@ export default function CheckoutPage() {
             try {
                 const response = await fetchUserInfo();
                 const user = response.data;
+                setAccountEmail(user?.email || '');
                 setCustomer((prev) => ({
                     ...prev,
                     name: prev.name || user?.name || '',
@@ -102,8 +109,21 @@ export default function CheckoutPage() {
         loadPaymentLink();
     }, [step]);
 
+    // The server prices the order (club discounts for members, coupon) – the same calculation the order will use.
+    // Recalculated after joining the club from this page.
+    useEffect(() => {
+        if (!draft?.items?.length) return undefined;
+        let cancelled = false;
+        quoteOrder(draft.items.map(toCheckoutItem), draft.appliedCoupon || undefined)
+            .then((data) => { if (!cancelled) { setQuote(data); setQuoteError(''); } })
+            .catch((err) => { if (!cancelled) { setQuote(null); setQuoteError(err.response?.data?.msg || ''); } });
+        return () => { cancelled = true; };
+    }, [draft, clubJoinedAt]);
+
     const shippingFee = fulfillmentMethod === 'delivery' ? DELIVERY_FEE : 0;
-    const payableTotal = draft ? Math.max(0, Number(draft.totalPrice) + shippingFee) : 0;
+    const orderSubtotal = quote ? quote.subtotal : Number(draft?.subtotal || 0);
+    const orderDiscount = quote ? quote.discount : Number(draft?.discount || 0);
+    const payableTotal = draft ? Math.max(0, orderSubtotal - orderDiscount) + shippingFee : 0;
 
     const selectPickup = () => {
         setFulfillmentMethod('pickup');
@@ -251,14 +271,21 @@ export default function CheckoutPage() {
                     <div className="space-y-1 text-sm">
                         <div className="flex justify-between">
                             <span className="text-gray-500">סכום ביניים</span>
-                            <span>₪{Number(draft.subtotal).toFixed(2)}</span>
+                            <span>₪{orderSubtotal.toFixed(2)}</span>
                         </div>
-                        {draft.discount > 0 && (
-                            <div className="flex justify-between text-green-600">
-                                <span>הנחה</span>
-                                <span>-₪{Number(draft.discount).toFixed(2)}</span>
-                            </div>
-                        )}
+                        {quote
+                            ? quote.discounts.map((line) => (
+                                <div key={line.kind} className="flex justify-between text-green-600">
+                                    <span>{line.label}</span>
+                                    <span>-₪{Number(line.amount).toFixed(2)}</span>
+                                </div>
+                            ))
+                            : orderDiscount > 0 && (
+                                <div className="flex justify-between text-green-600">
+                                    <span>הנחה</span>
+                                    <span>-₪{orderDiscount.toFixed(2)}</span>
+                                </div>
+                            )}
                         {shippingFee > 0 && (
                             <div className="flex justify-between text-gray-700">
                                 <span>משלוח</span>
@@ -271,6 +298,27 @@ export default function CheckoutPage() {
                         </div>
                     </div>
                 </div>
+
+                {quoteError && (
+                    <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{quoteError}</p>
+                )}
+                {quote && !quote.isMember && quote.potentialMemberSavings > 0 && (
+                    <div className="bg-[#fff5f4] border border-[#f2665e]/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-gray-800">
+                            {quote.notMemberText || 'את עדיין לא חברת מועדון. ההצטרפות בחינם, וחברות מועדון נהנות מהמבצעים באתר.'}
+                            <span className="block font-bold text-[#f2665e] mt-1">
+                                בהזמנה הזו תחסכי ₪{Number(quote.potentialMemberSavings).toFixed(2)}
+                            </span>
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => openClubWithEmail(accountEmail || customer.email)}
+                            className="shrink-0 bg-[#f2665e] text-white font-bold px-5 py-2.5 rounded-full hover:bg-[#d95248]"
+                        >
+                            הצטרפות למועדון
+                        </button>
+                    </div>
+                )}
 
                 <div ref={stepRef} className="space-y-6 scroll-mt-6">
                 {step === 'method' && (

@@ -93,8 +93,8 @@ export default function AdminDashboardPage() {
     },
     {
       id: 9,
-      title: "הגדרות תשלום",
-      description: "עריכת קישור התשלום המאובטח שמופיע ללקוחות במסך הקופה.",
+      title: "מועדון והנחות",
+      description: "מתנת הצטרפות למועדון, ההודעה ללקוחות שעוד לא במועדון, והגדרות תשלום.",
       icon: <FaLink className="text-3xl text-white" />,
       link: "/shopsettings",
     },
