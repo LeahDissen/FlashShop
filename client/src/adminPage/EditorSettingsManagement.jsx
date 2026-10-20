@@ -1,208 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FaCheckCircle, FaExclamationCircle, FaPlus, FaSlidersH, FaTrash } from 'react-icons/fa';
+import { FaCheckCircle, FaExclamationCircle, FaSlidersH } from 'react-icons/fa';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import { getEditorSettings, updateEditorSettings } from '../api/editorSettings';
-import { DEFAULT_EDITOR_SETTINGS, mergeEditorSettings } from '../constants/editorSettingsDefaults';
-import { invalidateEditorSettingsCache } from '../hooks/useEditorSettings';
-import { uploadFontToCloudinary } from '../utils/cloudinaryUpload';
-import { fontFamilyFromFileName, registerCustomFonts } from '../utils/customFonts';
+import CaptionDefaultsCard from './editorSettings/CaptionDefaultsCard';
+import FramePrintSizesCard from './editorSettings/FramePrintSizesCard';
+import TextFieldsCard from './editorSettings/TextFieldsCard';
+import TextToolbarCard from './editorSettings/TextToolbarCard';
+import { useEditorSettingsForm } from './editorSettings/useEditorSettingsForm';
 
-const Card = ({ title, description, children }) => (
-    <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-gray-800">{title}</h2>
-        {description && <p className="text-sm text-gray-500 mt-1 mb-4">{description}</p>}
-        <div className={description ? '' : 'mt-4'}>{children}</div>
-    </section>
-);
+const FRAME_PICKER_FIELDS = [
+    { section: 'orientationLabels', key: 'landscape', label: 'תווית כיוון לרוחב' },
+    { section: 'orientationLabels', key: 'portrait', label: 'תווית כיוון לאורך' },
+    { section: 'frameFolders', key: 'title', label: 'כותרת המקטע' },
+    { section: 'frameFolders', key: 'subtitle', label: 'הסבר מתחת לכותרת' },
+    { section: 'frameFolders', key: 'emptyText', label: 'הודעה כשאין מסגרות בתיקייה', wide: true },
+];
 
-const Field = ({ label, hint, children }) => (
-    <label className="block">
-        <span className="block text-sm font-medium text-gray-700 mb-1">{label}</span>
-        {children}
-        {hint && <span className="block text-xs text-gray-500 mt-1">{hint}</span>}
-    </label>
-);
+const ORIENTATION_PROMPT_FIELDS = [
+    { section: 'orientationPrompt', key: 'title', label: 'כותרת' },
+    { section: 'orientationPrompt', key: 'body', label: 'טקסט ההסבר' },
+    { section: 'orientationPrompt', key: 'rotateLabel', label: 'כפתור סיבוב' },
+    { section: 'orientationPrompt', key: 'dismissLabel', label: 'כפתור ביטול' },
+];
 
-const inputClass = 'w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#f2665e]';
+const DRIVE_FIELDS = [
+    { section: 'drive', key: 'rootFolderName', label: 'שם תיקיית האב' },
+    { section: 'drive', key: 'orderFolderTemplate', label: 'תבנית שם תיקיית הזמנה', hint: '{orderId} יוחלף במספר ההזמנה ו-{date} בתאריך.' },
+];
 
-const sizeKeyFromDimensions = (widthCm, heightCm) => `${widthCm}x${heightCm}`;
-
+/** Admin: the frame sizes, fonts, colors and texts the customer sees in the editors */
 export default function EditorSettingsManagement() {
-    const [form, setForm] = useState(DEFAULT_EDITOR_SETTINGS);
-    /** The settings as last saved on the server – a font upload saves on top of these, not the unsaved form */
-    const savedSettingsRef = useRef(DEFAULT_EDITOR_SETTINGS);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
-    const [newColor, setNewColor] = useState('#f2665e');
-    const [newFont, setNewFont] = useState('');
-    const [fontUploading, setFontUploading] = useState(false);
-    const [fontError, setFontError] = useState('');
-    const [fontNotice, setFontNotice] = useState('');
-
-    const loadSettings = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = await getEditorSettings();
-            savedSettingsRef.current = mergeEditorSettings(data);
-            setForm(savedSettingsRef.current);
-        } catch (err) {
-            console.error(err);
-            setMessage({ type: 'error', text: 'שגיאה בטעינת ההגדרות' });
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadSettings();
-    }, [loadSettings]);
-
-    // Preview of uploaded fonts, even before saving
-    useEffect(() => {
-        registerCustomFonts(form.textToolbar.fonts);
-    }, [form.textToolbar.fonts]);
-
-    const patch = (updates) => setForm((prev) => ({ ...prev, ...updates }));
-
-    const patchSection = (section, updates) => setForm((prev) => ({
-        ...prev,
-        [section]: { ...prev[section], ...updates },
-    }));
-
-    const updateSize = (index, field, value) => {
-        setForm((prev) => {
-            const framePrintSizes = [...prev.framePrintSizes];
-            const next = { ...framePrintSizes[index], [field]: value };
-            if (field === 'widthCm' || field === 'heightCm') {
-                next[field] = Number(value);
-                next.key = sizeKeyFromDimensions(next.widthCm, next.heightCm);
-            }
-            framePrintSizes[index] = next;
-            return { ...prev, framePrintSizes };
-        });
-    };
-
-    const addSize = () => patch({
-        framePrintSizes: [
-            ...form.framePrintSizes,
-            {
-                key: 'new-size',
-                label: 'מידה חדשה',
-                widthCm: 10,
-                heightCm: 15,
-                sortOrder: form.framePrintSizes.length,
-                isActive: true,
-            },
-        ],
-    });
-
-    const removeSize = (index) => patch({
-        framePrintSizes: form.framePrintSizes.filter((_, i) => i !== index),
-    });
-
-    const settingsPayload = (source) => ({
-        framePrintSizes: source.framePrintSizes,
-        orientationLabels: source.orientationLabels,
-        frameFolders: source.frameFolders,
-        textToolbar: source.textToolbar,
-        captionDefaults: source.captionDefaults,
-        orientationPrompt: source.orientationPrompt,
-        drive: source.drive,
-    });
-
-    const addFont = () => {
-        const value = newFont.trim();
-        if (!value) return;
-        if (form.textToolbar.fonts.some((font) => font.value === value)) {
-            setNewFont('');
-            return;
-        }
-        patchSection('textToolbar', {
-            fonts: [...form.textToolbar.fonts, { label: value, value }],
-        });
-        setNewFont('');
-    };
-
-    /** Uploads a font file and adds it to the list; the font name is derived from the file name */
-    const handleFontFile = async (e) => {
-        const file = e.target.files?.[0];
-        e.target.value = '';
-        if (!file) return;
-        const value = fontFamilyFromFileName(file.name);
-        if (!value) {
-            setFontError('לא הצלחנו לזהות את שם הגופן מתוך שם הקובץ');
-            return;
-        }
-        setFontUploading(true);
-        setFontError('');
-        setFontNotice('');
-        try {
-            const url = await uploadFontToCloudinary(file);
-            const font = { label: value, value, url };
-            const withFont = (fonts) => [...fonts.filter((f) => f.value !== value), font];
-            // Saved right away (an uploaded font that waits for the page's save button is easy to lose),
-            // on top of the last saved settings, so other unsaved edits on the page are neither saved nor lost
-            const base = savedSettingsRef.current;
-            const saved = mergeEditorSettings(await updateEditorSettings(settingsPayload({
-                ...base,
-                textToolbar: { ...base.textToolbar, fonts: withFont(base.textToolbar.fonts) },
-            })));
-            savedSettingsRef.current = saved;
-            setForm((prev) => ({ ...prev, textToolbar: { ...prev.textToolbar, fonts: withFont(prev.textToolbar.fonts) } }));
-            invalidateEditorSettingsCache();
-            setFontNotice(`הגופן "${value}" הועלה ונשמר. הוא זמין עכשיו בעורך המוצרים ובעורך התמונות.`);
-        } catch (error) {
-            setFontError(error.message || 'העלאת הגופן נכשלה');
-        } finally {
-            setFontUploading(false);
-        }
-    };
-
-    const removeFont = (value) => patchSection('textToolbar', {
-        fonts: form.textToolbar.fonts.filter((font) => font.value !== value),
-    });
-
-    const addColor = () => {
-        const color = newColor.toUpperCase();
-        if (form.textToolbar.colorPresets.includes(color)) return;
-        patchSection('textToolbar', {
-            colorPresets: [...form.textToolbar.colorPresets, color],
-        });
-    };
-
-    const removeColor = (color) => patchSection('textToolbar', {
-        colorPresets: form.textToolbar.colorPresets.filter((c) => c !== color),
-    });
-
-    const handleSave = async (e) => {
-        e.preventDefault();
-
-        if (form.framePrintSizes.length === 0) {
-            setMessage({ type: 'error', text: 'יש להגדיר לפחות מידת הדפסה אחת' });
-            return;
-        }
-        if (form.textToolbar.fonts.length === 0) {
-            setMessage({ type: 'error', text: 'יש להשאיר לפחות גופן אחד' });
-            return;
-        }
-
-        setSaving(true);
-        setMessage({ type: '', text: '' });
-        try {
-            const saved = await updateEditorSettings(settingsPayload(form));
-            savedSettingsRef.current = mergeEditorSettings(saved);
-            setForm(savedSettingsRef.current);
-            invalidateEditorSettingsCache();
-            setMessage({ type: 'success', text: 'ההגדרות נשמרו בהצלחה' });
-        } catch (err) {
-            console.error(err);
-            setMessage({ type: 'error', text: err?.response?.data?.msg || 'שגיאה בשמירת ההגדרות' });
-        } finally {
-            setSaving(false);
-        }
-    };
+    const {
+        form, loading, saving, message, loadSettings, patchSection,
+        updateSize, addSize, removeSize, uploadFont, fontUploading, fontError, fontNotice, save,
+    } = useEditorSettingsForm();
 
     if (loading) {
         return <div className="min-h-screen bg-gray-50 p-10 text-center text-gray-500">טוען הגדרות...</div>;
@@ -229,360 +59,46 @@ export default function EditorSettingsManagement() {
                 </Link>
             </div>
 
-            <form onSubmit={handleSave} className="max-w-5xl mx-auto space-y-6">
-                <Card
-                    title="תיקיות מידות מסגרות"
-                    description="כל מידה מוצגת ללקוח כתיקייה בעורך, ובתוכה מסגרות לרוחב ולאורך."
-                >
-                    <div className="space-y-3">
-                        {form.framePrintSizes.map((size, index) => (
-                            <div
-                                key={`${size.key}-${index}`}
-                                className="grid grid-cols-12 gap-3 items-end rounded-xl border border-gray-100 bg-gray-50 p-3"
-                            >
-                                <div className="col-span-12 sm:col-span-5">
-                                    <Field label="תווית לתצוגה">
-                                        <input
-                                            type="text"
-                                            value={size.label}
-                                            onChange={(e) => updateSize(index, 'label', e.target.value)}
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-                                <div className="col-span-4 sm:col-span-2">
-                                    <Field label="רוחב (ס״מ)">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            step="0.5"
-                                            value={size.widthCm}
-                                            onChange={(e) => updateSize(index, 'widthCm', e.target.value)}
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-                                <div className="col-span-4 sm:col-span-2">
-                                    <Field label="גובה (ס״מ)">
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            step="0.5"
-                                            value={size.heightCm}
-                                            onChange={(e) => updateSize(index, 'heightCm', e.target.value)}
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-                                <div className="col-span-3 sm:col-span-2 flex items-center gap-2 pb-2.5">
-                                    <input
-                                        type="checkbox"
-                                        checked={size.isActive !== false}
-                                        onChange={(e) => updateSize(index, 'isActive', e.target.checked)}
-                                        className="rounded"
-                                    />
-                                    <span className="text-sm text-gray-700">פעילה</span>
-                                </div>
-                                <div className="col-span-1 flex justify-end pb-2.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => removeSize(index)}
-                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                                        aria-label="מחק מידה"
-                                    >
-                                        <FaTrash size={12} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button
-                        type="button"
-                        onClick={addSize}
-                        className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-[#f2665e] hover:underline"
-                    >
-                        <FaPlus size={11} />
-                        הוסף מידה
-                    </button>
-                </Card>
+            <form onSubmit={save} className="max-w-5xl mx-auto space-y-6">
+                <FramePrintSizesCard
+                    sizes={form.framePrintSizes}
+                    onUpdate={updateSize}
+                    onAdd={addSize}
+                    onRemove={removeSize}
+                />
 
-                <Card title="תוויות וטקסטים בבורר המסגרות">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="תווית כיוון לרוחב">
-                            <input
-                                type="text"
-                                value={form.orientationLabels.landscape}
-                                onChange={(e) => patchSection('orientationLabels', { landscape: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="תווית כיוון לאורך">
-                            <input
-                                type="text"
-                                value={form.orientationLabels.portrait}
-                                onChange={(e) => patchSection('orientationLabels', { portrait: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="כותרת המקטע">
-                            <input
-                                type="text"
-                                value={form.frameFolders.title}
-                                onChange={(e) => patchSection('frameFolders', { title: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="הסבר מתחת לכותרת">
-                            <input
-                                type="text"
-                                value={form.frameFolders.subtitle}
-                                onChange={(e) => patchSection('frameFolders', { subtitle: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <div className="sm:col-span-2">
-                            <Field label="הודעה כשאין מסגרות בתיקייה">
-                                <input
-                                    type="text"
-                                    value={form.frameFolders.emptyText}
-                                    onChange={(e) => patchSection('frameFolders', { emptyText: e.target.value })}
-                                    className={inputClass}
-                                />
-                            </Field>
-                        </div>
-                    </div>
-                </Card>
+                <TextFieldsCard title="תוויות וטקסטים בבורר המסגרות" fields={FRAME_PICKER_FIELDS} form={form} patchSection={patchSection} />
 
-                <Card
-                    title="סרגל הטקסט והכתוביות"
-                    description="הגופנים, הצבעים וטווח הגדלים שהלקוח יכול לבחור לטקסט ולכתוביות."
-                >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <span className="block text-sm font-medium text-gray-700 mb-2">גופנים</span>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {form.textToolbar.fonts.map((font) => (
-                                    <span
-                                        key={font.value}
-                                        className="inline-flex items-center gap-2 text-sm bg-gray-100 text-gray-700 rounded-lg px-2.5 py-1.5"
-                                        style={{ fontFamily: font.value }}
-                                    >
-                                        {font.label}
-                                        {font.url && <span className="text-[10px] text-gray-500 bg-white rounded px-1" style={{ fontFamily: 'inherit' }}>קובץ</span>}
-                                        <button
-                                            type="button"
-                                            onClick={() => removeFont(font.value)}
-                                            className="text-red-500 hover:text-red-700"
-                                            aria-label={`הסר את ${font.label}`}
-                                        >
-                                            <FaTrash size={10} />
-                                        </button>
-                                    </span>
-                                ))}
-                            </div>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newFont}
-                                    onChange={(e) => setNewFont(e.target.value)}
-                                    placeholder="שם גופן, לדוגמה Heebo"
-                                    className={inputClass}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={addFont}
-                                    className="px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded-lg hover:bg-gray-700 whitespace-nowrap"
-                                >
-                                    הוסף
-                                </button>
-                            </div>
-                            <div className="mt-3 flex items-center gap-3 flex-wrap">
-                                <label className={`cursor-pointer px-4 py-2 text-sm font-bold rounded-lg border border-gray-300 bg-white hover:bg-gray-50 ${fontUploading ? 'opacity-60 pointer-events-none' : ''}`}>
-                                    {fontUploading ? 'מעלה גופן...' : 'העלאת קובץ גופן (OTF / TTF / WOFF)'}
-                                    <input
-                                        type="file"
-                                        accept=".otf,.ttf,.woff,.woff2,font/otf,font/ttf,font/woff,font/woff2"
-                                        className="hidden"
-                                        onChange={handleFontFile}
-                                        disabled={fontUploading}
-                                    />
-                                </label>
-                                <span className="text-xs text-gray-500">הגופן זמין אחרי השמירה גם בעורך המוצרים וגם בעורך התמונות.</span>
-                            </div>
-                            {fontError && <p className="text-xs text-red-600 mt-1">{fontError}</p>}
-                            {fontNotice && <p className="text-xs text-green-700 mt-1">{fontNotice}</p>}
-                        </div>
+                <TextToolbarCard
+                    textToolbar={form.textToolbar}
+                    onPatch={(updates) => patchSection('textToolbar', updates)}
+                    onFontFile={uploadFont}
+                    fontUploading={fontUploading}
+                    fontError={fontError}
+                    fontNotice={fontNotice}
+                />
 
-                        <div>
-                            <span className="block text-sm font-medium text-gray-700 mb-2">צבעים מוכנים</span>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                                {form.textToolbar.colorPresets.map((color) => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        onClick={() => removeColor(color)}
-                                        className="w-8 h-8 rounded-md border border-gray-200 hover:ring-2 hover:ring-red-300 transition-all"
-                                        style={{ backgroundColor: color }}
-                                        title={`הסר ${color}`}
-                                    />
-                                ))}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="color"
-                                    value={newColor}
-                                    onChange={(e) => setNewColor(e.target.value)}
-                                    className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={addColor}
-                                    className="px-4 py-2 bg-gray-800 text-white text-sm font-bold rounded-lg hover:bg-gray-700"
-                                >
-                                    הוסף צבע
-                                </button>
-                                <span className="text-xs text-gray-500">לחיצה על צבע קיים מסירה אותו</span>
-                            </div>
-                        </div>
+                <CaptionDefaultsCard
+                    captionDefaults={form.captionDefaults}
+                    fonts={form.textToolbar.fonts}
+                    onPatch={(updates) => patchSection('captionDefaults', updates)}
+                />
 
-                        <Field label="גודל גופן מינימלי">
-                            <input
-                                type="number"
-                                min="1"
-                                value={form.textToolbar.minFontSize}
-                                onChange={(e) => patchSection('textToolbar', { minFontSize: Number(e.target.value) })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="גודל גופן מקסימלי">
-                            <input
-                                type="number"
-                                min="2"
-                                value={form.textToolbar.maxFontSize}
-                                onChange={(e) => patchSection('textToolbar', { maxFontSize: Number(e.target.value) })}
-                                className={inputClass}
-                            />
-                        </Field>
-                    </div>
-                </Card>
-
-                <Card title="ברירות מחדל לכתובית">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="טקסט הכפתור בעורך">
-                            <input
-                                type="text"
-                                value={form.captionDefaults.buttonLabel}
-                                onChange={(e) => patchSection('captionDefaults', { buttonLabel: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="טקסט ברירת מחדל בכתובית">
-                            <input
-                                type="text"
-                                value={form.captionDefaults.placeholder}
-                                onChange={(e) => patchSection('captionDefaults', { placeholder: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="גופן">
-                            <select
-                                value={form.captionDefaults.fontFamily}
-                                onChange={(e) => patchSection('captionDefaults', { fontFamily: e.target.value })}
-                                className={inputClass}
-                            >
-                                {form.textToolbar.fonts.map((font) => (
-                                    <option key={font.value} value={font.value}>{font.label}</option>
-                                ))}
-                            </select>
-                        </Field>
-                        <div className="grid grid-cols-2 gap-3">
-                            <Field label="גודל">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={form.captionDefaults.fontSize}
-                                    onChange={(e) => patchSection('captionDefaults', { fontSize: Number(e.target.value) })}
-                                    className={inputClass}
-                                />
-                            </Field>
-                            <Field label="צבע">
-                                <input
-                                    type="color"
-                                    value={form.captionDefaults.color}
-                                    onChange={(e) => patchSection('captionDefaults', { color: e.target.value })}
-                                    className="w-full h-[42px] rounded-lg border border-gray-200 cursor-pointer"
-                                />
-                            </Field>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card
+                <TextFieldsCard
                     title="הודעת התאמת כיוון"
                     description="ההודעה שמופיעה ללקוח כשכיוון התמונה לא תואם לכיוון המסגרת."
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="כותרת">
-                            <input
-                                type="text"
-                                value={form.orientationPrompt.title}
-                                onChange={(e) => patchSection('orientationPrompt', { title: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="טקסט ההסבר">
-                            <input
-                                type="text"
-                                value={form.orientationPrompt.body}
-                                onChange={(e) => patchSection('orientationPrompt', { body: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="כפתור סיבוב">
-                            <input
-                                type="text"
-                                value={form.orientationPrompt.rotateLabel}
-                                onChange={(e) => patchSection('orientationPrompt', { rotateLabel: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field label="כפתור ביטול">
-                            <input
-                                type="text"
-                                value={form.orientationPrompt.dismissLabel}
-                                onChange={(e) => patchSection('orientationPrompt', { dismissLabel: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                    </div>
-                </Card>
+                    fields={ORIENTATION_PROMPT_FIELDS}
+                    form={form}
+                    patchSection={patchSection}
+                />
 
-                <Card
+                <TextFieldsCard
                     title="שמירת עיצובים ב-Google Drive"
                     description="קבצי העיצוב הסופיים נשמרים בתיקייה נפרדת לכל הזמנה, והקישור מוצג בניהול ההזמנות."
-                >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Field label="שם תיקיית האב">
-                            <input
-                                type="text"
-                                value={form.drive.rootFolderName}
-                                onChange={(e) => patchSection('drive', { rootFolderName: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                        <Field
-                            label="תבנית שם תיקיית הזמנה"
-                            hint="{orderId} יוחלף במספר ההזמנה ו-{date} בתאריך."
-                        >
-                            <input
-                                type="text"
-                                value={form.drive.orderFolderTemplate}
-                                onChange={(e) => patchSection('drive', { orderFolderTemplate: e.target.value })}
-                                className={inputClass}
-                            />
-                        </Field>
-                    </div>
-                </Card>
+                    fields={DRIVE_FIELDS}
+                    form={form}
+                    patchSection={patchSection}
+                />
 
                 {message.text && (
                     <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
