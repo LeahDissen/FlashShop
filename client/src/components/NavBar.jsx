@@ -6,6 +6,7 @@ import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { MONGO_API } from '../config/api';
+import { NAV_ITEMS } from '../constants/navItems';
 const API_URL = MONGO_API;
 
 export default function NavBar() {
@@ -22,6 +23,8 @@ export default function NavBar() {
     const isCartItemsArray = Array.isArray(cartItems);
     const cartCount = isCartItemsArray ? cartItems.reduce((acc, item) => acc + (item?.quantity || 0), 0) : 0;
     const cartRef = useRef(null);
+    const navLabels = useAppStore(state => state.navLabels);
+    const navLabel = (key) => String(navLabels?.[key] || '').trim() || NAV_ITEMS.find((item) => item.key === key)?.label;
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -45,12 +48,12 @@ export default function NavBar() {
                     </Link>
                 </li>
             }
-            <li><Link to="/products" className={style} onClick={onClick}>מוצרים</Link></li>
-            <li><Link to="/photo-development" className={style} onClick={onClick}>פיתוח תמונות</Link></li>
-            <li><Link to="/tips" className={style} onClick={onClick}>בלוג</Link></li>
+            <li><Link to="/products" className={style} onClick={onClick}>{navLabel('products')}</Link></li>
+            <li><Link to="/photo-development" className={style} onClick={onClick}>{navLabel('photos')}</Link></li>
+            <li><Link to="/tips" className={style} onClick={onClick}>{navLabel('blog')}</Link></li>
             <li>
                 <button onClick={() => { setClubOpen(true); if (onClick) onClick(); }} className={`${style} bg-transparent border-none font-inherit cursor-pointer w-full text-right`}>
-                    הצטרפות למועדון
+                    {navLabel('club')}
                 </button>
             </li>
             <li>
@@ -58,7 +61,7 @@ export default function NavBar() {
                     rel="noopener noreferrer"
                     className={style}
                     onClick={onClick}>
-                    קטלוג
+                    {navLabel('catalog')}
                     <FaDownload size={14} />
                 </a>
             </li>

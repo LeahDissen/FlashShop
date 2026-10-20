@@ -9,6 +9,10 @@ const useAppStore = create((set) => ({
 
     isTermsOpen: false,
     setTermsOpen: (isOpen) => set({ isTermsOpen: isOpen }),
+
+    /** Top menu names the admin edits with the logo (header page); empty = the default name */
+    navLabels: {},
+    setNavLabels: (navLabels) => set({ navLabels: navLabels || {} }),
 }));
 
 export default useAppStore;
