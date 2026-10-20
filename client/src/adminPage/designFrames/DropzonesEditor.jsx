@@ -87,7 +87,7 @@ export default function DropzonesEditor({ imageUrl, zones, detecting, onDetect, 
                                     type="number"
                                     min="0"
                                     max="100"
-                                    step="0.1"
+                                    step="any"
                                     value={zone[field]}
                                     onChange={(e) => onUpdateZone(index, field, e.target.value)}
                                     className="w-full border border-gray-200 rounded-md px-1.5 py-1 mt-0.5"
