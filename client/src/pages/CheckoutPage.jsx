@@ -4,7 +4,7 @@ import { createOrder } from '../api/orders';
 import { fetchUserInfo } from '../api/auth';
 import { getShopSettings } from '../api/shopSettings';
 import useAuthStore from '../store/authStore';
-import { useCartStore } from '../store/cartStore';
+import { isPhotoPrint, useCartStore } from '../store/cartStore';
 import { clearCheckoutDraft, loadCheckoutDraft } from '../utils/checkoutDraft';
 import { toCheckoutItem } from '../utils/cartItem';
 import { saveLastOrder } from '../utils/orderConfirmation';
@@ -30,6 +30,12 @@ export default function CheckoutPage() {
     const [paymentLinkUrl, setPaymentLinkUrl] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const paymentSubmittedRef = useRef(false);
+    const stepRef = useRef(null);
+
+    // A long order summary pushes the steps below the fold: bring the current step (and its button) into view
+    useEffect(() => {
+        stepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, [step]);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -199,6 +205,23 @@ export default function CheckoutPage() {
     const FieldError = ({ name }) =>
         fieldErrors[name] ? <p className="text-xs text-red-600 mt-1">{fieldErrors[name]}</p> : null;
 
+    // Photo prints are summarized in one line, like in the cart
+    const photoLines = draft.items.filter(isPhotoPrint);
+    const summaryLines = [
+        ...(photoLines.length
+            ? [{
+                key: 'photos',
+                label: `תמונות · ${photoLines.length} תמונות, ${photoLines.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} הדפסות`,
+                total: photoLines.reduce((sum, item) => sum + item.price * item.quantity, 0),
+            }]
+            : []),
+        ...draft.items.filter((item) => !isPhotoPrint(item)).map((item) => ({
+            key: item.id || item._id || item.name,
+            label: `${item.name} × ${item.quantity}`,
+            total: item.price * item.quantity,
+        })),
+    ];
+
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4" dir="rtl">
             <div className="max-w-3xl mx-auto space-y-6">
@@ -212,14 +235,10 @@ export default function CheckoutPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-4">סיכום הזמנה</h2>
                     <div className="space-y-3 mb-4">
-                        {draft.items.map((item) => (
-                            <div key={item.id || item._id || item.name} className="flex justify-between text-sm border-b border-gray-100 pb-2">
-                                <span className="text-gray-800">
-                                    {item.name} × {item.quantity}
-                                </span>
-                                <span className="font-medium">
-                                    ₪{(item.price * item.quantity).toFixed(2)}
-                                </span>
+                        {summaryLines.map((line) => (
+                            <div key={line.key} className="flex justify-between text-sm border-b border-gray-100 pb-2">
+                                <span className="text-gray-800">{line.label}</span>
+                                <span className="font-medium">₪{line.total.toFixed(2)}</span>
                             </div>
                         ))}
                     </div>
@@ -247,6 +266,7 @@ export default function CheckoutPage() {
                     </div>
                 </div>
 
+                <div ref={stepRef} className="space-y-6 scroll-mt-6">
                 {step === 'method' && (
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                         <h2 className="text-xl font-bold text-gray-800">בחירת אופן קבלה</h2>
@@ -439,6 +459,7 @@ export default function CheckoutPage() {
                         </button>
                     </div>
                 )}
+                </div>
             </div>
         </div>
     );

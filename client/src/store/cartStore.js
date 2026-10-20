@@ -13,7 +13,7 @@ export const CART_ADDED_MESSAGE = 'המוצר נוסף לסל בהצלחה!';
 /** Owner of a cart saved before carts tracked their owner: unknown, so it is never merged into an account */
 const UNKNOWN_OWNER = 'unknown';
 
-const isPhotoPrint = (item) => item?.itemType === 'photo-print';
+export const isPhotoPrint = (item) => item?.itemType === 'photo-print';
 
 /**
  * Photo prices depend on how many prints of each size are in the cart, so after merging two carts
@@ -141,6 +141,19 @@ export const useCartStore = create(
                   saveCartToDB(userId, updatedCart);
               }
 
+              return { cartItems: updatedCart };
+          });
+      },
+
+      /** Removes every cart line the predicate matches (e.g. all photo prints at once) */
+      removeItemsWhere: (predicate) => {
+          set((state) => {
+              const updatedCart = state.cartItems.filter((item) => !predicate(item));
+              if (updatedCart.length === state.cartItems.length) return state;
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
               return { cartItems: updatedCart };
           });
       },
