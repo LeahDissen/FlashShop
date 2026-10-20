@@ -288,6 +288,9 @@ async function calculateCouponDiscount(couponCode, userId, subtotal) {
         if (member.giftType === "none") {
             return { error: "קופון לא תקין" };
         }
+        if (member.giftType === "pending-gift") {
+            return { error: "כדי לקבל את המתנה יש לאשר קודם את המייל שנשלח אלייך" };
+        }
         // A code sent before the join gift existed keeps its 15% off the order
         const applyTo = (amount) => Math.min(amount * 0.15, amount);
         return { discount: applyTo(subtotal), applyTo, couponType: "club" };

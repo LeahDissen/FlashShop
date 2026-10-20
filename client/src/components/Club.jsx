@@ -166,7 +166,7 @@ export default function Club() {
                 birthDate: formData.birthdate
             };
             const data = await joinClubRequest(payload);
-            setJoinResult({ type: "success", code: data.code });
+            setJoinResult({ type: "success", code: data.code, pendingGift: Boolean(data.pendingGift) });
             markClubJoined();
         } catch (error) {
             console.error("Club join error:", error);
@@ -321,6 +321,11 @@ export default function Club() {
                         <p className="text-xl font-bold whitespace-pre-line drop-shadow-md">
                             {draft.successText || "הצטרפת בהצלחה למועדון!"}
                         </p>
+                        {joinResult.pendingGift && (
+                            <p className="text-sm font-light">
+                                שלחנו לך מייל לאישור הכתובת 🎁 אחרי האישור יישלח אלייך קוד מתנת ההצטרפות.
+                            </p>
+                        )}
                         {joinResult.code && (
                             <p className="text-sm font-light">
                                 קוד ההטבה שלך: <span className="font-mono font-bold tracking-wider" dir="ltr">{joinResult.code}</span>

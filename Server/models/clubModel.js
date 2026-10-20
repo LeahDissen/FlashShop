@@ -25,13 +25,20 @@ let clubSchema = new mongoose.Schema({
         unique: true
     },
     /**
-     * What the gift code gives: "join-gift" = the join gift product (shop settings), "none" = nothing.
+     * What the gift code gives: "join-gift" = the join gift product (shop settings), "none" = nothing,
+     * "pending-gift" = the join gift once the member confirms her email (verifyToken).
      * Empty = a member from before the join gift, whose code still gives 15% off the order.
      */
     giftType: {
         type: String,
-        enum: ["join-gift", "none"],
+        enum: ["join-gift", "pending-gift", "none"],
         required: false
+    },
+    /** The link in the email confirmation (join gift only); removed once confirmed */
+    verifyToken: {
+        type: String,
+        required: false,
+        index: { unique: true, sparse: true }
     },
     isUsed: {
         type: Boolean,
