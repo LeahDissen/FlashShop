@@ -8,6 +8,7 @@ export const PRINT_OPTIONS = [
     { key: "optionDesigner", defaultLabel: "עיצוב מותאם", adminLabel: "עיצוב על ידי גרפיקאית", defaultHint: "שולחים לנו תמונות והוראות, והגרפיקאית שלנו מעצבת בשבילכם (בתוספת תשלום)." },
     { key: "optionUpload", defaultLabel: "העלאת תמונה", adminLabel: "העלאת תמונה מוכנה", defaultHint: "יש לכם עיצוב מוכן? מעלים אותו, ואנחנו מדפיסים אותו כמו שהוא." },
     { key: "optionCaptions", defaultLabel: "רעיונות לכיתוב", adminLabel: "רעיונות לכיתוב", defaultHint: "רעיונות לטקסטים ולהקדשות לעיצוב שלכם." },
+    { key: "optionPerCopy", defaultLabel: "עיצוב בנפרד עבור כל עותק מוצר", adminLabel: "עיצוב נפרד לכל עותק (כשהכמות יותר מ-1)", defaultHint: "עיצוב אחר לכל אחד מהעותקים שהזמנתם: כל עותק מודפס עם העיצוב שלו." },
 ];
 
 /** An option's label and hint, from the CMS content with a default */

@@ -164,6 +164,7 @@ const ProductSelectionPage = () => {
     const designerOption = getPrintOption(productsPageContent, 'optionDesigner');
     const uploadOption = getPrintOption(productsPageContent, 'optionUpload');
     const captionsOption = getPrintOption(productsPageContent, 'optionCaptions');
+    const perCopyOption = getPrintOption(productsPageContent, 'optionPerCopy');
 
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
@@ -262,13 +263,16 @@ const ProductSelectionPage = () => {
         })]);
     };
 
-    const handleDesignClick = () => {
+    /** perCopy: a separate design for each copy (quantity > 1) instead of one design for all */
+    const handleDesignClick = (perCopy = false) => {
         const quantity = applyQuantity(getQuantity());
         const productForEditor = withMagnetPrintDimensions(product);
         setSelectedProduct(productForEditor);
         setOrderQuantity(quantity);
         // A photo already uploaded here comes along, so it is not uploaded again in the editor
-        navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity, initialImage: uploadedImage || undefined } });
+        navigate(`/editor/${productId}`, {
+            state: { product: productForEditor, quantity, initialImage: uploadedImage || undefined, perCopy: perCopy && quantity > 1 },
+        });
     };
 
     // Submit the designer form with extended validation
@@ -520,7 +524,7 @@ const ProductSelectionPage = () => {
                                             <div className="flex flex-wrap items-center gap-3">
                                                 <button
                                                     type="button"
-                                                    onClick={handleDesignClick}
+                                                    onClick={() => handleDesignClick(false)}
                                                     className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer"
                                                 >
                                                     <Palette size={16} />
@@ -564,7 +568,7 @@ const ProductSelectionPage = () => {
                                     <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
                                         <PrintOptionButton
                                             hint={selfDesignOption.hint}
-                                            onClick={handleDesignClick}
+                                            onClick={() => handleDesignClick(false)}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
                                             <Palette size={17} />
@@ -603,6 +607,21 @@ const ProductSelectionPage = () => {
                                             {captionsOption.label}
                                         </PrintOptionButton>
                                     </div>
+                                    {currentQuantity > 1 && (
+                                        <div className="w-full max-w-lg mt-3 space-y-2">
+                                            <p className="text-xs text-gray-600 leading-relaxed bg-[#fff5f4] border border-[#f2665e]/15 rounded-xl px-3 py-2">
+                                                תוכלו לעצב עיצוב אישי לכל אחד מעותקי המוצר שבחרתם בבחירה ב&quot;{perCopyOption.label}&quot;, או להשתמש באופציית &quot;{selfDesignOption.label}&quot; לעיצוב אחיד עבור כולם.
+                                            </p>
+                                            <PrintOptionButton
+                                                hint={perCopyOption.hint}
+                                                onClick={() => handleDesignClick(true)}
+                                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-[#f2665e] text-white bg-[#f2665e] hover:bg-[#d95248] transition-colors cursor-pointer"
+                                            >
+                                                <Palette size={17} />
+                                                {perCopyOption.label} ({currentQuantity})
+                                            </PrintOptionButton>
+                                        </div>
+                                    )}
                                     {isAdmin && (
                                         <PrintOptionsEditor content={productsPageContent} onSaved={setProductsPageContent} />
                                     )}

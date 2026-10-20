@@ -152,6 +152,8 @@ const compactCaptions = (captions) => {
     }));
 };
 
+const MAX_DESIGN_COPIES = 200;
+
 const compactCustomDesign = (customDesign) => {
     if (!customDesign || typeof customDesign !== "object") return undefined;
     const compact = {
@@ -163,7 +165,15 @@ const compactCustomDesign = (customDesign) => {
         captions: compactCaptions(customDesign.captions),
         designFile: compactDriveFile(customDesign.designFile),
         driveFile: compactDriveFile(customDesign.driveFile),
+        // A separate design per copy: each copy's print file (https, uploaded by the editor)
+        copies: Array.isArray(customDesign.copies)
+            ? customDesign.copies
+                .map((copy) => (typeof copy?.image === "string" && /^https:\/\//.test(copy.image) ? { image: copy.image } : null))
+                .filter(Boolean)
+                .slice(0, MAX_DESIGN_COPIES)
+            : undefined,
     };
+    if (compact.copies && !compact.copies.length) delete compact.copies;
     const hasValue = Object.values(compact).some((value) => value != null);
     return hasValue ? compact : undefined;
 };

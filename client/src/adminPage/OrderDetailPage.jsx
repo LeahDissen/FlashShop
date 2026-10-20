@@ -111,6 +111,10 @@ const collectItemDownloads = (item, orderId, index) => {
         return files;
     }
 
+    if (item.customDesign?.copies?.length) {
+        item.customDesign.copies.forEach((copy, i) => add(copy.image, `עותק ${i + 1}`, `copy-${i + 1}`));
+        return files;
+    }
     add(item.image, "הורדת תמונה", "design");
     add(item.customization?.referenceImage, "הורדת קובץ מצורף", "reference");
     return files;
@@ -636,6 +640,18 @@ export default function OrderDetailPage() {
                                                         (₪{Number(item.price).toFixed(2)} ליחידה)
                                                     </span>
                                                 </p>
+                                                {item.customDesign?.copies?.length > 0 && (
+                                                    <div className="mt-3">
+                                                        <p className="text-xs font-semibold text-gray-600 mb-1">תיקיית העותקים: {item.customDesign.copies.length} עיצובים, אחד לכל עותק</p>
+                                                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                                                            {item.customDesign.copies.map((copy, copyIndex) => (
+                                                                <a key={copy.image} href={copy.image} target="_blank" rel="noreferrer" title={`עותק ${copyIndex + 1}`}>
+                                                                    <img src={optimizeImageUrl(copy.image, { width: 160 })} alt={`עותק ${copyIndex + 1}`} loading="lazy" className="w-full aspect-square object-contain rounded border bg-gray-50" />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="flex flex-wrap gap-2 mt-3">
                                                     {downloads.map((file) => (
                                                         <button

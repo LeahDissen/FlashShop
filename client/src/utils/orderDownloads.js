@@ -34,6 +34,10 @@ const itemFiles = (item) => {
             : [item.customization.referenceImage];
         return references.map((src, index) => ({ src, kind: references.length > 1 ? `מצורף${index + 1}` : 'מצורף' }));
     }
+    // A separate design per copy: each copy is its own print file
+    if (item.customDesign?.copies?.length) {
+        return item.customDesign.copies.map((copy, index) => ({ src: copy.image, kind: `עותק${index + 1}`, single: true }));
+    }
     return [
         { src: item.image, kind: '' },
         { src: item.customization?.referenceImage, kind: 'מצורף' },
@@ -55,10 +59,10 @@ export function buildOrderFileList(order) {
         const copies = `x${Math.max(1, Number(item.quantity) || 1)}`;
         const label = safeName(originalFileName(item.name) || item.name);
 
-        itemFiles(item).forEach(({ src, kind }) => {
+        itemFiles(item).forEach(({ src, kind, single }) => {
             if (!src || typeof src !== 'string' || seen.has(src)) return;
             seen.add(src);
-            const parts = [line, size, copies, kind, label].filter(Boolean);
+            const parts = [line, size, single ? 'x1' : copies, kind, label].filter(Boolean);
             entries.push({ src, name: `${parts.join('_')}.${extensionFromSrc(src)}`, item });
         });
     });
