@@ -1,167 +1,18 @@
+/** Uploading files to Google Drive: designs and photos to the pending folder, and print files to an order's folder */
 const { Readable } = require("stream");
 const { config } = require("../config/secret");
-
-const loadGoogleApis = () => {
-    try {
-        return require("googleapis").google;
-    } catch (err) {
-        if (err.code === "MODULE_NOT_FOUND") {
-            console.warn("googleapis is not installed; Drive uploads are disabled");
-            return null;
-        }
-        throw err;
-    }
-};
-
-const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
-const FOLDER_MIME = "application/vnd.google-apps.folder";
-const STAGING_FOLDER_NAME = "_staging";
-const DRIVE_NOT_CONFIGURED_MSG = "Google Drive אינו מוגדר בשרת. יש להגדיר GOOGLE_DRIVE_CLIENT_EMAIL, GOOGLE_DRIVE_PRIVATE_KEY ו-GOOGLE_DRIVE_ROOT_FOLDER_ID.";
-
-let cachedClient = null;
-let loggedAuthOk = false;
-
-/**
- * The Drive integration is optional: if the environment variables are not set,
- * the system keeps working as usual and the order is saved without a Drive folder.
- */
-const isDriveConfigured = () => Boolean(
-    config.GOOGLE_DRIVE_CLIENT_EMAIL
-    && config.GOOGLE_DRIVE_PRIVATE_KEY
-    && config.GOOGLE_DRIVE_ROOT_FOLDER_ID,
-);
-
-const formatDriveTags = ({ orderId, itemIndex, fileName, fileId } = {}) => [
-    orderId && `[order=${orderId}]`,
-    itemIndex != null && `[item=${itemIndex}]`,
-    fileName && `[file=${fileName}]`,
-    fileId && `[fileId=${fileId}]`,
-].filter(Boolean).join("");
-
-const logDrive = (extra, stage, detail = "") => {
-    console.log(`[Drive]${formatDriveTags(extra)} stage=${stage}${detail ? ` ${detail}` : ""}`);
-};
-
-const driveUserError = (message, cause) => {
-    const err = new Error(message);
-    err.driveUserFacing = true;
-    if (cause) err.cause = cause;
-    return err;
-};
-
-const mapDriveError = (err, stage, extra = {}) => {
-    const status = Number(err.response?.status || err.code);
-    const code = String(err.code || "");
-    const isNetwork = ["ECONNRESET", "ENOTFOUND", "ETIMEDOUT", "ECONNREFUSED", "ECONNABORTED"].includes(code)
-        || /timeout/i.test(String(err.message || ""));
-
-    console.error(`[Drive]${formatDriveTags(extra)} stage=${stage} failed:`, err.message);
-
-    if (status === 403 || status === 404) {
-        return driveUserError(
-            "אין הרשאה לתיקיית Google Drive, או שהתיקייה הראשית לא נמצאה. שתפו את התיקייה עם חשבון השירות.",
-            err,
-        );
-    }
-    if (isNetwork) {
-        return driveUserError(`שגיאת רשת בהעלאה ל-Google Drive (שלב: ${stage}).`, err);
-    }
-    return driveUserError(
-        `שגיאה ב-Google Drive בשלב ${stage}: ${String(err.message || "שגיאה לא ידועה").slice(0, 200)}`,
-        err,
-    );
-};
-
-const safeUrlHost = (url) => {
-    try {
-        return new URL(url).host;
-    } catch {
-        return "invalid-url";
-    }
-};
-
-const getDriveClient = () => {
-    if (!isDriveConfigured()) return null;
-    if (cachedClient) return cachedClient;
-
-    const google = loadGoogleApis();
-    if (!google) {
-        console.error("[Drive] stage=auth failed reason=googleapis_missing");
-        return null;
-    }
-
-    const auth = new google.auth.JWT({
-        email: config.GOOGLE_DRIVE_CLIENT_EMAIL,
-        // Keys in .env are saved with a literal \n
-        key: config.GOOGLE_DRIVE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-        scopes: DRIVE_SCOPES,
-    });
-
-    cachedClient = google.drive({ version: "v3", auth });
-    if (!loggedAuthOk) {
-        logDrive({}, "auth", "ok");
-        loggedAuthOk = true;
-    }
-    return cachedClient;
-};
-
-const requireDriveClient = () => {
-    if (!isDriveConfigured()) {
-        throw driveUserError(DRIVE_NOT_CONFIGURED_MSG);
-    }
-    const drive = getDriveClient();
-    if (!drive) {
-        throw driveUserError("החבילה googleapis אינה מותקנת בשרת");
-    }
-    return drive;
-};
-
-const sharedDriveParams = () => (
-    config.GOOGLE_DRIVE_SHARED_DRIVE_ID
-        ? { supportsAllDrives: true, driveId: config.GOOGLE_DRIVE_SHARED_DRIVE_ID, corpora: "drive" }
-        : { supportsAllDrives: true }
-);
-
-const escapeQueryValue = (value) => String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-
-const findFolder = async (drive, name, parentId) => {
-    const query = [
-        `mimeType = '${FOLDER_MIME}'`,
-        `name = '${escapeQueryValue(name)}'`,
-        `'${parentId}' in parents`,
-        "trashed = false",
-    ].join(" and ");
-
-    const { data } = await drive.files.list({
-        q: query,
-        fields: "files(id, name, webViewLink)",
-        pageSize: 1,
-        includeItemsFromAllDrives: true,
-        ...sharedDriveParams(),
-    });
-
-    return data.files?.[0] || null;
-};
-
-const createFolder = async (drive, name, parentId) => {
-    const { data } = await drive.files.create({
-        requestBody: { name, mimeType: FOLDER_MIME, parents: [parentId] },
-        fields: "id, name, webViewLink",
-        supportsAllDrives: true,
-    });
-    return data;
-};
-
-const ensureFolder = async (drive, name, parentId) => {
-    const existing = await findFolder(drive, name, parentId);
-    if (existing) {
-        logDrive({}, "ensureFolder", `name="${name}" parent=${parentId} result=existing id=${existing.id}`);
-        return existing;
-    }
-    const created = await createFolder(drive, name, parentId);
-    logDrive({}, "ensureFolder", `name="${name}" parent=${parentId} result=created id=${created.id}`);
-    return created;
-};
+const {
+    STAGING_FOLDER_NAME,
+    isDriveConfigured,
+    getDriveClient,
+    requireDriveClient,
+    driveUserError,
+    mapDriveError,
+    formatDriveTags,
+    logDrive,
+    safeUrlHost,
+} = require("./drive/driveClient");
+const { ensureFolder, ensureOrderFolder, moveDesignsToOrderFolder } = require("./drive/driveFolders");
 
 const parseDataUrl = (dataUrl) => {
     const match = /^data:([^;,]+);base64,(.+)$/s.exec(String(dataUrl || ""));
@@ -296,38 +147,6 @@ const downloadImageSource = async (imageUrl, { orderId, fileName, itemIndex } = 
     }
 };
 
-const renderFolderName = (template, { orderId, date }) => (
-    String(template || "הזמנה {orderId} - {date}")
-        .replace("{orderId}", orderId)
-        .replace("{date}", date)
-);
-
-const folderWebUrl = (folder) => (
-    folder.webViewLink || `https://drive.google.com/drive/folders/${folder.id}`
-);
-
-const ensureOrderFolder = async ({ orderId, orderLabel, folderTemplate }) => {
-    const extra = { orderId };
-    const drive = requireDriveClient();
-    const folderName = renderFolderName(folderTemplate, {
-        orderId: orderLabel || orderId,
-        date: new Date().toLocaleDateString("he-IL"),
-    });
-
-    try {
-        const folder = await ensureFolder(drive, folderName, config.GOOGLE_DRIVE_ROOT_FOLDER_ID);
-        logDrive(extra, "ensureOrderFolder", `name="${folder.name || folderName}" id=${folder.id}`);
-        return {
-            folderId: folder.id,
-            folderName: folder.name || folderName,
-            folderUrl: folderWebUrl(folder),
-        };
-    } catch (err) {
-        if (err.driveUserFacing) throw err;
-        throw mapDriveError(err, "ensureFolder", extra);
-    }
-};
-
 const uploadBufferToFolder = async ({
     buffer,
     mimeType,
@@ -364,67 +183,6 @@ const uploadBufferToFolder = async ({
         if (err.driveUserFacing) throw err;
         throw mapDriveError(err, "upload", extra);
     }
-};
-
-/**
- * Creates a folder for the order and moves into it the design files uploaded while designing.
- * @returns {Promise<{folderId: string, folderName: string, folderUrl: string, files: Array}|null>}
- */
-const moveDesignsToOrderFolder = async ({ orderId, orderLabel, files, folderTemplate }) => {
-    const drive = getDriveClient();
-    if (!drive || !Array.isArray(files) || files.length === 0) return null;
-
-    const folderName = renderFolderName(folderTemplate, {
-        orderId: orderLabel || orderId,
-        date: new Date().toLocaleDateString("he-IL"),
-    });
-
-    const folder = await ensureFolder(drive, folderName, config.GOOGLE_DRIVE_ROOT_FOLDER_ID);
-    const movedFiles = [];
-
-    for (const file of files) {
-        if (!file?.id) {
-            logDrive({ orderId, fileName: file?.name }, "move", "skipped reason=missing_file_id");
-            continue;
-        }
-        try {
-            const current = await drive.files.get({
-                fileId: file.id,
-                fields: "parents",
-                supportsAllDrives: true,
-            });
-
-            const { data } = await drive.files.update({
-                fileId: file.id,
-                addParents: folder.id,
-                removeParents: (current.data.parents || []).join(","),
-                requestBody: file.name ? { name: file.name } : undefined,
-                fields: "id, name, webViewLink",
-                supportsAllDrives: true,
-            });
-
-            movedFiles.push({
-                itemIndex: file.itemIndex,
-                id: data.id,
-                name: data.name,
-                url: data.webViewLink,
-            });
-        } catch (err) {
-            console.warn(
-                `[Drive][order=${orderId}][fileId=${file.id}][file=${file.name || ""}] stage=move failed:`,
-                err.message,
-            );
-        }
-    }
-
-    if (movedFiles.length === 0) return null;
-
-    return {
-        folderId: folder.id,
-        folderName: folder.name || folderName,
-        folderUrl: folderWebUrl(folder),
-        files: movedFiles,
-    };
 };
 
 module.exports = {
