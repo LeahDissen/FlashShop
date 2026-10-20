@@ -551,8 +551,6 @@ const PhotoPrintAdjustModal = ({
         ).map((color) => color.value),
         [editorSettings.textToolbar?.colorPresets, editorAssets.colors],
     );
-    // The palette is uppercase; a color saved in lowercase (e.g. #ffffff) is still recognized
-    const activeBackground = String(backgroundColor || '').toUpperCase();
     const [orientation, setOrientation] = useState(image?.orientation ?? 'landscape');
     const [printSize, setPrintSize] = useState(image?.size ?? DEFAULT_PHOTO_PRINT_SIZE);
     const [placement, setPlacement] = useState(
@@ -561,6 +559,8 @@ const PhotoPrintAdjustModal = ({
     const [backgroundColor, setBackgroundColor] = useState(
         image?.cropState?.backgroundColor ?? DEFAULT_BACKGROUND,
     );
+    // The palette is uppercase; a color saved in lowercase (e.g. #ffffff) is still recognized
+    const activeBackground = String(backgroundColor || '').toUpperCase();
     const [dims, setDims] = useState({ w: 0, h: 0 });
     const [saveError, setSaveError] = useState('');
     const [frameSize, setFrameSize] = useState(null);
