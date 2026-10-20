@@ -13,6 +13,11 @@ let productSchema = new mongoose.Schema({
     stock: { type: Number, required: true },
     /** "Sale" badge on the product – the price itself is updated manually, there is no discount logic */
     isOnSale: { type: Boolean, default: false },
+    /** A shaped product: the customer designs only inside the shape, the print is transparent outside it */
+    shape: {
+        type: { type: String, enum: ["circle", "heart", "star", "flower", "custom"] },
+        maskUrl: { type: String },
+    },
     /** Club members' discount on this product: a percent off, or a final price. Given at checkout to members only */
     memberDiscount: {
         type: { type: String, enum: ["percent", "price"] },

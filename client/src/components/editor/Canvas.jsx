@@ -1,3 +1,4 @@
+import { shapeMaskStyle, shapeOutlinePath } from '../../utils/productShapes';
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { flushSync } from 'react-dom';
 import { RotateIcon, TrashIcon, LockIcon, UnlockIcon, DuplicateIcon, FlipHorizontalIcon, XIcon, TextIcon, PlusIcon } from '../icons';
@@ -42,6 +43,7 @@ const getCursorForHandle = (handle, rotation) => {
 };
 
 const Canvas = ({ 
+  shape,
   elements, 
   selectedElementId, 
   setSelectedElementId, 
@@ -986,6 +988,8 @@ const Canvas = ({
           transform: `scale(${scale})`,
           isolation: 'isolate',
           ...canvasDynamicStyles,
+          // A shaped product (heart, circle...): only the inside of the shape is shown and printed
+          ...shapeMaskStyle(shape),
         }}
         onClick={(e) => {
           // A click on an empty background inside the canvas deselects
@@ -1005,6 +1009,18 @@ const Canvas = ({
               backgroundSize: `${gridCellSize}px ${gridCellSize}px`,
             }}
           />
+        )}
+
+        {shapeOutlinePath(shape) && (
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none canvas-shape-outline"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            style={{ zIndex: 95 }}
+            aria-hidden="true"
+          >
+            <path d={shapeOutlinePath(shape)} fill="none" stroke="#f2665e" strokeWidth="0.8" strokeDasharray="2 1.5" vectorEffect="non-scaling-stroke" />
+          </svg>
         )}
 
         {/* Safe zone – dashed crop frame */}

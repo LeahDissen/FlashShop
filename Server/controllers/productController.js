@@ -37,6 +37,19 @@ function sanitizeProductBody(body = {}) {
         data.isOnSale = data.isOnSale === true || data.isOnSale === "true";
     }
 
+    // Shape: a built-in one, or the admin's own PNG (https) for "custom"
+    if (data.shape !== undefined) {
+        const type = data.shape?.type;
+        let maskUrl = "";
+        try {
+            const url = new URL(String(data.shape?.maskUrl || ""));
+            if (url.protocol === "https:") maskUrl = url.href;
+        } catch { /* not a URL */ }
+        if (["circle", "heart", "star", "flower"].includes(type)) data.shape = { type };
+        else if (type === "custom" && maskUrl) data.shape = { type, maskUrl };
+        else data.shape = null;
+    }
+
     // Club members' discount: percent off or a final price; "on sale" follows it (members-only sales)
     if (data.memberDiscount !== undefined) {
         const type = data.memberDiscount?.type;

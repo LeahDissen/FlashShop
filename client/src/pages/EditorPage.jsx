@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { applyShapeMask } from '../utils/productShapes';
 import { getProductById } from '../api/products';
 import {
     getCanvasDimensions,
@@ -479,22 +480,25 @@ const EditorPage = ({ onNavigateToHome }) => {
         const pixelRatio = pixelRatioOverride ?? getPrintExportPixelRatio(canvasDimensions);
 
         try {
-            return await toPng(node, {
+            const png = await toPng(node, {
                 quality: 1,
                 pixelRatio,
                 filter: (n) =>
                     !n.classList?.contains('canvas-grid-overlay')
-                    && !n.classList?.contains('canvas-safe-zone-overlay'),
+                    && !n.classList?.contains('canvas-safe-zone-overlay')
+                    && !n.classList?.contains('canvas-shape-outline'),
                 backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
                 style: { transform: 'scale(1)', outline: 'none', outlineOffset: 0 },
                 cacheBust: true,
             });
+            // Shaped product: the print file is transparent outside the shape
+            return await applyShapeMask(png, selectedProduct?.shape);
         } finally {
             if (previousZoom !== 100) {
                 setZoom(previousZoom);
             }
         }
-    }, [canvasBackground, zoom, canvasDimensions]);
+    }, [canvasBackground, zoom, canvasDimensions, selectedProduct?.shape]);
 
     /** 1.3 – the list of captions saved with the order for production */
     const collectCaptions = useCallback(() => (
@@ -1467,6 +1471,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                         </div>
                     )}
                     <Canvas
+                    shape={selectedProduct?.shape}
                     elements={elements}
                     selectedElementId={selectedElementId}
                     setSelectedElementId={setSelectedElementId}

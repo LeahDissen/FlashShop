@@ -1,3 +1,5 @@
+import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
+import { PRODUCT_SHAPES } from '../utils/productShapes';
 import { useState, useEffect, useMemo } from "react";
 import { FaBoxOpen, FaEdit, FaPlus, FaSave, FaTimes, FaTrash, FaLink } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
@@ -49,6 +51,8 @@ const INITIAL_FORM_DATA = {
     size: "",
     memberDiscountType: "",
     memberDiscountValue: "",
+    shapeType: "",
+    shapeMaskUrl: "",
 };
 
 export default function ProductsManagement() {
@@ -258,6 +262,9 @@ export default function ProductsManagement() {
             displayType,
             stock: Number(formData.stock),
             image: formData.image.trim(),
+            shape: formData.shapeType
+                ? { type: formData.shapeType, maskUrl: formData.shapeType === "custom" ? formData.shapeMaskUrl : undefined }
+                : null,
             // Members-only sale: percent off or a final price (the server derives "on sale" from it)
             memberDiscount: formData.memberDiscountType && formData.memberDiscountValue !== ""
                 ? { type: formData.memberDiscountType, value: Number(formData.memberDiscountValue) }
@@ -324,6 +331,8 @@ export default function ProductsManagement() {
             printHeight: product.printHeight ?? 18,
             allowOrientationToggle: Boolean(product.allowOrientationToggle),
             size: product.size ?? "",
+            shapeType: product.shape?.type ?? "",
+            shapeMaskUrl: product.shape?.maskUrl ?? "",
             memberDiscountType: product.memberDiscount?.type ?? "",
             memberDiscountValue: product.memberDiscount?.value ?? "",
         });
@@ -557,6 +566,46 @@ export default function ProductsManagement() {
                             <div className="w-1/2">
                                 <label className="block text-sm font-medium text-gray-700">מלאי</label>
                                 <input type="number" name="stock" value={formData.stock} onChange={handleChange} className="w-full p-2 border rounded-lg" required />
+                                <div className="mt-3 space-y-2">
+                                    <label htmlFor="product-shape" className="block text-sm font-medium text-gray-700">צורת המוצר בעורך</label>
+                                    <select
+                                        id="product-shape"
+                                        value={formData.shapeType}
+                                        onChange={(e) => setFormData((prev) => ({ ...prev, shapeType: e.target.value }))}
+                                        className="w-full p-2 border rounded-lg"
+                                    >
+                                        <option value="">מלבן רגיל</option>
+                                        {PRODUCT_SHAPES.map((shape) => (
+                                            <option key={shape.value} value={shape.value}>{shape.label}</option>
+                                        ))}
+                                        <option value="custom">צורה משלי (קובץ PNG)</option>
+                                    </select>
+                                    {formData.shapeType === "custom" && (
+                                        <div className="space-y-1">
+                                            <input
+                                                type="file"
+                                                accept="image/png"
+                                                aria-label="קובץ הצורה"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    e.target.value = "";
+                                                    if (!file) return;
+                                                    try {
+                                                        const url = await uploadImageToCloudinary(file);
+                                                        setFormData((prev) => ({ ...prev, shapeMaskUrl: url }));
+                                                    } catch (err) {
+                                                        alert(err?.message || "העלאת הצורה נכשלה");
+                                                    }
+                                                }}
+                                                className="w-full text-sm"
+                                            />
+                                            {formData.shapeMaskUrl && (
+                                                <img src={formData.shapeMaskUrl} alt="הצורה" className="h-16 w-16 object-contain border rounded bg-gray-50" />
+                                            )}
+                                            <p className="text-xs text-gray-500">PNG שבו הצורה אטומה ומחוץ לה שקוף. בעורך יוצג רק מה שבתוך הצורה.</p>
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="mt-3 space-y-2">
                                     <label htmlFor="member-discount-type" className="block text-sm font-medium text-gray-700">מבצע לחברות מועדון</label>
                                     <select
