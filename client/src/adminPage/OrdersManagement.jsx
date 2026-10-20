@@ -1,18 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
-import { FaBoxOpen, FaCheckCircle, FaClipboardList, FaClock, FaEdit, FaEnvelope, FaEye, FaGoogleDrive, FaSearch, FaShippingFast, FaStore, FaTimesCircle, FaTrash } from "react-icons/fa";
+import { FaBoxOpen, FaClipboardList, FaEnvelope } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { deleteOrders, getOrders, updateOrderStatus } from "../api/orders";
+import DeleteOrdersModal from "./orders/DeleteOrdersModal";
+import OrderRow from "./orders/OrderRow";
+import OrdersPagination from "./orders/OrdersPagination";
+import OrdersStats from "./orders/OrdersStats";
+import OrdersToolbar from "./orders/OrdersToolbar";
 import StatusPickerModal from "./orders/StatusPickerModal";
-import {
-    formatOrderDate,
-    getCustomerName,
-    isDeliveryOrder,
-    shortOrderId,
-} from "./orderStatus";
+import { PAGE_SIZE, filterOrders, orderStats } from "./orders/ordersList";
 
-const PAGE_SIZE = 10;
-
+/** Admin: all the orders – search, filter by status, change a status, delete, open an order */
 export default function OrdersManagement() {
     const navigate = useNavigate();
     const [orders, setOrders] = useState([]);
@@ -54,20 +53,10 @@ export default function OrdersManagement() {
         }
     };
 
-    const filteredOrders = useMemo(() => {
-        const term = searchTerm.toLowerCase();
-        return orders
-            .filter((order) => {
-                const matchesStatus = filterStatus === "all" || order.status === filterStatus;
-                const matchesSearch =
-                    order._id.toLowerCase().includes(term) ||
-                    getCustomerName(order).toLowerCase().includes(term) ||
-                    String(order.customer?.phone || "").toLowerCase().includes(term) ||
-                    String(order.customer?.email || "").toLowerCase().includes(term);
-                return matchesStatus && matchesSearch;
-            })
-            .sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
-    }, [orders, filterStatus, searchTerm]);
+    const filteredOrders = useMemo(
+        () => filterOrders(orders, filterStatus, searchTerm),
+        [orders, filterStatus, searchTerm]
+    );
 
     const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
     const safePage = Math.min(currentPage, totalPages);
@@ -116,36 +105,7 @@ export default function OrdersManagement() {
             setDeleting(false);
         }
     };
-
-    const getPageNumbers = () => {
-        const pages = [];
-        const windowSize = 5;
-        let start = Math.max(1, safePage - 2);
-        let end = Math.min(totalPages, start + windowSize - 1);
-        start = Math.max(1, end - windowSize + 1);
-        for (let page = start; page <= end; page += 1) {
-            pages.push(page);
-        }
-        return pages;
-    };
-
-    const stats = {
-        total: orders.filter(o => o.status !== 'awaiting_payment').length,
-        pending: orders.filter(o => o.status === 'processing' || o.status === 'pending').length,
-        revenue: orders.reduce((sum, o) => o.status !== 'cancelled' && o.status !== 'awaiting_payment' ? sum + (o.total_price || 0) : sum, 0)
-    };
-
-    const getStatusBadge = (status) => {
-        switch (status) {
-            case 'processing': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> בטיפול</span>;
-            case 'pending': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1 w-fit"><FaClock /> ממתין לטיפול</span>;
-            case 'awaiting_payment': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 flex items-center gap-1 w-fit"><FaClock /> ממתין לתשלום</span>;
-            case 'shipped': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 flex items-center gap-1 w-fit"><FaShippingFast /> נשלח</span>;
-            case 'delivered': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1 w-fit"><FaCheckCircle /> ההזמנה מוכנה</span>;
-            case 'cancelled': return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 flex items-center gap-1 w-fit"><FaTimesCircle /> בוטל</span>;
-            default: return <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">לא ידוע</span>;
-        }
-    };
+    const openOrder = (orderId) => navigate(`/ordersmanagement/${orderId}`);
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans">
@@ -174,71 +134,16 @@ export default function OrdersManagement() {
                     </Link>
                 </div>
             </div>
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-500 text-sm font-medium">סה"כ הזמנות</p>
-                        <h3 className="text-3xl font-bold text-gray-800">{stats.total}</h3>
-                    </div>
-                    <div className="bg-blue-50 p-3 rounded-full text-blue-500"><FaBoxOpen size={24} /></div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-500 text-sm font-medium">הזמנות בטיפול</p>
-                        <h3 className="text-3xl font-bold text-yellow-600">{stats.pending}</h3>
-                    </div>
-                    <div className="bg-yellow-50 p-3 rounded-full text-yellow-500"><FaClock size={24} /></div>
-                </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p className="text-gray-500 text-sm font-medium">סה"כ הכנסות</p>
-                        <h3 className="text-3xl font-bold text-green-600">₪{stats.revenue.toFixed(2)}</h3>
-                    </div>
-                    <div className="bg-green-50 p-3 rounded-full text-green-500"><FaCheckCircle size={24} /></div>
-                </div>
-            </div>
+            <OrdersStats stats={orderStats(orders)} />
 
-            <div className="max-w-7xl mx-auto bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
-                <div className="relative w-full md:w-1/3">
-                    <FaSearch className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="חיפוש לפי שם לקוח או מספר הזמנה..."
-                        className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#f2665e] focus:border-transparent outline-none transition-all"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto no-scrollbar items-center">
-                    {['all', 'processing', 'shipped', 'delivered', 'cancelled', 'awaiting_payment'].map(status => (
-                        <button
-                            key={status}
-                            onClick={() => setFilterStatus(status)}
-                            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap
-                                ${filterStatus === status
-                                    ? 'bg-[#f2665e] text-white shadow-md transform scale-105'
-                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
-                        >
-                            {status === 'all' ? 'הכל' :
-                                status === 'processing' ? 'בטיפול' :
-                                    status === 'shipped' ? 'נשלח' :
-                                        status === 'delivered' ? 'ההזמנה מוכנה' :
-                                            status === 'cancelled' ? 'בוטל' : 'ממתין לתשלום'}
-                        </button>
-                    ))}
-                    {selectedIds.length > 0 && (
-                        <button
-                            type="button"
-                            onClick={() => setShowDeleteConfirm(true)}
-                            className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-2"
-                        >
-                            <FaTrash size={12} />
-                            מחיקת {selectedIds.length} שנבחרו
-                        </button>
-                    )}
-                </div>
-            </div>
+            <OrdersToolbar
+                searchTerm={searchTerm}
+                onSearch={setSearchTerm}
+                filterStatus={filterStatus}
+                onFilter={setFilterStatus}
+                selectedCount={selectedIds.length}
+                onDelete={() => setShowDeleteConfirm(true)}
+            />
 
             <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                 {loading ? (
@@ -279,152 +184,27 @@ export default function OrdersManagement() {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {pagedOrders.map((order) => (
-                                    <tr
+                                    <OrderRow
                                         key={order._id}
-                                        onClick={() => navigate(`/ordersmanagement/${order._id}`)}
-                                        className={`hover:bg-gray-50/50 transition-colors group cursor-pointer ${
-                                            isDeliveryOrder(order) ? "bg-blue-50/70 border-r-4 border-r-blue-500" : ""
-                                        }`}
-                                    >
-                                        <td className="p-5">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedIds.includes(order._id)}
-                                                onChange={() => toggleSelect(order._id)}
-                                                onClick={(e) => e.stopPropagation()}
-                                                aria-label={`בחירת הזמנה ${shortOrderId(order._id)}`}
-                                            />
-                                        </td>
-                                        <td className="p-5">
-                                            <span className="font-mono text-sm font-bold text-gray-700" title={order._id}>
-                                                #{shortOrderId(order._id)}
-                                            </span>
-                                        </td>
-                                        <td className="p-5">
-                                            <div className="text-sm text-gray-800 font-medium">
-                                                {getCustomerName(order)}
-                                            </div>
-                                            {order.customer?.phone && (
-                                                <div className="text-xs text-gray-500 mt-0.5" dir="ltr">
-                                                    {order.customer.phone}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="p-5 whitespace-nowrap">
-                                            {isDeliveryOrder(order) ? (
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 inline-flex items-center gap-1.5 whitespace-nowrap">
-                                                    <FaShippingFast /> משלוח
-                                                </span>
-                                            ) : (
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1.5 whitespace-nowrap">
-                                                    <FaStore /> איסוף עצמי
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="p-5">
-                                            <div className="text-sm text-gray-600">
-                                                {order.items.length === 1
-                                                    ? order.items[0].name
-                                                    : `${order.items[0].name} (+${order.items.length - 1} נוספים)`
-                                                }
-                                            </div>
-                                        </td>
-                                        <td className="p-5 text-sm text-gray-600">
-                                            {formatOrderDate(order.date_created)}
-                                        </td>
-                                        <td className="p-5 font-bold text-[#f2665e]">
-                                            ₪{order.total_price.toFixed(2)}
-                                        </td>
-                                        <td className="p-5">
-                                            {getStatusBadge(order.status)}
-                                            {order.payment?.status === 'review' && (
-                                                <span className="mt-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 w-fit block">חיוב לבדיקה</span>
-                                            )}
-                                        </td>
-                                        <td className="p-5 text-center">
-                                            <div className="flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(`/ordersmanagement/${order._id}`);
-                                                    }}
-                                                    className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                                    title="צפה בפרטים"
-                                                >
-                                                    <FaEye />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setStatusEditOrder(order);
-                                                    }}
-                                                    className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                                    title="ערוך סטטוס"
-                                                >
-                                                    <FaEdit />
-                                                </button>
-                                                {order.drive?.folderUrl && (
-                                                    <a
-                                                        href={order.drive.folderUrl}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 no-underline"
-                                                        title="תיקיית העיצובים ב-Google Drive"
-                                                    >
-                                                        <FaGoogleDrive />
-                                                    </a>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
+                                        order={order}
+                                        selected={selectedIds.includes(order._id)}
+                                        onToggleSelect={() => toggleSelect(order._id)}
+                                        onOpen={() => openOrder(order._id)}
+                                        onEditStatus={() => setStatusEditOrder(order)}
+                                    />
                                 ))}
                             </tbody>
                         </table>
                     </div>
                 )}
 
-                <div className="p-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500">
-                    <span>
-                        מציג {pagedOrders.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}
-                        –{(safePage - 1) * PAGE_SIZE + pagedOrders.length}
-                        {" "}מתוך {filteredOrders.length} הזמנות
-                    </span>
-                    <div className="flex gap-1 items-center">
-                        <button
-                            type="button"
-                            className="px-3 py-1 rounded bg-white border hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white"
-                            disabled={safePage <= 1}
-                            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                        >
-                            &lt;
-                        </button>
-                        {getPageNumbers().map((page) => (
-                            <button
-                                key={page}
-                                type="button"
-                                onClick={() => setCurrentPage(page)}
-                                className={`px-3 py-1 rounded border ${
-                                    page === safePage
-                                        ? "bg-[#f2665e] text-white shadow border-[#f2665e]"
-                                        : "bg-white hover:bg-gray-100"
-                                }`}
-                            >
-                                {page}
-                            </button>
-                        ))}
-                        <button
-                            type="button"
-                            className="px-3 py-1 rounded bg-white border hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-white"
-                            disabled={safePage >= totalPages}
-                            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                        >
-                            &gt;
-                        </button>
-                    </div>
-                </div>
+                <OrdersPagination
+                    page={safePage}
+                    totalPages={totalPages}
+                    shownCount={pagedOrders.length}
+                    totalCount={filteredOrders.length}
+                    onPage={setCurrentPage}
+                />
             </div>
 
             {statusEditOrder && (
@@ -436,39 +216,12 @@ export default function OrdersManagement() {
                 />
             )}
             {showDeleteConfirm && (
-                <div
-                    className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                    onClick={() => !deleting && setShowDeleteConfirm(false)}
-                >
-                    <div
-                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h2 className="text-lg font-bold text-gray-800 mb-2">אישור מחיקה</h2>
-                        <p className="text-gray-600 text-sm leading-relaxed">
-                            האם אתה בטוח שברצונך למחוק {selectedIds.length} הזמנות שנבחרו? פעולה זו אינה הפיכה
-                        </p>
-                        <div className="mt-6 flex gap-3 justify-end">
-                            <button
-                                type="button"
-                                disabled={deleting}
-                                onClick={() => setShowDeleteConfirm(false)}
-                                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 disabled:opacity-50"
-                            >
-                                ביטול
-                            </button>
-                            <button
-                                type="button"
-                                disabled={deleting}
-                                onClick={handleDeleteSelected}
-                                className="px-4 py-2 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <FaTrash size={12} />
-                                {deleting ? "מוחק..." : "מחק הזמנות"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <DeleteOrdersModal
+                    count={selectedIds.length}
+                    deleting={deleting}
+                    onConfirm={handleDeleteSelected}
+                    onClose={() => setShowDeleteConfirm(false)}
+                />
             )}
         </div>
     );
