@@ -206,57 +206,69 @@ export function createCaptionTextElement(dims, captionDefaults = {}) {
 
 const DEFAULT_TEXT_CONTENT = 'טקסט ניתן לעריכה';
 
-/** Cleans up broken drafts and returns a single text box in the center */
+const MIN_TEXT_WIDTH = 40;
+const MIN_TEXT_HEIGHT = 24;
+
+const isTextBox = (el) => el.type === 'text' && el.role !== 'caption';
+/** A text box the customer wrote in (not the placeholder, not empty) */
+const isWrittenText = (el) => typeof el.content === 'string'
+    && el.content.trim().length >= 2
+    && el.content !== DEFAULT_TEXT_CONTENT;
+
+/**
+ * A text box with usable size and position. The untouched placeholder gets the default size,
+ * centered in the safe zone; a written text keeps its own size and place (unless too small to see).
+ */
+function normalizeTextBox(el, dims) {
+    const defaults = getDefaultTextBoxMetrics(dims);
+    if (!isWrittenText(el)) {
+        const position = centerInSafeZone(defaults.width, defaults.height, dims);
+        return {
+            ...el,
+            type: 'text',
+            content: DEFAULT_TEXT_CONTENT,
+            width: defaults.width,
+            height: defaults.height,
+            fontSize: defaults.fontSize,
+            left: position.left,
+            top: position.top,
+            locked: false,
+        };
+    }
+    return {
+        ...el,
+        type: 'text',
+        width: Number(el.width) > MIN_TEXT_WIDTH ? Number(el.width) : defaults.width,
+        height: Number(el.height) > MIN_TEXT_HEIGHT ? Number(el.height) : defaults.height,
+        fontSize: el.fontSize ?? defaults.fontSize,
+        left: el.left ?? 0,
+        top: el.top ?? 0,
+        locked: false,
+    };
+}
+
+/**
+ * Cleans up a saved or loaded design, keeping the elements in their layer order:
+ * - every text box the customer wrote in is kept;
+ * - placeholder text boxes ("טקסט ניתן לעריכה") are reduced to one, and only when nothing was written;
+ * - a design with no text box gets the placeholder (at the back);
+ * - captions and all other elements are kept as they are.
+ */
 export function normalizeEditorElements(elements, dims) {
     if (!Array.isArray(elements) || elements.length === 0) {
         return [createDefaultTextElement(dims)];
     }
 
-    const nonText = elements.filter((el) => el.type !== 'text');
-    // Captions are part of the final design, so they are not merged into a single text box
-    const captions = elements.filter((el) => el.type === 'text' && el.role === 'caption');
-    let textElements = elements.filter((el) => el.type === 'text' && el.role !== 'caption');
-
-    if (textElements.length === 0) {
-        return [createDefaultTextElement(dims), ...nonText, ...captions];
+    const textBoxes = elements.filter(isTextBox);
+    if (textBoxes.length === 0) {
+        return [createDefaultTextElement(dims), ...elements];
     }
 
-    if (textElements.length > 1) {
-        const customized = textElements.filter((el) => el.content && el.content !== DEFAULT_TEXT_CONTENT);
-        textElements = customized.length > 0 ? [customized[0]] : [textElements[0]];
-    }
-
-    const primary = textElements[0];
-    const defaults = getDefaultTextBoxMetrics(dims);
-    const hasUsableContent = typeof primary.content === 'string' && primary.content.trim().length >= 2;
-    const content = hasUsableContent ? primary.content : DEFAULT_TEXT_CONTENT;
-    const isDefaultContent = content === DEFAULT_TEXT_CONTENT;
-    const width = isDefaultContent
-        ? defaults.width
-        : (Number(primary.width) > 40 ? Number(primary.width) : defaults.width);
-    const height = isDefaultContent
-        ? defaults.height
-        : (Number(primary.height) > 24 ? Number(primary.height) : defaults.height);
-    const fontSize = isDefaultContent
-        ? defaults.fontSize
-        : (primary.fontSize ?? defaults.fontSize);
-    const position = isDefaultContent
-        ? centerInSafeZone(width, height, dims)
-        : { left: primary.left ?? 0, top: primary.top ?? 0 };
-
-    const normalizedText = {
-        ...primary,
-        type: 'text',
-        content,
-        width,
-        height,
-        fontSize,
-        left: position.left,
-        top: position.top,
-        locked: false,
-    };
-
-    return [normalizedText, ...nonText, ...captions];
+    const hasWrittenText = textBoxes.some(isWrittenText);
+    const keptPlaceholder = hasWrittenText ? null : textBoxes[0];
+    return elements
+        .filter((el) => !isTextBox(el) || isWrittenText(el) || el === keptPlaceholder)
+        .map((el) => (isTextBox(el) ? normalizeTextBox(el, dims) : el));
 }
 
 /** Fits the image box dimensions to the original aspect ratio (object-fit: contain) */

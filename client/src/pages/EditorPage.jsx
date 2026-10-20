@@ -89,6 +89,7 @@ const EditorPage = ({ onNavigateToHome }) => {
         activeFrameAspectRatio,
         setActiveFrameAspectRatio: layout.setActiveFrameAspectRatio,
         orientationFlipped,
+        setOrientationFlipped: layout.setOrientationFlipped,
         isPerCopyMode,
         design: { elements, canvasBackground, projectName, frameSelection },
         resetHistory,
