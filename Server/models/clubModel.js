@@ -24,6 +24,15 @@ let clubSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    /**
+     * What the gift code gives: "join-gift" = the join gift product (shop settings), "none" = nothing.
+     * Empty = a member from before the join gift, whose code still gives 15% off the order.
+     */
+    giftType: {
+        type: String,
+        enum: ["join-gift", "none"],
+        required: false
+    },
     isUsed: {
         type: Boolean,
         default: false

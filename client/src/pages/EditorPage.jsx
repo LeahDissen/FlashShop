@@ -1,6 +1,8 @@
 import { toPng } from 'html-to-image';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { applyShapeMask } from '../utils/productShapes';
+import { uploadFilesInParallel } from '../utils/uploadQueue';
 import { getProductById } from '../api/products';
 import {
     getCanvasDimensions,
@@ -100,6 +102,9 @@ const resolveDraftProductKey = (product, fallbackProductId) =>
 const EditorPage = ({ onNavigateToHome }) => {
     const { productId } = useParams();
     const location = useLocation();
+    // A separate design for each copy (chosen on the product page); the copies' block is further down
+    const isPerCopyMode = Boolean(location.state?.perCopy);
+    const navigate = useNavigate();
 
     // Get the selected product from the products store
     const { selectedProduct, setSelectedProduct, orderQuantity } = useProductStore();
@@ -266,6 +271,9 @@ const EditorPage = ({ onNavigateToHome }) => {
     }, []);
 
     useEffect(() => {
+        // Until the saved draft of this product was loaded, saving would overwrite it with the empty canvas.
+        // A design per copy is saved separately (per-copy block below), so the regular draft is left as it was.
+        if (!canvasAppliedKeyRef.current || isPerCopyMode) return;
         const savedElements = safeStorageSetItem(draftStorage.elements, JSON.stringify(elements));
         safeStorageSetItem(draftStorage.background, JSON.stringify(canvasBackground));
         safeStorageSetItem(draftStorage.projectName, projectName);
@@ -279,10 +287,13 @@ const EditorPage = ({ onNavigateToHome }) => {
             storageWarningShownRef.current = true;
             alert('נפח האחסון המקומי מלא. השינויים ימשיכו לעבוד, אבל לא יישמרו מקומית עד לניקוי אחסון בדפדפן.');
         }
-    }, [elements, canvasBackground, projectName, frameSelection, draftStorage]);
+    }, [elements, canvasBackground, projectName, frameSelection, draftStorage, isPerCopyMode]);
 
     // Fit the workspace to the print dimensions of the selected product
     useEffect(() => {
+        // Before the product arrives this would apply an empty "no-product" canvas, and the autosave
+        // (which already uses the product id from the URL) would overwrite the product's saved draft
+        if (!selectedProduct) return;
         const storageKey = getCanvasStorageKey(
             selectedProduct,
             canvasDimensions,
@@ -459,7 +470,8 @@ const EditorPage = ({ onNavigateToHome }) => {
     };
 
     /** Snapshot of the design canvas – without an AI mockup (shows exactly what you designed) */
-    const captureCanvasImage = useCallback(async (pixelRatioOverride) => {
+    /** background: the design's background when capturing a design other than the one in state (a copy) */
+    const captureCanvasImage = useCallback(async (pixelRatioOverride, background = canvasBackground) => {
         const node = document.getElementById('canvas-container');
         if (!node) return null;
 
@@ -473,26 +485,29 @@ const EditorPage = ({ onNavigateToHome }) => {
         const pixelRatio = pixelRatioOverride ?? getPrintExportPixelRatio(canvasDimensions);
 
         try {
-            return await toPng(node, {
+            const png = await toPng(node, {
                 quality: 1,
                 pixelRatio,
                 filter: (n) =>
                     !n.classList?.contains('canvas-grid-overlay')
-                    && !n.classList?.contains('canvas-safe-zone-overlay'),
-                backgroundColor: canvasBackground.type === 'color' ? canvasBackground.value : undefined,
+                    && !n.classList?.contains('canvas-safe-zone-overlay')
+                    && !n.classList?.contains('canvas-shape-outline'),
+                backgroundColor: background?.type === 'color' ? background.value : undefined,
                 style: { transform: 'scale(1)', outline: 'none', outlineOffset: 0 },
                 cacheBust: true,
             });
+            // Shaped product: the print file is transparent outside the shape
+            return await applyShapeMask(png, selectedProduct?.shape);
         } finally {
             if (previousZoom !== 100) {
                 setZoom(previousZoom);
             }
         }
-    }, [canvasBackground, zoom, canvasDimensions]);
+    }, [canvasBackground, zoom, canvasDimensions, selectedProduct?.shape]);
 
     /** 1.3 – the list of captions saved with the order for production */
-    const collectCaptions = useCallback(() => (
-        elements
+    const collectCaptions = useCallback((fromElements = elements) => (
+        fromElements
             .filter((el) => el.type === 'text' && el.content?.trim())
             .map((el) => ({
                 content: el.content,
@@ -1081,7 +1096,7 @@ const EditorPage = ({ onNavigateToHome }) => {
         setOrientationNotice({ elementId, imageOrientation, targetOrientation });
     }, [elements, canvasDimensions]);
 
-    const addImageElement = useCallback((src, width, height, naturalWidth, naturalHeight) => {
+    const addImageElement = useCallback((src, width, height, naturalWidth, naturalHeight, { atBack = false } = {}) => {
         const { left, top } = centerPosition(
             width,
             height,
@@ -1108,12 +1123,48 @@ const EditorPage = ({ onNavigateToHome }) => {
             sepia: 0,
             blur: 0,
         };
-        const newElements = enforceLayerOrder(insertBelowGlobalFrame(elements, newElement));
+        const inserted = insertBelowGlobalFrame(elements, newElement);
+        // A base photo goes under the existing elements (e.g. the default text) instead of covering them
+        const newElements = enforceLayerOrder(atBack ? moveElementToEdge(inserted, newElement.id, 'back') : inserted);
         updateElementsWithHistory(newElements);
         setSelectedElementId(newElement.id);
         setUploadedImages(prev => prev.includes(src) ? prev : [...prev, src]);
         detectOrientationMismatch(newElement.id, naturalWidth, naturalHeight);
     }, [elements, updateElementsWithHistory, canvasDimensions, detectOrientationMismatch]);
+
+    // A photo the customer uploaded on the product page before choosing "עיצוב עצמי" is placed on the canvas,
+    // fitted inside it, so she designs around it instead of uploading it again.
+    const initialImageRef = useRef(location.state?.initialImage || null);
+    const [pendingInitialImage, setPendingInitialImage] = useState(null);
+
+    useEffect(() => {
+        const src = initialImageRef.current;
+        if (!src || !selectedProduct || !canvasDimensions.width || !canvasDimensions.height) return;
+        initialImageRef.current = null;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            const scale = Math.min(canvasDimensions.width / img.naturalWidth, canvasDimensions.height / img.naturalHeight);
+            setPendingInitialImage({
+                src,
+                width: img.naturalWidth * scale,
+                height: img.naturalHeight * scale,
+                naturalWidth: img.naturalWidth,
+                naturalHeight: img.naturalHeight,
+            });
+        };
+        img.src = src;
+    }, [selectedProduct, canvasDimensions.width, canvasDimensions.height]);
+
+    // Added in its own render, after the draft was restored, so it is not overwritten
+    useEffect(() => {
+        if (!pendingInitialImage) return;
+        const { src, width, height, naturalWidth, naturalHeight } = pendingInitialImage;
+        setPendingInitialImage(null);
+        addImageElement(src, width, height, naturalWidth, naturalHeight, { atBack: true });
+        // Off the history entry, so a refresh (which restores the draft) does not add it a second time
+        navigate(location.pathname, { replace: true, state: { ...location.state, initialImage: undefined } });
+    }, [pendingInitialImage, addImageElement, navigate, location.pathname, location.state]);
 
     const addImageToDropzone = useCallback((dropzoneId, src, naturalWidth, naturalHeight) => {
         const frame = getActiveGlobalFrame(elements);
@@ -1369,6 +1420,137 @@ const EditorPage = ({ onNavigateToHome }) => {
         setCroppingElementId(null);
     }, []);
 
+    // --- A separate design for each copy (quantity > 1, chosen on the product page) ---
+    const perCopyCount = isPerCopyMode ? Math.max(2, Number(location.state?.quantity) || orderQuantity || 2) : 0;
+    const copiesStorageKey = `${ACTIVE_ELEMENTS_STORAGE_PREFIX}_copies_${draftProductKey}`;
+    const [copyDesigns, setCopyDesigns] = useState(() => {
+        if (!perCopyCount) return [];
+        return safeJsonParse(localStorage.getItem(copiesStorageKey), []) || [];
+    });
+    const [activeCopy, setActiveCopy] = useState(0);
+    const [copyPreviews, setCopyPreviews] = useState(null);
+
+    // After the product's draft was restored, the copy being edited comes from the saved copies
+    const copiesLoadedRef = useRef(false);
+    useEffect(() => {
+        if (!perCopyCount || copiesLoadedRef.current || !canvasAppliedKeyRef.current) return;
+        copiesLoadedRef.current = true;
+        const saved = copyDesigns[activeCopy];
+        if (saved?.elements?.length) {
+            setElements(saved.elements);
+            setCanvasBackground(saved.canvasBackground || { type: 'color', value: '#FFFFFF' });
+            setHistory([saved.elements]);
+            setHistoryIndex(0);
+        }
+    });
+
+    const blankCopy = useCallback(() => ({
+        elements: [createDefaultTextElement(canvasDimensions)],
+        canvasBackground: { type: 'color', value: '#FFFFFF' },
+    }), [canvasDimensions]);
+
+    /** All copies, with the one on the canvas taken from the canvas itself */
+    const currentCopyDesigns = useCallback(() => {
+        const designs = Array.from({ length: perCopyCount }, (_, i) => copyDesigns[i] || null);
+        designs[activeCopy] = { elements, canvasBackground };
+        return designs;
+    }, [perCopyCount, copyDesigns, activeCopy, elements, canvasBackground]);
+
+    // Each copy's design is kept across refreshes, like the single design's draft
+    useEffect(() => {
+        if (!perCopyCount || !canvasAppliedKeyRef.current) return;
+        safeStorageSetItem(copiesStorageKey, JSON.stringify(currentCopyDesigns()));
+    }, [perCopyCount, copiesStorageKey, currentCopyDesigns]);
+
+    const loadDesignOnCanvas = useCallback((design) => {
+        setElements(design.elements);
+        setCanvasBackground(design.canvasBackground);
+        setHistory([design.elements]);
+        setHistoryIndex(0);
+        setSelectedElementId(null);
+    }, []);
+
+    const switchCopy = useCallback((next) => {
+        if (next === activeCopy) return;
+        const designs = currentCopyDesigns();
+        setCopyDesigns(designs);
+        setActiveCopy(next);
+        loadDesignOnCanvas(designs[next] || blankCopy());
+    }, [activeCopy, currentCopyDesigns, loadDesignOnCanvas, blankCopy]);
+
+    /** Renders every copy on the canvas in turn and captures it; the canvas returns to the copy being edited */
+    const captureAllCopies = useCallback(async (pixelRatio) => {
+        const designs = currentCopyDesigns();
+        const images = [];
+        try {
+            for (let i = 0; i < designs.length; i += 1) {
+                const design = designs[i] || blankCopy();
+                loadDesignOnCanvas(design);
+                await new Promise((resolve) => setTimeout(resolve, 150));
+                images.push(await captureCanvasImage(pixelRatio, design.canvasBackground));
+            }
+        } finally {
+            setCopyDesigns(designs);
+            loadDesignOnCanvas(designs[activeCopy] || blankCopy());
+        }
+        return images;
+    }, [currentCopyDesigns, loadDesignOnCanvas, blankCopy, captureCanvasImage, activeCopy]);
+
+    const handlePreviewCopies = useCallback(async () => {
+        setIsPreviewLoading(true);
+        try {
+            setCopyPreviews(await captureAllCopies(1));
+        } catch (error) {
+            console.error('Copies preview failed', error);
+            alert('אירעה שגיאה ביצירת התצוגה המקדימה. אנא נסה שוב.');
+        } finally {
+            setIsPreviewLoading(false);
+        }
+    }, [captureAllCopies]);
+
+    /** One cart line, quantity = copies, with each copy's print file uploaded */
+    const handleConfirmCopies = useCallback(async () => {
+        setIsSaving(true);
+        try {
+            const designs = currentCopyDesigns();
+            const printImages = await captureAllCopies();
+            const files = await Promise.all(printImages.map(async (dataUrl, i) => {
+                const blob = await (await fetch(dataUrl)).blob();
+                return new File([blob], `copy-${i + 1}.png`, { type: 'image/png' });
+            }));
+            // A few uploads at a time, with retries; one failed copy fails the whole order line
+            const { uploaded, failed } = await uploadFilesInParallel(files);
+            if (failed.length) throw failed[0].error;
+            const copies = uploaded.map(({ url }) => ({ image: url }));
+            const product = typeof selectedProduct === 'object' ? selectedProduct : null;
+            const unitPrice = product ? getUnitPriceForQuantity(product, perCopyCount) : 0;
+            const cartItem = withTieredPricingFields({
+                id: `cart_${Date.now()}`,
+                productId: product?._id || product?.id || 'custom_product',
+                name: `${product?.name || 'מוצר'} בעיצוב אישי (עיצוב לכל עותק)`,
+                price: unitPrice,
+                image: copies[0]?.image || product?.image,
+                quantity: perCopyCount,
+                size: product?.size,
+                customDesign: {
+                    projectName,
+                    copies,
+                    captions: collectCaptions(designs.flatMap((design) => design?.elements || [])),
+                    printSizeCm: { width: canvasDimensions.widthCm, height: canvasDimensions.heightCm },
+                },
+            }, product);
+            await addToCart([cartItem], { successMessage: `${perCopyCount} העיצובים נוספו לסל הקניות!` });
+            setCopyPreviews(null);
+            localStorage.removeItem(copiesStorageKey);
+            if (onNavigateToHome) onNavigateToHome();
+        } catch (error) {
+            console.error('Failed to order copies', error);
+            alert('אירעה שגיאה בעיבוד ההזמנה, אנא נסה שנית.');
+        } finally {
+            setIsSaving(false);
+        }
+    }, [captureAllCopies, currentCopyDesigns, selectedProduct, perCopyCount, projectName, collectCaptions, canvasDimensions, addToCart, copiesStorageKey, onNavigateToHome]);
+
     const handlePreview = useCallback(async () => {
         setIsPreviewLoading(true);
         setPreviewImage(null);
@@ -1395,7 +1577,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                 onExit={onNavigateToHome}
                 projectName={projectName}
                 onProjectNameChange={setProjectName}
-                onPreview={handlePreview}
+                onPreview={perCopyCount ? handlePreviewCopies : handlePreview}
                 isPreviewLoading={isPreviewLoading}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
@@ -1406,6 +1588,31 @@ const EditorPage = ({ onNavigateToHome }) => {
                 productLabel={selectedProduct?.name || null}
                 printSizeLabel={printSizeLabel}
             />
+            {perCopyCount > 0 && (
+                <div className="shrink-0 bg-[#fff5f4] border-b border-[#f2665e]/20 px-3 py-2 flex items-center gap-2 overflow-x-auto" dir="rtl">
+                    <span className="text-xs font-bold text-[#a83232] whitespace-nowrap">עיצוב לכל עותק:</span>
+                    {Array.from({ length: perCopyCount }, (_, i) => {
+                        const designed = i === activeCopy || Boolean(copyDesigns[i]);
+                        return (
+                            <button
+                                key={i}
+                                type="button"
+                                onClick={() => switchCopy(i)}
+                                aria-pressed={i === activeCopy}
+                                className={`whitespace-nowrap text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${
+                                    i === activeCopy
+                                        ? 'bg-[#f2665e] text-white border-[#f2665e]'
+                                        : 'bg-white text-[#f2665e] border-[#f2665e]/40 hover:bg-[#ffeae8]'
+                                }`}
+                            >
+                                עותק {i + 1}{designed && i !== activeCopy ? ' ✓' : ''}
+                            </button>
+                        );
+                    })}
+                    <span className="text-[11px] text-gray-500 whitespace-nowrap mr-auto">בסיום לוחצים &quot;המשך&quot; לצפייה בכל העיצובים</span>
+                </div>
+            )}
+
 
             <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
                 <div className="order-1 md:order-2 flex-1 min-h-0 min-w-0 relative overflow-hidden flex flex-col">
@@ -1425,6 +1632,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                         </div>
                     )}
                     <Canvas
+                    shape={selectedProduct?.shape}
                     elements={elements}
                     selectedElementId={selectedElementId}
                     setSelectedElementId={setSelectedElementId}
@@ -1572,6 +1780,31 @@ const EditorPage = ({ onNavigateToHome }) => {
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {copyPreviews && (
+                <div className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center p-4" dir="rtl" role="dialog" aria-modal="true" aria-label="כל העיצובים">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        <div className="px-5 py-4 border-b flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-gray-800">כל העיצובים ({copyPreviews.length} עותקים)</h2>
+                            <button type="button" onClick={() => setCopyPreviews(null)} className="text-gray-400 hover:text-gray-700 text-xl" aria-label="סגירה">×</button>
+                        </div>
+                        <div className="p-5 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {copyPreviews.map((src, i) => (
+                                <button key={i} type="button" onClick={() => { setCopyPreviews(null); switchCopy(i); }} className="text-right group">
+                                    <img src={src} alt={`עותק ${i + 1}`} className="w-full rounded-lg border bg-gray-50 group-hover:ring-2 ring-[#f2665e]" />
+                                    <span className="block text-xs text-gray-600 mt-1">עותק {i + 1} · לחיצה לעריכה</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="px-5 py-4 border-t flex gap-3 justify-end">
+                            <button type="button" onClick={() => setCopyPreviews(null)} className="px-5 py-2 rounded-full text-sm text-gray-700 hover:bg-gray-100">חזרה לעריכה</button>
+                            <button type="button" onClick={handleConfirmCopies} disabled={isSaving} className="px-6 py-2 rounded-full bg-[#f2665e] text-white font-bold text-sm hover:bg-[#d95248] disabled:opacity-60">
+                                {isSaving ? 'מכין את העיצובים...' : `אישור והוספת ${copyPreviews.length} עותקים לסל`}
+                            </button>
                         </div>
                     </div>
                 </div>

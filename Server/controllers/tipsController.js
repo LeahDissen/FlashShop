@@ -56,3 +56,47 @@ exports.updateTip = async (req, res) => {
     res.status(500).json({ msg: "There was an error, try again later", err });
   }
 };
+
+const MAX_IMPORTED_TIPS = 60;
+const isHttpsUrl = (value) => {
+  try { return new URL(value).protocol === "https:"; } catch { return false; }
+};
+const cleanText = (value, max) => String(value || "").trim().slice(0, max);
+
+/**
+ * Saves the tips the admin approved from a Word document, in the document's order:
+ * the first tip gets the newest date, so it shows first like on the tips page.
+ */
+exports.importTips = async (req, res) => {
+  try {
+    const tips = Array.isArray(req.body?.tips) ? req.body.tips.slice(0, MAX_IMPORTED_TIPS) : [];
+    const docs = [];
+    for (const tip of tips) {
+      const title = cleanText(tip.title, 200);
+      const content = cleanText(tip.content, 20000);
+      const images = (Array.isArray(tip.images) ? tip.images : []).filter(isHttpsUrl).slice(0, 12);
+      if (!title || !content || !images.length) {
+        return res.status(400).json({ msg: `לכל טיפ צריך כותרת, טקסט ולפחות תמונה אחת ("${title || "ללא כותרת"}")` });
+      }
+      docs.push({
+        title,
+        content,
+        summary: cleanText(tip.summary, 300) || content.replace(/\s+/g, " ").slice(0, 150),
+        img: images[0],
+        images: images.slice(1),
+      });
+    }
+    if (!docs.length) {
+      return res.status(400).json({ msg: "לא התקבלו טיפים לשמירה" });
+    }
+    const now = Date.now();
+    const saved = await TipsModel.insertMany(
+      docs.map((doc, index) => ({ ...doc, createdAt: new Date(now - index * 1000), updatedAt: new Date(now) })),
+      { timestamps: false },
+    );
+    res.status(201).json({ count: saved.length, tips: saved });
+  } catch (err) {
+    console.error("import tips error:", err.message);
+    res.status(500).json({ msg: "שגיאה בשמירת הטיפים" });
+  }
+};

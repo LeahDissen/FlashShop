@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore';
 import { XIcon } from './icons';
 import QuantityInput from './QuantityInput';
+import { hasDesignPerCopy } from '../utils/cartItem';
 
 export default function MiniCart({ onClose }) {
     const navigate = useNavigate();
@@ -48,12 +49,16 @@ export default function MiniCart({ onClose }) {
                                     {item.name}
                                 </h4>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <QuantityInput
-                                        quantity={item.quantity}
-                                        onQuantityChange={(qty) => setItemQuantity(item.id, qty)}
-                                        variant="compact"
-                                        stopPropagation
-                                    />
+                                    {hasDesignPerCopy(item) ? (
+                                        <span className="text-xs text-gray-600">{item.quantity} עותקים</span>
+                                    ) : (
+                                        <QuantityInput
+                                            quantity={item.quantity}
+                                            onQuantityChange={(qty) => setItemQuantity(item.id, qty)}
+                                            variant="compact"
+                                            stopPropagation
+                                        />
+                                    )}
                                     {item.size && <span className="text-xs text-gray-500">{item.size}</span>}
                                 </div>
                             </div>

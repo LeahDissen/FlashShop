@@ -6,14 +6,14 @@ import { getPrintsBySize, getPhotoUnitPrice, normalizeSize } from '../utils/phot
 import useAuthStore from './authStore';
 import useToastStore from './toastStore';
 import { prepareCartDisplayImage } from '../utils/cartThumbnail';
-import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart, mergeGuestCart } from '../utils/cartItem';
+import { normalizeCartItem, assignCartLineIds, applyQuantityToCartItem, compactCustomDesignForCart, hasDesignPerCopy, mergeGuestCart } from '../utils/cartItem';
 
 export const CART_ADDED_MESSAGE = 'המוצר נוסף לסל בהצלחה!';
 
 /** Owner of a cart saved before carts tracked their owner: unknown, so it is never merged into an account */
 const UNKNOWN_OWNER = 'unknown';
 
-const isPhotoPrint = (item) => item?.itemType === 'photo-print';
+export const isPhotoPrint = (item) => item?.itemType === 'photo-print';
 
 /**
  * Photo prices depend on how many prints of each size are in the cart, so after merging two carts
@@ -145,13 +145,26 @@ export const useCartStore = create(
           });
       },
 
+      /** Removes every cart line the predicate matches (e.g. all photo prints at once) */
+      removeItemsWhere: (predicate) => {
+          set((state) => {
+              const updatedCart = state.cartItems.filter((item) => !predicate(item));
+              if (updatedCart.length === state.cartItems.length) return state;
+              const userId = useAuthStore.getState().userId;
+              if (userId) {
+                  saveCartToDB(userId, updatedCart);
+              }
+              return { cartItems: updatedCart };
+          });
+      },
+
       updateItemQuantity: (itemId, delta) => {
           if (!itemId) return;
 
           set((state) => {
               const updatedCart = state.cartItems
                   .map((item) => {
-                      if (item.id !== itemId) return item;
+                      if (item.id !== itemId || hasDesignPerCopy(item)) return item;
                       const newQty = item.quantity + delta;
                       if (newQty < 1) return null;
                       return applyQuantityToCartItem(item, newQty);
@@ -173,7 +186,7 @@ export const useCartStore = create(
 
           set((state) => {
               const updatedCart = state.cartItems.map((item) =>
-                  item.id === itemId ? applyQuantityToCartItem(item, qty) : item,
+                  item.id === itemId && !hasDesignPerCopy(item) ? applyQuantityToCartItem(item, qty) : item,
               );
 
               const userId = useAuthStore.getState().userId;

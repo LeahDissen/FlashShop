@@ -16,7 +16,8 @@ const toQuery = (params) => Object.entries(params)
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
     .join("&");
 
-const readCode = (responseText) => new URLSearchParams(String(responseText)).get("CCode");
+// Hyp ends its answers with a newline ("CCode=0\n"), so the text is trimmed before reading the code
+const readCode = (responseText) => new URLSearchParams(String(responseText).trim()).get("CCode");
 
 const splitName = (fullName = "") => {
     const [first, ...rest] = String(fullName).trim().split(/\s+/);
@@ -42,6 +43,9 @@ exports.createPaymentUrl = async (order) => {
         email: order.customer?.email,
         cell: String(order.customer?.phone || "").replace(/\D/g, ""),
         PageLang: "HEB",
+        // Values are sent as UTF-8; without this the payment page (windows-1255) shows Hebrew as gibberish
+        UTF8: "True",
+        UTF8out: "True",
     });
 
     const { data } = await axios.get(`${HYP_URL}?${query}`, { timeout: REQUEST_TIMEOUT_MS, responseType: "text" });

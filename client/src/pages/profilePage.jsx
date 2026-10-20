@@ -39,6 +39,8 @@ export default function ProfilePage() {
             shipped: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'נשלח', icon: <FaTruck /> },
             delivered: { bg: 'bg-green-100', text: 'text-green-700', label: 'נמסר', icon: <FaCheckCircle /> },
             cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'בוטל', icon: <FaCheckCircle /> },
+            // Charged, verification by the shop pending
+            awaiting_payment: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'התשלום בבדיקה', icon: <FaClock /> },
         };
         const s = styles[status] || styles.pending;
         

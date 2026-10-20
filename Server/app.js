@@ -5,6 +5,8 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const express = require("express");
 
+const { startPhotoRetentionSchedule } = require("./services/photoRetentionService");
+const { migrateSalesToMemberDiscounts } = require("./services/memberSaleMigration");
 const authRoutes = require("./routes/authRoutes");
 const clubRoutes = require("./routes/clubRoutes");
 const contactRoutes = require("./routes/contactRoutes");
@@ -71,4 +73,6 @@ app.use("/popups", popupsRoutes);
 
 app.listen(PORT, HOST, () => {
   console.log(`Server running on http://${HOST}:${PORT}`);
+  startPhotoRetentionSchedule();
+  migrateSalesToMemberDiscounts().catch((err) => console.error("Member sales migration failed:", err.message));
 });

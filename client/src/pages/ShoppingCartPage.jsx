@@ -6,12 +6,13 @@ import { getProducts } from "../api/products";
 import { saveCheckoutDraft } from "../utils/checkoutDraft";
 import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
+import CartPhotoGroup from "../components/CartPhotoGroup";
 import CartCheckoutBar from "../components/CartCheckoutBar";
 import SmartImageInput from "../components/SmartImageInput";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
 import useAuthStore from "../store/authStore";
-import { useCartStore } from "../store/cartStore";
+import { isPhotoPrint, useCartStore } from "../store/cartStore";
 import { assignCartLineIds, withTieredPricingFields } from "../utils/cartItem";
 import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
@@ -35,6 +36,11 @@ function normalizeRecommendedTitle(value) {
 
 export default function ShoppingCartPage() {
   const cartItems = useCartStore((state) => state.cartItems);
+  const removeItemsWhere = useCartStore((state) => state.removeItemsWhere);
+  const [couponOpen, setCouponOpen] = useState(false);
+  // Photo prints are one grouped line; everything else is listed as before
+  const photoItems = cartItems.filter(isPhotoPrint);
+  const otherItems = cartItems.filter((item) => !isPhotoPrint(item));
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const setItemQuantity = useCartStore((state) => state.setItemQuantity);
   const addToCart = useCartStore((state) => state.addToCart);
@@ -208,7 +214,15 @@ export default function ShoppingCartPage() {
                   <div className="col-span-3 text-center">כמות</div>
                   <div className="col-span-3 text-center">מחיר</div>
                 </div>
-                {cartItems.map((item) => (
+                {photoItems.length > 0 && (
+                  <CartPhotoGroup
+                    items={photoItems}
+                    onRemove={handleRemoveItem}
+                    onRemoveAll={() => removeItemsWhere(isPhotoPrint)}
+                    onSetQuantity={handleSetQuantity}
+                  />
+                )}
+                {otherItems.map((item) => (
                   <CartItem
                     key={item.id}
                     item={item}
@@ -218,8 +232,9 @@ export default function ShoppingCartPage() {
                 ))}
               </div>
 
-              {/* Order summary and payment bar */}
-              <div className="max-w-2xl mx-auto pt-2">
+              {/* Order summary and payment bar – stays on screen while scrolling a long cart
+                  (not while the coupon field is open, so the taller block does not cover the items) */}
+              <div className={`max-w-2xl mx-auto pt-2 z-20 ${couponOpen ? '' : 'sticky bottom-3'}`}>
                 <CartCheckoutBar
                   totalPrice={totalPrice}
                   subtotal={subtotal}
@@ -230,6 +245,7 @@ export default function ShoppingCartPage() {
                   couponBtnLabel={appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
                   codePlaceholder={draft.codePlaceholder || "הזן קוד קופון"}
                   codeApplyLabel={draft.codeBtn || "החל"}
+                  onCouponToggle={setCouponOpen}
                 />
               </div>
 

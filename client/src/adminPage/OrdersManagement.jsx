@@ -339,6 +339,9 @@ export default function OrdersManagement() {
                                         </td>
                                         <td className="p-5">
                                             {getStatusBadge(order.status)}
+                                            {order.payment?.status === 'review' && (
+                                                <span className="mt-1 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 w-fit block">חיוב לבדיקה</span>
+                                            )}
                                         </td>
                                         <td className="p-5 text-center">
                                             <div className="flex justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">

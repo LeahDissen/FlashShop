@@ -16,10 +16,16 @@ import {
     formatPrice,
 } from '../utils/productQuantityPricing';
 import SalePrice from '../components/SalePrice';
+import ClubGiftBadge from '../components/ClubGiftBadge';
 import PrintOptionButton from '../components/PrintOptionButton';
+import PrintOptionsEditor from '../components/PrintOptionsEditor';
+import useAuthStore from '../store/authStore';
 import { getPrintOption } from '../constants/printOptions';
 import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
 import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
+
+/** "עיצוב מותאם": photos the customer can attach for the designer */
+const MAX_DESIGNER_IMAGES = 6;
 
 const ProductSelectionPage = () => {
     const { productId } = useParams();
@@ -43,11 +49,12 @@ const ProductSelectionPage = () => {
         email: '',
         phone: '',
         description: '',
-        referenceImage: null
+        referenceImages: []
     });
 
     // Content of the "products" CMS page: the banner image and the option button texts
     const [productsPageContent, setProductsPageContent] = useState({});
+    const isAdmin = useAuthStore((state) => state.isAdmin());
     const fileInputRef = useRef(null);
     const magnetFileRef = useRef(null);
     const designerFileRef = useRef(null);
@@ -157,6 +164,7 @@ const ProductSelectionPage = () => {
     const designerOption = getPrintOption(productsPageContent, 'optionDesigner');
     const uploadOption = getPrintOption(productsPageContent, 'optionUpload');
     const captionsOption = getPrintOption(productsPageContent, 'optionCaptions');
+    const perCopyOption = getPrintOption(productsPageContent, 'optionPerCopy');
 
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
@@ -255,12 +263,16 @@ const ProductSelectionPage = () => {
         })]);
     };
 
-    const handleDesignClick = () => {
+    /** perCopy: a separate design for each copy (quantity > 1) instead of one design for all */
+    const handleDesignClick = (perCopy = false) => {
         const quantity = applyQuantity(getQuantity());
         const productForEditor = withMagnetPrintDimensions(product);
         setSelectedProduct(productForEditor);
         setOrderQuantity(quantity);
-        navigate(`/editor/${productId}`, { state: { product: productForEditor, quantity } });
+        // A photo already uploaded here comes along, so it is not uploaded again in the editor
+        navigate(`/editor/${productId}`, {
+            state: { product: productForEditor, quantity, initialImage: uploadedImage || undefined, perCopy: perCopy && quantity > 1 },
+        });
     };
 
     // Submit the designer form with extended validation
@@ -289,7 +301,9 @@ const ProductSelectionPage = () => {
             price: unitPrice + 15,
             customization: {
                 type: 'designer-service',
-                ...designerDetails
+                ...designerDetails,
+                // The first photo also as referenceImage, for orders/screens that read a single image
+                referenceImage: designerDetails.referenceImages[0] || null,
             }
         }, { priceAddon: 15 });
 
@@ -325,27 +339,29 @@ const ProductSelectionPage = () => {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    // Handle the attached file for the designer
+    // Photos for the designer: up to MAX_DESIGNER_IMAGES, several at once
     const handleDesignerFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const room = MAX_DESIGNER_IMAGES - designerDetails.referenceImages.length;
+        const files = Array.from(e.target.files || []).slice(0, Math.max(0, room));
         e.target.value = '';
+        if (!files.length) return;
         setIsDesignerUploading(true);
         try {
-            const imageUrl = await uploadImageToCloudinary(file);
-            setDesignerDetails((prev) => ({ ...prev, referenceImage: imageUrl }));
-        } catch (error) {
-            console.error("Designer reference upload failed:", error);
-            alert(error?.message || "העלאת הקובץ נכשלה.");
+            const results = await Promise.allSettled(files.map((file) => uploadImageToCloudinary(file)));
+            const urls = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+            setDesignerDetails((prev) => ({
+                ...prev,
+                referenceImages: [...prev.referenceImages, ...urls].slice(0, MAX_DESIGNER_IMAGES),
+            }));
+            const failed = results.length - urls.length;
+            if (failed) alert(`${failed} מהקבצים לא הועלו. אפשר לנסות שוב.`);
         } finally {
             setIsDesignerUploading(false);
         }
     };
 
-    // Delete the image attached for the designer
-    const handleRemoveDesignerImage = () => {
-        setDesignerDetails({ ...designerDetails, referenceImage: null });
-        if (designerFileRef.current) designerFileRef.current.value = '';
+    const handleRemoveDesignerImage = (url) => {
+        setDesignerDetails((prev) => ({ ...prev, referenceImages: prev.referenceImages.filter((src) => src !== url) }));
     };
 
     return (
@@ -435,6 +451,10 @@ const ProductSelectionPage = () => {
                                                 )}
                                             </div>
 
+                                            <ClubGiftBadge product={product} className="!justify-start" />
+                                            {product.isOnSale && showTieredPricing && (
+                                                <p className="text-xs font-bold text-[#f2665e]">מוצר במבצע: חברות מועדון מקבלות הנחה בתשלום</p>
+                                            )}
                                             {!simpleProduct && !magnetProduct && (product.printWidth || product.printHeight) && (
                                                 <p className="text-xs text-[#f2665e]/70">
                                                     משטח הדפסה: {product.printWidth ?? 12} × {product.printHeight ?? 18} ס&quot;מ
@@ -504,7 +524,7 @@ const ProductSelectionPage = () => {
                                             <div className="flex flex-wrap items-center gap-3">
                                                 <button
                                                     type="button"
-                                                    onClick={handleDesignClick}
+                                                    onClick={() => handleDesignClick(false)}
                                                     className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer"
                                                 >
                                                     <Palette size={16} />
@@ -548,7 +568,7 @@ const ProductSelectionPage = () => {
                                     <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
                                         <PrintOptionButton
                                             hint={selfDesignOption.hint}
-                                            onClick={handleDesignClick}
+                                            onClick={() => handleDesignClick(false)}
                                             className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
                                         >
                                             <Palette size={17} />
@@ -587,6 +607,24 @@ const ProductSelectionPage = () => {
                                             {captionsOption.label}
                                         </PrintOptionButton>
                                     </div>
+                                    {currentQuantity > 1 && (
+                                        <div className="w-full max-w-lg mt-3 space-y-2">
+                                            <p className="text-xs text-gray-600 leading-relaxed bg-[#fff5f4] border border-[#f2665e]/15 rounded-xl px-3 py-2">
+                                                תוכלו לעצב עיצוב אישי לכל אחד מעותקי המוצר שבחרתם בבחירה ב&quot;{perCopyOption.label}&quot;, או להשתמש באופציית &quot;{selfDesignOption.label}&quot; לעיצוב אחיד עבור כולם.
+                                            </p>
+                                            <PrintOptionButton
+                                                hint={perCopyOption.hint}
+                                                onClick={() => handleDesignClick(true)}
+                                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-[#f2665e] text-white bg-[#f2665e] hover:bg-[#d95248] transition-colors cursor-pointer"
+                                            >
+                                                <Palette size={17} />
+                                                {perCopyOption.label} ({currentQuantity})
+                                            </PrintOptionButton>
+                                        </div>
+                                    )}
+                                    {isAdmin && (
+                                        <PrintOptionsEditor content={productsPageContent} onSaved={setProductsPageContent} />
+                                    )}
 
                                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                                     </>
@@ -684,31 +722,37 @@ const ProductSelectionPage = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => designerFileRef.current.click()}
-                                                disabled={isDesignerUploading}
+                                                disabled={isDesignerUploading || designerDetails.referenceImages.length >= MAX_DESIGNER_IMAGES}
                                                 className="px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
                                             >
                                                 {isDesignerUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                                {designerDetails.referenceImage ? 'החלף קובץ מצורף' : 'בחרו קובץ'}
+                                                העלאת תמונות (עד {MAX_DESIGNER_IMAGES} קבצים)
                                             </button>
-                                            <input type="file" ref={designerFileRef} onChange={handleDesignerFileChange} className="hidden" accept="image/*" />
+                                            <input type="file" ref={designerFileRef} onChange={handleDesignerFileChange} className="hidden" accept="image/*" multiple />
                                         </div>
                                     </div>
 
                                     {/* Small preview with a delete icon */}
-                                    {designerDetails.referenceImage && (
-                                        <div className="flex items-center justify-between bg-green-50 text-green-800 p-3 rounded-xl border border-green-100 text-xs max-w-md">
-                                            <div className="flex items-center gap-3">
-                                                <img src={designerDetails.referenceImage} alt="Reference Preview" className="w-10 h-10 object-cover rounded border bg-white shadow-sm" />
-                                                <span className="font-medium">הקובץ הועלה בהצלחה ומצורף לבקשה!</span>
+                                    {designerDetails.referenceImages.length > 0 && (
+                                        <div className="bg-green-50 text-green-800 p-3 rounded-xl border border-green-100 text-xs max-w-md space-y-2">
+                                            <p className="font-medium">
+                                                {designerDetails.referenceImages.length} מתוך {MAX_DESIGNER_IMAGES} תמונות מצורפות לבקשה
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {designerDetails.referenceImages.map((url, index) => (
+                                                    <div key={url} className="relative">
+                                                        <img src={optimizeImageUrl(url, { width: 96, height: 96 })} alt={`תמונה ${index + 1}`} className="w-12 h-12 object-cover rounded border bg-white shadow-sm" />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveDesignerImage(url)}
+                                                            className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-white shadow text-gray-500 hover:text-red-500 flex items-center justify-center cursor-pointer"
+                                                            aria-label={`מחיקת תמונה ${index + 1}`}
+                                                        >
+                                                            <Trash2 size={11} />
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <button 
-                                                type="button"
-                                                onClick={handleRemoveDesignerImage}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-                                                title="מחק תמונה"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
                                         </div>
                                     )}
 
