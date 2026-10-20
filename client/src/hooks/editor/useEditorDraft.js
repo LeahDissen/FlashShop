@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     createDefaultTextElement,
-    getCanvasDimensions,
+    findSavedCanvasSettings,
     getCanvasStorageKey,
     normalizeEditorElements,
 } from '../../utils/canvasDimensions';
@@ -16,20 +16,6 @@ import {
     safeStorageSetItem,
     writeDraft,
 } from '../../utils/editorDraftStorage';
-
-/**
- * The frame and orientation a saved draft was made with, when it was made for this product's canvas.
- * The page opens without a frame and unturned, so without this a refresh would not recognize
- * a draft with a frame (or a turned canvas) and would start over.
- */
-function savedCanvasSettings(product, savedKey, savedElements) {
-    const frameAspectRatio = extractFrameAspectRatio(savedElements);
-    const orientationFlipped = savedKey.endsWith('_flip');
-    const canvas = getCanvasDimensions(product, frameAspectRatio, orientationFlipped);
-    return getCanvasStorageKey(product, canvas, frameAspectRatio, orientationFlipped) === savedKey
-        ? { frameAspectRatio, orientationFlipped }
-        : null;
-}
 
 const STORAGE_FULL_MESSAGE = 'נפח האחסון המקומי מלא. השינויים ימשיכו לעבוד, אבל לא יישמרו מקומית עד לניקוי אחסון בדפדפן.';
 
@@ -88,7 +74,8 @@ export function useEditorDraft({
         const savedElementsRaw = localStorage.getItem(draftKeys.elements);
 
         if (!canvasAppliedKeyRef.current && savedKey && savedKey !== storageKey && savedElementsRaw) {
-            const saved = savedCanvasSettings(selectedProduct, savedKey, safeJsonParse(savedElementsRaw, []));
+            // The page opens unframed and unturned: a draft made with a frame or a turned canvas opens that canvas first
+            const saved = findSavedCanvasSettings(selectedProduct, savedKey, safeJsonParse(savedElementsRaw, []));
             if (saved && (saved.frameAspectRatio !== activeFrameAspectRatio || saved.orientationFlipped !== orientationFlipped)) {
                 // Open the draft's canvas first; this effect runs again with it and restores the draft
                 setActiveFrameAspectRatio(saved.frameAspectRatio);

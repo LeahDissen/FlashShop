@@ -90,6 +90,25 @@ export function getCanvasStorageKey(product, dims, frameAspectRatio = null, orie
     return `${id}_${dims.widthCm}x${dims.heightCm}${framePart}${orientPart}`;
 }
 
+/**
+ * The frame aspect ratio and orientation a saved draft was made with, when its key belongs to this
+ * product's canvas (the inverse of getCanvasStorageKey); null for a draft of another canvas.
+ * @param {string} savedKey the stored canvas key
+ * @param {object[]} savedElements the stored elements (the frame's aspect ratio comes from them)
+ */
+export function findSavedCanvasSettings(product, savedKey, savedElements) {
+    if (!savedKey) return null;
+    const frame = Array.isArray(savedElements) ? savedElements.find((el) => el?.type === 'globalFrame') : null;
+    const frameAspectRatio = frame?.aspectRatio || null;
+    for (const orientationFlipped of [false, true]) {
+        const canvas = getCanvasDimensions(product, frameAspectRatio, orientationFlipped);
+        if (getCanvasStorageKey(product, canvas, frameAspectRatio, orientationFlipped) === savedKey) {
+            return { frameAspectRatio, orientationFlipped };
+        }
+    }
+    return null;
+}
+
 export function centerPosition(elementWidth, elementHeight, canvasWidth, canvasHeight) {
     return {
         left: Math.max(0, Math.round((canvasWidth - elementWidth) / 2)),
@@ -212,7 +231,7 @@ const MIN_TEXT_HEIGHT = 24;
 const isTextBox = (el) => el.type === 'text' && el.role !== 'caption';
 /** A text box the customer wrote in (not the placeholder, not empty) */
 const isWrittenText = (el) => typeof el.content === 'string'
-    && el.content.trim().length >= 2
+    && el.content.trim().length > 0
     && el.content !== DEFAULT_TEXT_CONTENT;
 
 /**

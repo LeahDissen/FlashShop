@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getCanvasDimensions, normalizeEditorElements } from './canvasDimensions';
+import { findSavedCanvasSettings, getCanvasDimensions, getCanvasStorageKey, normalizeEditorElements } from './canvasDimensions';
 
 const dims = getCanvasDimensions({ printWidth: 28, printHeight: 20 });
 const PLACEHOLDER = 'טקסט ניתן לעריכה';
@@ -40,11 +40,34 @@ describe('normalizeEditorElements', () => {
         expect(result.map((el) => el.type)).toEqual(['text', 'image']);
     });
 
+    it('keeps a one-character text next to another written text', () => {
+        expect(normalizeEditorElements([text('a', 'א'), text('b', 'שלום')], dims).map((el) => el.id)).toEqual(['a', 'b']);
+    });
+
     it('a written text keeps its place; one too small to see gets the default size', () => {
         const [kept] = normalizeEditorElements([text('t', 'שלום', { left: 77, top: 88 })], dims);
         expect(kept).toMatchObject({ left: 77, top: 88, width: 200, height: 60, locked: false });
         const [tiny] = normalizeEditorElements([text('t', 'שלום', { width: 5, height: 5 })], dims);
         expect(tiny.width).toBeGreaterThan(40);
         expect(tiny.height).toBeGreaterThan(24);
+    });
+});
+
+describe('findSavedCanvasSettings', () => {
+    const product = { _id: 'pz', printWidth: 28, printHeight: 20 };
+    const frame = { id: 'f', type: 'globalFrame', aspectRatio: '3:2' };
+    const keyFor = (aspect, flipped) => getCanvasStorageKey(product, getCanvasDimensions(product, aspect, flipped), aspect, flipped);
+
+    it('finds the frame and orientation of a draft made for this product', () => {
+        expect(findSavedCanvasSettings(product, keyFor('3:2', false), [frame])).toEqual({ frameAspectRatio: '3:2', orientationFlipped: false });
+        expect(findSavedCanvasSettings(product, keyFor(null, true), [])).toEqual({ frameAspectRatio: null, orientationFlipped: true });
+        expect(findSavedCanvasSettings(product, keyFor('3:2', true), [frame])).toEqual({ frameAspectRatio: '3:2', orientationFlipped: true });
+    });
+
+    it('does not adopt a draft made for another product or size', () => {
+        const other = { _id: 'pz', printWidth: 15, printHeight: 10 };
+        const otherKey = getCanvasStorageKey(other, getCanvasDimensions(other), null, false);
+        expect(findSavedCanvasSettings(product, otherKey, [])).toBeNull();
+        expect(findSavedCanvasSettings(product, null, [])).toBeNull();
     });
 });

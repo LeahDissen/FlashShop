@@ -233,8 +233,8 @@ export function useElementActions({
     }, [elements, selectedElementId, commit, forgetUploadedImage, setSelectedElementId]);
 
     const startCrop = useCallback(() => {
-        if (selectedElementId) setCroppingElementId(selectedElementId);
-    }, [selectedElementId]);
+        if (elements.some((el) => el.id === selectedElementId)) setCroppingElementId(selectedElementId);
+    }, [elements, selectedElementId]);
 
     const saveCrop = useCallback((elementId, croppedPx) => {
         commit(elements.map((el) => (el.id === elementId && el.type === 'image' ? applyCrop(el, croppedPx) : el)));

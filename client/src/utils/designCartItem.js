@@ -63,7 +63,7 @@ export function buildDesignCartItem({ product, quantity = 1, tieredPrice = false
     return withTieredPricingFields({
         id: `cart_${Date.now()}`,
         productId,
-        name: name.includes('עיצוב אישי') ? name : `${name} ${DESIGN_SUFFIX}`,
+        name,
         price,
         image,
         quantity,
