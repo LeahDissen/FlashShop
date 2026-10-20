@@ -521,7 +521,13 @@ export default function OrderDetailPage() {
                         </div>
                     </section>
 
-                    {orderFileCount > 0 && (
+                    {order.photosPurgedAt && (
+                        <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3">
+                            תמונות הפיתוח של ההזמנה נמחקו אוטומטית ב-{formatOrderDate(order.photosPurgedAt)}, 30 יום אחרי ההדפסה. פרטי ההזמנה נשמרים.
+                        </p>
+                    )}
+
+                    {orderFileCount > 0 && !order.photosPurgedAt && (
                         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                             <h2 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
                                 <FaDownload className="text-[#f2665e]" />

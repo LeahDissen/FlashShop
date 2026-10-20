@@ -576,7 +576,7 @@ exports.updateOrderStatus = async (req, res) => {
 
         const order = await OrderModel.findOneAndUpdate(
             { _id: id },
-            { status },
+            previous.status !== status ? { status, statusChangedAt: new Date() } : { status },
             { new: true }
         );
 

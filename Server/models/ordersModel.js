@@ -56,6 +56,10 @@ let orderSchema = new mongoose.Schema({
         /** The raw return from Hyp, kept only when automatic verification failed (for checking by hand) */
         returnQuery: { type: String },
     },
+    /** When the status last changed – the 30-day photo retention counts from a printed/cancelled status */
+    statusChangedAt: { type: Date },
+    /** Set once the customer's uploaded photos were deleted from Cloudinary */
+    photosPurgedAt: { type: Date },
     date_created: {
         type: Date,
         default: Date.now
