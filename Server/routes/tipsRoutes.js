@@ -6,6 +6,7 @@ const { authAdmin } = require("../middlewares/auth.js");
 
 router.get("/", tipsController.getAllTips);
 router.post("/", authAdmin,tipsController.addTip);
+router.post("/import", authAdmin, tipsController.importTips);
 router.put("/:id",authAdmin, tipsController.updateTip);
 
 module.exports = router;

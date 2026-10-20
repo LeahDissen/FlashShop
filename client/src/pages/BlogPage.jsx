@@ -1,3 +1,4 @@
+import { optimizeImageUrl } from '../utils/imageUrl';
 import { useEffect, useState } from "react";
 import { getAllTips, updateTip } from '../api/tips.js';
 import SmartImageInput from '../components/SmartImageInput';
@@ -142,6 +143,14 @@ export default function BlogPage() {
                     <p className="text-lg leading-relaxed text-gray-700 whitespace-pre-wrap indent-8">
                         {displayData.content}
                     </p>
+                )}
+                {/* More images of the tip (tips imported from a Word document can have several) */}
+                {!editMode && Array.isArray(currentTip?.images) && currentTip.images.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                        {currentTip.images.map((src) => (
+                            <img key={src} src={optimizeImageUrl(src, { width: 900 })} alt={displayData.title} loading="lazy" className="w-full rounded-xl object-cover" />
+                        ))}
+                    </div>
                 )}
             </div>
             {isAdmin && (
