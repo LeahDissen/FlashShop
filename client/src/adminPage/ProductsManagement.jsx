@@ -578,6 +578,11 @@ export default function ProductsManagement() {
                                             className="w-full p-2 border rounded-lg"
                                             placeholder="למשל 100"
                                         />
+                                        {formData.originalPrice === "" && (
+                                            <p className="text-xs text-amber-700 mt-1">
+                                                כדי שהלקוחות יראו את ההנחה (המחיר הקודם מחוק ליד מחיר המבצע), יש למלא כאן את המחיר שלפני המבצע. שדה &quot;מחיר&quot; הוא מחיר המבצע.
+                                            </p>
+                                        )}
                                         {formData.originalPrice !== "" && Number(formData.originalPrice) <= Number(formData.price) && (
                                             <p className="text-xs text-amber-600 mt-1">המחיר הקודם צריך להיות גבוה מהמחיר הנוכחי, אחרת הוא לא יוצג.</p>
                                         )}

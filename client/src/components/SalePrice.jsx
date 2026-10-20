@@ -18,7 +18,7 @@ export default function SalePrice({ product, priceClassName = 'font-semibold tex
 
     return (
         <span className="inline-flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5">
-            <span className={`${priceClassName} text-[#f2665e]`}>{formatShekel(product.price)}</span>
+            <span className={`${priceClassName} text-[#f2665e] !font-bold text-[1.2em]`}>{formatShekel(product.price)}</span>
             <del className="text-gray-400 text-[0.85em]" aria-label={`במקום ${formatShekel(sale.originalPrice)}`}>
                 {formatShekel(sale.originalPrice)}
             </del>
