@@ -3,6 +3,7 @@ const handlebars = require("handlebars");
 const fs = require("fs");
 const path = require("path");
 const { config } = require("../config/secret");
+const { cleanEmail, replyToAddress } = require("../services/shopNotifications");
 
 // An unresponsive SMTP server must not hold a request for minutes (nodemailer's default is 2 minutes)
 const SMTP_TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 };
@@ -61,13 +62,14 @@ const toBase64 = (content) => Buffer.from(content).toString("base64");
 
 /** Adapters for HTTP-based email providers — each converts a uniform message to the provider's format */
 const HTTP_PROVIDERS = {
-  brevo: ({ from, fromName, to, bcc, subject, html, attachments }) => ({
+  brevo: ({ from, fromName, to, bcc, replyTo, subject, html, attachments }) => ({
     url: "https://api.brevo.com/v3/smtp/email",
     headers: { "api-key": config.EMAIL_API_KEY },
     body: {
       sender: { email: from, name: fromName },
       to: to.map((email) => ({ email })),
       ...(bcc.length ? { bcc: bcc.map((email) => ({ email })) } : {}),
+      ...(replyTo ? { replyTo: { email: replyTo } } : {}),
       subject,
       htmlContent: html,
       ...(attachments.length
@@ -75,13 +77,14 @@ const HTTP_PROVIDERS = {
         : {}),
     },
   }),
-  resend: ({ from, fromName, to, bcc, subject, html, attachments }) => ({
+  resend: ({ from, fromName, to, bcc, replyTo, subject, html, attachments }) => ({
     url: "https://api.resend.com/emails",
     headers: { Authorization: `Bearer ${config.EMAIL_API_KEY}` },
     body: {
       from: fromName ? `${fromName} <${from}>` : from,
       to,
       ...(bcc.length ? { bcc } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
       subject,
       html,
       ...(attachments.length
@@ -116,13 +119,14 @@ const sendViaHttpProvider = async (message) => {
   return { info: await response.json().catch(() => ({})), isEthereal: false, previewUrl: null };
 };
 
-const sendViaSmtp = async ({ to, bcc, subject, html, attachments }) => {
+const sendViaSmtp = async ({ to, bcc, replyTo, subject, html, attachments }) => {
   const { transporter, from, isEthereal } = await createSmtpTransport();
   // With BCC the visible recipient is the sender, so the addresses are not exposed to each other
   const info = await transporter.sendMail({
     from,
     to: to.length ? to : from,
     ...(bcc.length ? { bcc } : {}),
+    ...(replyTo ? { replyTo } : {}),
     subject,
     html,
     attachments,
@@ -140,12 +144,14 @@ const renderTemplate = (template, payload) => {
 
 /**
  * Sends an email from a handlebars template. An array of recipients is sent as BCC.
+ * Replies go to `options.replyTo`, else to the shop's reply-to address from the admin (if set).
  * Throws on failure.
  */
-exports.sendEmail = async (email, subject, payload, template, attachments = []) => {
+exports.sendEmail = async (email, subject, payload, template, attachments = [], options = {}) => {
   try {
     const recipients = Array.isArray(email) ? { to: [], bcc: email } : { to: [email], bcc: [] };
-    const message = { ...recipients, subject, html: renderTemplate(template, payload), attachments };
+    const replyTo = cleanEmail(options.replyTo) || (await replyToAddress());
+    const message = { ...recipients, replyTo, subject, html: renderTemplate(template, payload), attachments };
     console.log("Sending email to:", Array.isArray(email) ? `${email.length} recipients (bcc)` : email);
 
     const result = usesHttpProvider() ? await sendViaHttpProvider(message) : await sendViaSmtp(message);
