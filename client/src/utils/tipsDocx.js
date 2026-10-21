@@ -2,7 +2,11 @@
  * Splits a Word document of numbered tips into separate tips.
  * A tip starts at a paragraph that begins with its number ("1.", "1)", "טיפ 1", "טיפ מס' 1"...);
  * everything after it – text, bullet points and images – belongs to it until the next number.
+ * The tip's first image is its main image (shown at the top). Images get a "[[תמונה N]]" line at their
+ * place in the text (see tipBody.js) – all of them, except a first image that comes before any text,
+ * which is only the main image. A document without numbered tips is one tip, titled by its first line.
  */
+import { imageMarker } from './tipBody';
 
 const TIP_START = /^\s*(?:טיפ\s*(?:מס(?:פר)?['׳"]?\.?\s*)?)?(\d{1,3})\s*[.):\-–]?\s*(.*)$/;
 
@@ -21,20 +25,50 @@ export function parseTipStart(text) {
 
 const textOf = (node) => (node.textContent || '').replace(/\s+/g, ' ').trim();
 
+/** A list item's own text, without the items of a list nested in it (they are lines of their own) */
+const ownTextOf = (li) => {
+    const copy = li.cloneNode(true);
+    copy.querySelectorAll('ul, ol').forEach((nested) => nested.remove());
+    return textOf(copy);
+};
+
+/** The list's items as lines: "• " for bullets, "1. " for numbered items; nested lists in order */
+const listLines = (list) => Array.from(list.querySelectorAll('li')).map((li) => {
+    const item = ownTextOf(li);
+    if (!item) return null;
+    const parent = li.parentElement;
+    const position = Array.from(parent.children).indexOf(li) + 1;
+    return parent.tagName === 'OL' ? `${position}. ${item}` : `• ${item}`;
+}).filter(Boolean);
+
+/** A new tip being collected from the document */
+const newTip = (number, title) => ({ number, title, lines: [], mainImage: '', images: [] });
+
+/**
+ * The node's images: the first image of the tip becomes its main image; each image after text (and
+ * every later image) also gets a marker line at its place and joins the body images.
+ */
+const collectImages = (tip, node) => {
+    const found = node.tagName === 'IMG' ? [node] : Array.from(node.querySelectorAll?.('img') || []);
+    found.forEach((img) => {
+        if (!img.src) return;
+        const isFirst = !tip.mainImage;
+        if (isFirst) tip.mainImage = img.src;
+        if (isFirst && !tip.lines.length) return;
+        tip.images.push(img.src);
+        tip.lines.push(imageMarker(tip.images.length - 1));
+    });
+};
+
 /**
  * @param {string} html mammoth's HTML of the document (images as data URLs)
- * @returns {{ number: number, title: string, content: string, images: string[] }[]}
+ * @param {string} [fallbackTitle] the title of a document without numbered tips (e.g. the file name)
+ * @returns {{ number: number, title: string, content: string, mainImage: string, images: string[] }[]}
  */
-export function splitTips(html) {
+export function splitTips(html, fallbackTitle = '') {
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
     const tips = [];
     let current = null;
-
-    const addImages = (node) => {
-        if (!current) return;
-        node.querySelectorAll?.('img').forEach((img) => img.src && current.images.push(img.src));
-        if (node.tagName === 'IMG' && node.src) current.images.push(node.src);
-    };
 
     for (const node of Array.from(doc.body.children)) {
         const text = textOf(node);
@@ -47,23 +81,25 @@ export function splitTips(html) {
             start = { number: tips.length + 1, title: text };
         }
         if (start) {
-            current = { number: start.number, title: start.title, lines: [], images: [] };
+            current = newTip(start.number, start.title);
             tips.push(current);
-            addImages(node);
+            collectImages(current, node);
             continue;
         }
         if (!current) continue; // text before the first tip (e.g. the document's title)
         if (isList) {
-            node.querySelectorAll('li').forEach((li, index) => {
-                const item = textOf(li);
-                if (item) current.lines.push(node.tagName === 'OL' ? `${index + 1}. ${item}` : `• ${item}`);
-            });
+            current.lines.push(...listLines(node));
         } else if (text) {
             // A tip whose title is on its own line after the number ("1." then the heading)
             if (!current.title) current.title = text;
             else current.lines.push(text);
         }
-        addImages(node);
+        collectImages(current, node);
+    }
+
+    if (!tips.length) {
+        const single = singleTip(doc.body, fallbackTitle);
+        if (single) tips.push(single);
     }
 
     return tips
@@ -71,12 +107,28 @@ export function splitTips(html) {
         .sort((a, b) => a.number - b.number);
 }
 
+/** A document of one tip without a number: its first short line is the title, the rest its content */
+function singleTip(body, fallbackTitle) {
+    const tip = newTip(1, '');
+    for (const node of Array.from(body.children)) {
+        const text = textOf(node);
+        const isList = node.tagName === 'UL' || node.tagName === 'OL';
+        if (!tip.title && text && text.length <= 150 && !isList) tip.title = text;
+        else if (isList) tip.lines.push(...listLines(node));
+        else if (text) tip.lines.push(text);
+        collectImages(tip, node);
+    }
+    if (!tip.title && !tip.lines.length && !tip.mainImage) return null;
+    if (!tip.title) tip.title = String(fallbackTitle || '').replace(/\.docx$/i, '').trim();
+    return tip;
+}
+
 /** Reads a .docx in the browser: mammoth is loaded only when a document is imported */
 export async function readTipsFromDocx(file) {
     const { default: mammoth } = await import('mammoth/mammoth.browser.js');
     const arrayBuffer = await file.arrayBuffer();
     const { value: html } = await mammoth.convertToHtml({ arrayBuffer });
-    return splitTips(html);
+    return splitTips(html, file.name);
 }
 
 /** A data: URL image from the document as a File, for uploading */
