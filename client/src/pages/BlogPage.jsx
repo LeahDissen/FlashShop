@@ -1,15 +1,20 @@
 import { optimizeImageUrl } from '../utils/imageUrl';
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAllTips, updateTip } from '../api/tips.js';
 import SmartImageInput from '../components/SmartImageInput';
 import useAuthStore from '../store/authStore.js';
 import { useTipsStore } from "../store/tipsStore.js";
+import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
+import { imageMarker, insertImageMarker, removeBodyImage, tipBodyBlocks } from '../utils/tipBody';
 
 export default function BlogPage() {
     const isAdmin = useAuthStore(state => state.isAdmin());
     const { currentTip, setCurrentTip, tipsList, updateTipInList } = useTipsStore();
     const [editMode, setEditMode] = useState(false);
     const [draft, setDraft] = useState({});
+    const [uploadingBodyImage, setUploadingBodyImage] = useState(false);
+    const contentRef = useRef(null);
+    const bodyImageInputRef = useRef(null);
 
     const index = currentTip ? tipsList.findIndex(t => t._id === currentTip._id) : -1;
     const prevTip = index > 0 ? tipsList[index - 1] : null;
@@ -37,7 +42,8 @@ export default function BlogPage() {
                 title: currentTip.title,
                 img: currentTip.img,
                 content: currentTip.content,
-                summary: currentTip.summary || ""
+                summary: currentTip.summary || "",
+                images: currentTip.images || [],
             });
         }
     }, [currentTip, editMode]);
@@ -53,7 +59,8 @@ export default function BlogPage() {
             title: currentTip.title,
             img: currentTip.img,
             content: currentTip.content,
-            summary: currentTip.summary || ""
+            summary: currentTip.summary || "",
+            images: currentTip.images || [],
         });
         setEditMode(true);
     };
@@ -68,6 +75,26 @@ export default function BlogPage() {
             setEditMode(false);
         } catch (error) {
             alert(error.message);
+        }
+    };
+
+    /** Uploads an image for the tip's body and puts its "[[תמונה N]]" line at the cursor in the text */
+    const addBodyImage = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        const cursor = contentRef.current?.selectionStart ?? null;
+        setUploadingBodyImage(true);
+        try {
+            const url = await uploadImageToCloudinary(file);
+            setDraft((prev) => {
+                const images = [...(prev.images || []), url];
+                return { ...prev, images, content: insertImageMarker(prev.content, images.length - 1, cursor) };
+            });
+        } catch (error) {
+            alert(error?.message || 'העלאת התמונה נכשלה');
+        } finally {
+            setUploadingBodyImage(false);
         }
     };
 
@@ -133,23 +160,63 @@ export default function BlogPage() {
                     </p>
                 )}
                 {editMode && isAdmin ? (
-                    <textarea
-                        value={draft.content}
-                        onChange={(e) => setDraft({ ...draft, content: e.target.value })}
-                        className="text-lg leading-relaxed text-gray-700 whitespace-pre-wrap w-full border-2 border-blue-500 rounded-lg p-4 focus:outline-none h-96"
-                        placeholder="תוכן הטיפ המלא"
-                    />
+                    <>
+                        <textarea
+                            ref={contentRef}
+                            value={draft.content}
+                            onChange={(e) => setDraft({ ...draft, content: e.target.value })}
+                            className="text-lg leading-relaxed text-gray-700 whitespace-pre-wrap w-full border-2 border-blue-500 rounded-lg p-4 focus:outline-none h-96"
+                            placeholder="תוכן הטיפ המלא"
+                        />
+                        <div className="flex flex-wrap items-center gap-3 mt-2">
+                            <button
+                                type="button"
+                                onClick={() => bodyImageInputRef.current?.click()}
+                                disabled={uploadingBodyImage}
+                                className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                {uploadingBodyImage ? 'מעלה תמונה...' : '🖼 הוספת תמונה לגוף הטיפ'}
+                            </button>
+                            <input ref={bodyImageInputRef} type="file" accept="image/*" className="hidden" onChange={addBodyImage} />
+                            <span className="text-xs text-gray-500">
+                                התמונה נכנסת במקום של הסמן בטקסט, כשורה &quot;[[תמונה 1]]&quot;. אפשר להזיז את השורה, ומחיקתה מעבירה את התמונה לסוף הטיפ.
+                            </span>
+                        </div>
+                        {draft.images?.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mt-3">
+                                {draft.images.map((src, imageIndex) => (
+                                    <div key={`${imageIndex}-${src}`} className="relative text-center">
+                                        <img src={optimizeImageUrl(src, { width: 160 })} alt="" className="w-20 h-20 object-cover rounded-lg border" />
+                                        <span className="block text-[11px] text-gray-500 mt-0.5" dir="rtl">{imageMarker(imageIndex)}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDraft((prev) => ({ ...prev, ...removeBodyImage(prev.content, prev.images, imageIndex) }))}
+                                            className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold hover:bg-red-600"
+                                            aria-label={`מחיקת ${imageMarker(imageIndex)}`}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
                 ) : (
-                    <p className="text-lg leading-relaxed text-gray-700 whitespace-pre-wrap indent-8">
-                        {displayData.content}
-                    </p>
-                )}
-                {/* More images of the tip (tips imported from a Word document can have several) */}
-                {!editMode && Array.isArray(currentTip?.images) && currentTip.images.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-                        {currentTip.images.map((src) => (
-                            <img key={src} src={optimizeImageUrl(src, { width: 900 })} alt={displayData.title} loading="lazy" className="w-full rounded-xl object-cover" />
-                        ))}
+                    // The tip's text with its body images where their "[[תמונה N]]" lines are
+                    <div className="space-y-6">
+                        {tipBodyBlocks(displayData.content, currentTip.images).map((block, blockIndex) => (block.type === 'image' ? (
+                            <img
+                                key={`${blockIndex}-${block.src}`}
+                                src={optimizeImageUrl(block.src, { width: 900 })}
+                                alt={displayData.title}
+                                loading="lazy"
+                                className="w-full max-w-3xl mx-auto rounded-xl object-cover"
+                            />
+                        ) : (
+                            <p key={blockIndex} className="text-lg leading-relaxed text-gray-700 whitespace-pre-wrap indent-8">
+                                {block.text}
+                            </p>
+                        )))}
                     </div>
                 )}
             </div>

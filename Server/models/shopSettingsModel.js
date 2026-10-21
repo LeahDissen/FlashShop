@@ -19,6 +19,14 @@ const shopSettingsSchema = new mongoose.Schema(
         },
         /** Shown at checkout to a customer who is not a club member while member discounts apply to her cart */
         notMemberText: { type: String, default: "" },
+        /** The shop owner's alerts by email: a new order, a new message from the site's contact form */
+        notifications: {
+            email: { type: String, default: "" },
+            newOrder: { type: Boolean, default: true },
+            newMessage: { type: Boolean, default: true },
+        },
+        /** Where customers' replies to the site's emails go (empty = to the sending address) */
+        replyToEmail: { type: String, default: "" },
     },
     { timestamps: true },
 );

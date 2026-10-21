@@ -17,6 +17,7 @@ import {
     DEFAULT_CAPTION_CATEGORY,
     INITIAL_FORM_DATA,
     buildProductPayload,
+    pricingWarnings,
     createEmptyCaption,
     createEmptyTier,
     displayTypeOf,
@@ -251,6 +252,9 @@ export default function ProductsManagement() {
                                 <MemberDiscountField type={formData.memberDiscountType} value={formData.memberDiscountValue} onChange={patchForm} />
                             </div>
                         </div>
+                        {!isMagnetCategory && pricingWarnings({ formData, priceTiers, tieredPricingEnabled }).map((warning) => (
+                            <p key={warning} className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{warning}</p>
+                        ))}
 
                         {isMagnetCategory && (
                             <div>

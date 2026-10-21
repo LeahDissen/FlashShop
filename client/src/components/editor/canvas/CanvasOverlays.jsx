@@ -52,7 +52,6 @@ export function ShapeOutline({ shape }) {
         <svg
             className="absolute inset-0 w-full h-full pointer-events-none canvas-shape-outline"
             viewBox="0 0 100 100"
-            preserveAspectRatio="none"
             style={{ zIndex: 95 }}
             aria-hidden="true"
         >

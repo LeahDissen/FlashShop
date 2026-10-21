@@ -41,3 +41,18 @@ exports.authAdmin = (req, res, next) => {
         return res.status(401).json({ msg: "טוקן לא תקין", code: "INVALID_TOKEN" });
     }
 }
+/**
+ * Reads the login when there is one, and lets a guest through without it (req.tokenData stays unset),
+ * for pages that work for everyone but say more to a logged-in customer (e.g. the cart's price quote).
+ */
+exports.optionalAuth = (req, res, next) => {
+    const token = req.cookies?.authToken || req.header("x-api-key");
+    if (token) {
+        try {
+            req.tokenData = jwt.verify(token, config.JWT_SECRET);
+        } catch {
+            // An expired or invalid login prices the cart like a guest's; pages that need a login still refuse it
+        }
+    }
+    next();
+};

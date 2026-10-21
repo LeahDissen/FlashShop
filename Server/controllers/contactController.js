@@ -1,5 +1,4 @@
-const { sendEmail } = require('../utils/sendEmail');
-const { config } = require('../config/secret');
+const { notifyNewMessage } = require('../services/shopNotifications');
 const { ContactModel } = require('../models/contactModel'); 
 
 exports.receiveContact = async (req, res) => {
@@ -11,15 +10,8 @@ exports.receiveContact = async (req, res) => {
     const contact = new ContactModel({ name, email, message });
     await contact.save();
 
-    if (config.USER && config.PASS) {
-      const subject = `Contact form: ${name}`;
-      const payload = { name, email, message };
-      try {
-        await sendEmail(config.USER, subject, payload, '../utils/template/contact.handlebars');
-      } catch (emailErr) {
-        console.error('contact email notification failed', emailErr);
-      }
-    }
+    // The shop owner gets an email alert when she set an address in the admin (in the background)
+    notifyNewMessage({ name, email, message });
 
     res.status(200).json({ ok: true, message: 'Sent' });
   } catch (err) {

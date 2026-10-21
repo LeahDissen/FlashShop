@@ -62,6 +62,8 @@ const isHttpsUrl = (value) => {
   try { return new URL(value).protocol === "https:"; } catch { return false; }
 };
 const cleanText = (value, max) => String(value || "").trim().slice(0, max);
+/** The text without its "[[תמונה N]]" lines, which only mark where the tip's images go */
+const withoutImageMarkers = (text) => text.split("\n").filter((line) => !/^\s*\[\[\s*תמונה\s+\d{1,3}\s*\]\]\s*$/.test(line)).join("\n");
 
 /**
  * Saves the tips the admin approved from a Word document, in the document's order:
@@ -74,16 +76,20 @@ exports.importTips = async (req, res) => {
     for (const tip of tips) {
       const title = cleanText(tip.title, 200);
       const content = cleanText(tip.content, 20000);
-      const images = (Array.isArray(tip.images) ? tip.images : []).filter(isHttpsUrl).slice(0, 12);
-      if (!title || !content || !images.length) {
+      const listed = (Array.isArray(tip.images) ? tip.images : []).filter(isHttpsUrl).slice(0, 12);
+      // The main image, and the body images that the "[[תמונה N]]" lines refer to (images[N-1]).
+      // Without a separate main image (the earlier format) the first image is the main one.
+      const img = isHttpsUrl(tip.img) ? tip.img : listed[0];
+      const images = isHttpsUrl(tip.img) ? listed : listed.slice(1);
+      if (!title || !content || !img) {
         return res.status(400).json({ msg: `לכל טיפ צריך כותרת, טקסט ולפחות תמונה אחת ("${title || "ללא כותרת"}")` });
       }
       docs.push({
         title,
         content,
-        summary: cleanText(tip.summary, 300) || content.replace(/\s+/g, " ").slice(0, 150),
-        img: images[0],
-        images: images.slice(1),
+        summary: cleanText(tip.summary, 300) || withoutImageMarkers(content).replace(/\s+/g, " ").trim().slice(0, 150),
+        img,
+        images,
       });
     }
     if (!docs.length) {

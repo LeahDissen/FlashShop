@@ -1,7 +1,8 @@
 /**
  * Shaped products (heart, circle, star, flower, or the admin's own PNG): the customer designs only inside
  * the shape, and the print file is transparent outside it.
- * Built-in shapes are SVG paths in a 100×100 box, stretched to the product's print size.
+ * Every shape keeps its proportions: it is fitted inside the product's print area and centred (Michal's
+ * round 7: a PNG in other proportions than the print area was stretched out of shape).
  */
 
 export const PRODUCT_SHAPES = [
@@ -23,7 +24,7 @@ export function shapeMaskUrl(shape) {
     if (shape.type === 'custom') return shape.maskUrl || null;
     const builtIn = shapeOf(shape.type);
     if (!builtIn) return null;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${builtIn.path}" fill="black"/></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path d="${builtIn.path}" fill="black"/></svg>`;
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
@@ -35,8 +36,10 @@ export function shapeMaskStyle(shape) {
     return {
         maskImage: value,
         WebkitMaskImage: value,
-        maskSize: '100% 100%',
-        WebkitMaskSize: '100% 100%',
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
         maskRepeat: 'no-repeat',
         WebkitMaskRepeat: 'no-repeat',
     };
@@ -44,6 +47,15 @@ export function shapeMaskStyle(shape) {
 
 /** The built-in shape's outline path, drawn over the canvas so the customer sees the edge */
 export const shapeOutlinePath = (shape) => (shape?.type && shape.type !== 'custom' ? shapeOf(shape.type)?.path : null);
+
+/** The largest box with the source's proportions that fits inside the target box, centred in it */
+export function containRect(sourceWidth, sourceHeight, boxWidth, boxHeight) {
+    if (!(sourceWidth > 0) || !(sourceHeight > 0)) return { x: 0, y: 0, width: boxWidth, height: boxHeight };
+    const scale = Math.min(boxWidth / sourceWidth, boxHeight / sourceHeight);
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
+    return { x: (boxWidth - width) / 2, y: (boxHeight - height) / 2, width, height };
+}
 
 const loadImage = (src) => new Promise((resolve, reject) => {
     const img = new Image();
@@ -67,6 +79,8 @@ export async function applyShapeMask(dataUrl, shape) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(design, 0, 0);
     ctx.globalCompositeOperation = 'destination-in';
-    ctx.drawImage(mask, 0, 0, canvas.width, canvas.height);
+    // The same fit as on the canvas (CSS mask-size: contain): the shape keeps its proportions, centred
+    const fit = containRect(mask.naturalWidth || mask.width, mask.naturalHeight || mask.height, canvas.width, canvas.height);
+    ctx.drawImage(mask, fit.x, fit.y, fit.width, fit.height);
     return canvas.toDataURL('image/png');
 }

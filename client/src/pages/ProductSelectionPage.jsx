@@ -11,6 +11,7 @@ import ProductHeroBanner from '../components/productSelection/ProductHeroBanner'
 import ProductPriceBox from '../components/productSelection/ProductPriceBox';
 import UploadedDesignPreview from '../components/productSelection/UploadedDesignPreview';
 import { DESIGNER_SERVICE_FEE, EMPTY_DESIGNER_REQUEST, buildProductCartItem } from '../components/productSelection/productCartItem';
+import { checkPrintFit, loadImageSize } from '../components/productSelection/printFit';
 import { useProductQuantity } from '../components/productSelection/useProductQuantity';
 import { getPrintOption } from '../constants/printOptions';
 import useAuthStore from '../store/authStore';
@@ -40,6 +41,8 @@ const ProductSelectionPage = () => {
     // Content of the "products" CMS page: the banner image and the option button texts
     const [productsPageContent, setProductsPageContent] = useState({});
     const [uploadedImage, setUploadedImage] = useState(null);
+    /** Whether the uploaded ready design matches the print area (null until its size is known) */
+    const [uploadFit, setUploadFit] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [showDesignerForm, setShowDesignerForm] = useState(false);
     const [designerRequest, setDesignerRequest] = useState(EMPTY_DESIGNER_REQUEST);
@@ -121,15 +124,18 @@ const ProductSelectionPage = () => {
         }
     };
 
-    /** perCopy: a separate design for each copy (quantity > 1) instead of one design for all */
-    const openEditor = (perCopy = false) => {
+    /**
+     * perCopy: a separate design for each copy (quantity > 1) instead of one design for all;
+     * photo: a photo uploaded here to place on the canvas (default: the uploaded ready design)
+     */
+    const openEditor = (perCopy = false, photo = uploadedImage) => {
         const orderQuantity = quantity.applyQuantity(quantity.getQuantity());
         const productForEditor = withMagnetPrintDimensions(product);
         setSelectedProduct(productForEditor);
         setOrderQuantity(orderQuantity);
         // A photo already uploaded here comes along, so it is not uploaded again in the editor
         navigate(`/editor/${productId}`, {
-            state: { product: productForEditor, quantity: orderQuantity, initialImage: uploadedImage || undefined, perCopy: perCopy && orderQuantity > 1 },
+            state: { product: productForEditor, quantity: orderQuantity, initialImage: photo || undefined, perCopy: perCopy && orderQuantity > 1 },
         });
     };
 
@@ -160,7 +166,10 @@ const ProductSelectionPage = () => {
         e.target.value = '';
         setIsUploading(true);
         try {
-            setUploadedImage(await uploadImageToCloudinary(file));
+            const imageUrl = await uploadImageToCloudinary(file);
+            const size = await loadImageSize(imageUrl);
+            setUploadFit(checkPrintFit(size?.width, size?.height, product));
+            setUploadedImage(imageUrl);
             setShowDesignerForm(false);
             setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
         } catch (error) {
@@ -173,6 +182,7 @@ const ProductSelectionPage = () => {
 
     const removeReadyDesign = () => {
         setUploadedImage(null);
+        setUploadFit(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -243,7 +253,8 @@ const ProductSelectionPage = () => {
                                         <MagnetOptions
                                             selfDesignLabel={options.selfDesign.label}
                                             uploadLabel={options.upload.label}
-                                            onDesign={() => openEditor(false)}
+                                            printProduct={withMagnetPrintDimensions(product)}
+                                            onDesign={(photo) => openEditor(false, photo)}
                                             onAddToCart={addMagnetToCart}
                                         />
                                     )}
@@ -276,7 +287,10 @@ const ProductSelectionPage = () => {
                         {uploadedImage && isDesignProduct && (
                             <UploadedDesignPreview
                                 imageUrl={uploadedImage}
+                                fit={uploadFit}
                                 onRemove={removeReadyDesign}
+                                onDesign={() => openEditor(false)}
+                                onReplace={() => fileInputRef.current?.click()}
                                 onAddToCart={() => addToCartAndNavigate([cartItem({
                                     id: `${product._id}-upload-${Date.now()}`,
                                     image: uploadedImage,
