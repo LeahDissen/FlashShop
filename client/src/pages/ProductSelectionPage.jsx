@@ -11,6 +11,7 @@ import ProductHeroBanner from '../components/productSelection/ProductHeroBanner'
 import ProductPriceBox from '../components/productSelection/ProductPriceBox';
 import UploadedDesignPreview from '../components/productSelection/UploadedDesignPreview';
 import { DESIGNER_SERVICE_FEE, EMPTY_DESIGNER_REQUEST, buildProductCartItem } from '../components/productSelection/productCartItem';
+import { checkPrintFit, loadImageSize } from '../components/productSelection/printFit';
 import { useProductQuantity } from '../components/productSelection/useProductQuantity';
 import { getPrintOption } from '../constants/printOptions';
 import useAuthStore from '../store/authStore';
@@ -40,6 +41,8 @@ const ProductSelectionPage = () => {
     // Content of the "products" CMS page: the banner image and the option button texts
     const [productsPageContent, setProductsPageContent] = useState({});
     const [uploadedImage, setUploadedImage] = useState(null);
+    /** Whether the uploaded ready design matches the print area (null until its size is known) */
+    const [uploadFit, setUploadFit] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [showDesignerForm, setShowDesignerForm] = useState(false);
     const [designerRequest, setDesignerRequest] = useState(EMPTY_DESIGNER_REQUEST);
@@ -160,7 +163,10 @@ const ProductSelectionPage = () => {
         e.target.value = '';
         setIsUploading(true);
         try {
-            setUploadedImage(await uploadImageToCloudinary(file));
+            const imageUrl = await uploadImageToCloudinary(file);
+            const size = await loadImageSize(imageUrl);
+            setUploadFit(checkPrintFit(size?.width, size?.height, product));
+            setUploadedImage(imageUrl);
             setShowDesignerForm(false);
             setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
         } catch (error) {
@@ -173,6 +179,7 @@ const ProductSelectionPage = () => {
 
     const removeReadyDesign = () => {
         setUploadedImage(null);
+        setUploadFit(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -276,7 +283,10 @@ const ProductSelectionPage = () => {
                         {uploadedImage && isDesignProduct && (
                             <UploadedDesignPreview
                                 imageUrl={uploadedImage}
+                                fit={uploadFit}
                                 onRemove={removeReadyDesign}
+                                onDesign={() => openEditor(false)}
+                                onReplace={() => fileInputRef.current?.click()}
                                 onAddToCart={() => addToCartAndNavigate([cartItem({
                                     id: `${product._id}-upload-${Date.now()}`,
                                     image: uploadedImage,
