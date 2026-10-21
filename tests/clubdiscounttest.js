@@ -72,7 +72,8 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
   // the gift waits for the email confirmation: until then no gift at checkout
   const confirmJoin = async (email) => {
     const m = await ClubModel.findOne({ email }).lean();
-    const res = await fetch(`${base}/club/confirm/${m.verifyToken}`); assert.strictEqual(res.status, 200);
+    // pressing the button on the confirmation page (opening the link alone confirms nothing)
+    const res = await fetch(`${base}/club/confirm/${m.verifyToken}`, { method: "POST" }); assert.strictEqual(res.status, 200);
     return m.giftCode;
   };
   r = await post("/club/join", { name: "חדשה", email: "new@example.com" }, giftTok); body = await r.json();

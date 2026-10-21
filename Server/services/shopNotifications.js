@@ -3,7 +3,6 @@
  * customers' replies go to. Edited in the admin ("מועדון והנחות" > הגדרות מייל), never shown publicly.
  */
 const mongoose = require("mongoose");
-const { ShopSettingsModel } = require("../models/shopSettingsModel");
 const { getClientUrl } = require("../utils/clientUrl");
 const { config } = require("../config/secret");
 
@@ -20,6 +19,8 @@ const cleanEmail = (value) => {
 async function loadEmailSettings() {
     if (cache.value && Date.now() - cache.at < CACHE_MS) return cache.value;
     if (mongoose.connection.readyState !== 1) return { notifications: {}, replyToEmail: "" };
+    // Required here, not at the top: utils/sendEmail loads this module, and some code reloads sendEmail
+    const { ShopSettingsModel } = require("../models/shopSettingsModel");
     const settings = await ShopSettingsModel.findOne({ key: "default" }).select("notifications replyToEmail").lean();
     const value = {
         notifications: {
