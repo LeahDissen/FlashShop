@@ -54,7 +54,7 @@ export const resolveCartItemUnitPrice = (item, quantity) => {
     if (!tiers.length) {
         return Number(item?.price) || 0;
     }
-    const basePrice = item.basePrice ?? Number(item.price) ?? 0;
+    const basePrice = item.basePrice ?? (Number(item.price) || 0);
     const tierPrice = getUnitPriceForQuantity(
         { price: basePrice, priceTiers: item.priceTiers },
         quantity,

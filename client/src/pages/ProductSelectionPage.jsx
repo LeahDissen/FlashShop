@@ -1,32 +1,31 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, User, Mail, Phone, FileText, Upload, Image as ImageIcon, Loader2, Trash2, Palette, Sparkles, Type, Minus, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { getPage } from '../api/pages';
 import { getProductById } from '../api/products';
+import PrintOptionsEditor from '../components/PrintOptionsEditor';
+import DesignerRequestForm from '../components/productSelection/DesignerRequestForm';
+import DesignOptions from '../components/productSelection/DesignOptions';
+import MagnetOptions from '../components/productSelection/MagnetOptions';
+import ProductHeroBanner from '../components/productSelection/ProductHeroBanner';
+import ProductPriceBox from '../components/productSelection/ProductPriceBox';
+import UploadedDesignPreview from '../components/productSelection/UploadedDesignPreview';
+import { DESIGNER_SERVICE_FEE, EMPTY_DESIGNER_REQUEST, buildProductCartItem } from '../components/productSelection/productCartItem';
+import { useProductQuantity } from '../components/productSelection/useProductQuantity';
+import { getPrintOption } from '../constants/printOptions';
+import useAuthStore from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import { useProductStore } from '../store/productStore';
-import { getPage } from '../api/pages';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
-import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
 import { parseMagnetSize, withMagnetPrintDimensions } from '../utils/magnetSize';
-import { withTieredPricingFields } from '../utils/cartItem';
-import ProductPricingInfo from '../components/ProductPricingInfo';
-import {
-    getProductOrderPricing,
-    hasTieredPricing,
-    formatPrice,
-} from '../utils/productQuantityPricing';
-import SalePrice from '../components/SalePrice';
-import ClubGiftBadge from '../components/ClubGiftBadge';
-import PrintOptionButton from '../components/PrintOptionButton';
-import PrintOptionsEditor from '../components/PrintOptionsEditor';
-import useAuthStore from '../store/authStore';
-import { getPrintOption } from '../constants/printOptions';
 import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
-import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
+import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
+import { getProductOrderPricing, hasTieredPricing } from '../utils/productQuantityPricing';
 
-/** "עיצוב מותאם": photos the customer can attach for the designer */
-const MAX_DESIGNER_IMAGES = 6;
-
+/**
+ * A product's page: its price and quantity, and how to order it – straight to the cart (a simple
+ * product), a magnet from a photo, or a designed product (editor, the shop's designer, a ready design).
+ */
 const ProductSelectionPage = () => {
     const { productId } = useParams();
     const navigate = useNavigate();
@@ -34,31 +33,20 @@ const ProductSelectionPage = () => {
     const { addToCart } = useCartStore();
     const setSelectedProduct = useProductStore((state) => state.setSelectedProduct);
     const setOrderQuantity = useProductStore((state) => state.setOrderQuantity);
+    const isAdmin = useAuthStore((state) => state.isAdmin());
 
     const [product, setProduct] = useState(location.state?.product ?? null);
     const [loadingProduct, setLoadingProduct] = useState(!location.state?.product);
-    const [quantityInput, setQuantityInput] = useState('1');
-    const [isUploading, setIsUploading] = useState(false);
-    const [uploadedImage, setUploadedImage] = useState(null);
-    const [magnetImage, setMagnetImage] = useState(null);
-
-    const [showDesignerForm, setShowDesignerForm] = useState(false);
-    const [isDesignerUploading, setIsDesignerUploading] = useState(false);
-    const [designerDetails, setDesignerDetails] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        description: '',
-        referenceImages: []
-    });
-
     // Content of the "products" CMS page: the banner image and the option button texts
     const [productsPageContent, setProductsPageContent] = useState({});
-    const isAdmin = useAuthStore((state) => state.isAdmin());
+    const [uploadedImage, setUploadedImage] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [showDesignerForm, setShowDesignerForm] = useState(false);
+    const [designerRequest, setDesignerRequest] = useState(EMPTY_DESIGNER_REQUEST);
     const fileInputRef = useRef(null);
-    const magnetFileRef = useRef(null);
-    const designerFileRef = useRef(null);
     const designerFormRef = useRef(null);
+
+    const quantity = useProductQuantity({ productId, stock: product?.stock });
 
     useEffect(() => {
         if (product) {
@@ -66,7 +54,6 @@ const ProductSelectionPage = () => {
             return;
         }
         if (!productId) return;
-
         setLoadingProduct(true);
         getProductById(productId)
             .then((data) => {
@@ -78,75 +65,21 @@ const ProductSelectionPage = () => {
     }, [product, productId, setSelectedProduct, navigate]);
 
     useEffect(() => {
-        getPage("products").then(setProductsPageContent);
+        getPage('products').then(setProductsPageContent);
     }, []);
 
     useEffect(() => {
-        if (!showDesignerForm) return;
+        if (!showDesignerForm) return undefined;
         const timer = window.setTimeout(() => {
             designerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 120);
         return () => window.clearTimeout(timer);
     }, [showDesignerForm]);
 
-    useEffect(() => {
-        setQuantityInput('1');
-        setOrderQuantity(1);
-    }, [productId, setOrderQuantity]);
-
-    const maxQuantity = product?.stock > 0 ? product.stock : 9999;
-
-    const getQuantity = () => {
-        const parsed = parseInt(quantityInput, 10);
-        if (!Number.isFinite(parsed) || parsed < 1) return 1;
-        return Math.min(maxQuantity, parsed);
-    };
-
-    const applyQuantity = (next) => {
-        const clamped = Math.min(maxQuantity, Math.max(1, next));
-        setQuantityInput(String(clamped));
-        setOrderQuantity(clamped);
-        return clamped;
-    };
-
-    const handleDecreaseQuantity = () => {
-        applyQuantity(getQuantity() - 1);
-    };
-
-    const handleIncreaseQuantity = () => {
-        applyQuantity(getQuantity() + 1);
-    };
-
-    const handleQuantityInputChange = (e) => {
-        const raw = e.target.value.replace(/\D/g, '');
-        setQuantityInput(raw);
-        if (raw !== '') {
-            const parsed = parseInt(raw, 10);
-            if (Number.isFinite(parsed) && parsed >= 1) {
-                setOrderQuantity(Math.min(maxQuantity, parsed));
-            }
-        }
-    };
-
-    const handleQuantityInputBlur = () => {
-        applyQuantity(getQuantity());
-    };
-
-    const currentQuantity = useMemo(() => {
-        const parsed = parseInt(quantityInput, 10);
-        if (!Number.isFinite(parsed) || parsed < 1) return 1;
-        const maxQty = product?.stock > 0 ? product.stock : 9999;
-        return Math.min(maxQty, parsed);
-    }, [quantityInput, product?.stock]);
-
-    const productPricing = useMemo(() => {
+    const pricing = useMemo(() => {
         if (!product || isMagnetProduct(product)) return null;
-        return getProductOrderPricing(product, currentQuantity);
-    }, [product, currentQuantity]);
-
-    const showTieredPricing = product && hasTieredPricing(product) && !isMagnetProduct(product);
-
-    const resolveUnitPrice = () => (productPricing?.unitPrice ?? Number(product?.price)) || 0;
+        return getProductOrderPricing(product, quantity.currentQuantity);
+    }, [product, quantity.currentQuantity]);
 
     if (loadingProduct) {
         return (
@@ -155,21 +88,29 @@ const ProductSelectionPage = () => {
             </div>
         );
     }
-
-    if (!product) {
-        return null;
-    }
-
-    const selfDesignOption = getPrintOption(productsPageContent, 'optionSelfDesign');
-    const designerOption = getPrintOption(productsPageContent, 'optionDesigner');
-    const uploadOption = getPrintOption(productsPageContent, 'optionUpload');
-    const captionsOption = getPrintOption(productsPageContent, 'optionCaptions');
-    const perCopyOption = getPrintOption(productsPageContent, 'optionPerCopy');
+    if (!product) return null;
 
     const simpleProduct = isSimpleProduct(product);
     const magnetProduct = isMagnetProduct(product);
+    const showTieredPricing = hasTieredPricing(product) && !magnetProduct;
+    const options = {
+        selfDesign: getPrintOption(productsPageContent, 'optionSelfDesign'),
+        designer: getPrintOption(productsPageContent, 'optionDesigner'),
+        upload: getPrintOption(productsPageContent, 'optionUpload'),
+        captions: getPrintOption(productsPageContent, 'optionCaptions'),
+        perCopy: getPrintOption(productsPageContent, 'optionPerCopy'),
+    };
+    const unitPrice = () => (pricing?.unitPrice ?? Number(product.price)) || 0;
+    const cartItem = (overrides, extra = {}) => buildProductCartItem({
+        product,
+        quantity: quantity.getQuantity(),
+        unitPrice: unitPrice(),
+        isMagnet: magnetProduct,
+        overrides,
+        ...extra,
+    });
 
-    // After adding to the cart, return to the products page so the customer can keep shopping
+    // After adding to the cart, back to the products page so the customer can keep shopping
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
         try {
             await addToCart(items, { successMessage });
@@ -180,79 +121,28 @@ const ProductSelectionPage = () => {
         }
     };
 
-    const buildCartItem = (overrides, { priceAddon = 0 } = {}) => {
-        const quantity = overrides.quantity ?? getQuantity();
-        const unitPrice = overrides.price ?? resolveUnitPrice();
-        const item = {
-            productId: product._id,
-            name: product.name,
-            price: unitPrice,
-            image: product.image,
-            quantity,
-            ...overrides,
-        };
-        if (magnetProduct) {
-            return item;
-        }
-        return withTieredPricingFields(item, product, { priceAddon });
+    /** perCopy: a separate design for each copy (quantity > 1) instead of one design for all */
+    const openEditor = (perCopy = false) => {
+        const orderQuantity = quantity.applyQuantity(quantity.getQuantity());
+        const productForEditor = withMagnetPrintDimensions(product);
+        setSelectedProduct(productForEditor);
+        setOrderQuantity(orderQuantity);
+        // A photo already uploaded here comes along, so it is not uploaded again in the editor
+        navigate(`/editor/${productId}`, {
+            state: { product: productForEditor, quantity: orderQuantity, initialImage: uploadedImage || undefined, perCopy: perCopy && orderQuantity > 1 },
+        });
     };
 
-    const handleSimpleAddToCart = async () => {
-        const quantity = getQuantity();
-        const unitPrice = resolveUnitPrice();
-        await addToCartAndNavigate([buildCartItem({
-            id: `${product._id}-simple-${Date.now()}`,
-            quantity,
-            price: unitPrice,
-        })]);
-    };
-
-    const handleMagnetFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        e.target.value = '';
-        setIsUploading(true);
-        try {
-            const imageUrl = await uploadImageToCloudinary(file);
-            setMagnetImage(imageUrl);
-        } catch (error) {
-            alert(error?.message || "הייתה שגיאה בהעלאת התמונה.");
-        } finally {
-            setIsUploading(false);
-        }
-    };
-
-    const handleRemoveMagnetImage = () => {
-        setMagnetImage(null);
-        if (magnetFileRef.current) magnetFileRef.current.value = '';
-    };
-
-    const handleUploadAddToCart = async () => {
-        if (!uploadedImage) return;
-        const quantity = getQuantity();
-        const unitPrice = resolveUnitPrice();
-        await addToCartAndNavigate([buildCartItem({
-            id: `${product._id}-upload-${Date.now()}`,
-            image: uploadedImage,
-            quantity,
-            price: unitPrice,
-            customization: { type: 'upload-only', originalImage: product.image },
-        })]);
-    };
-
-    const handleMagnetAddToCart = async () => {
-        if (!magnetImage) {
-            alert("יש להעלות תמונה למגנט");
+    const addMagnetToCart = async (image) => {
+        if (!image) {
+            alert('יש להעלות תמונה למגנט');
             return;
         }
-        const quantity = getQuantity();
         const parsedSize = parseMagnetSize(product.size);
-        const unitPrice = Number(product.price) || 0;
-        await addToCartAndNavigate([buildCartItem({
+        await addToCartAndNavigate([cartItem({
             id: `${product._id}-magnet-${Date.now()}`,
-            quantity,
-            price: unitPrice,
-            image: magnetImage,
+            price: Number(product.price) || 0,
+            image,
             size: product.size || undefined,
             customization: {
                 type: 'magnet',
@@ -263,137 +153,48 @@ const ProductSelectionPage = () => {
         })]);
     };
 
-    /** perCopy: a separate design for each copy (quantity > 1) instead of one design for all */
-    const handleDesignClick = (perCopy = false) => {
-        const quantity = applyQuantity(getQuantity());
-        const productForEditor = withMagnetPrintDimensions(product);
-        setSelectedProduct(productForEditor);
-        setOrderQuantity(quantity);
-        // A photo already uploaded here comes along, so it is not uploaded again in the editor
-        navigate(`/editor/${productId}`, {
-            state: { product: productForEditor, quantity, initialImage: uploadedImage || undefined, perCopy: perCopy && quantity > 1 },
-        });
-    };
-
-    // Submit the designer form with extended validation
-    const handleDesignerSubmit = async (e) => {
-        e.preventDefault();
-        
-        // Basic Israeli phone validation
-        const cleanPhone = designerDetails.phone.replace(/[-\s]/g, '');
-        if (cleanPhone.length < 9 || cleanPhone.length > 10 || isNaN(cleanPhone)) {
-            alert("אנא הזן מספר טלפון תקין");
-            return;
-        }
-
-        // Email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(designerDetails.email)) {
-            alert("אנא הזן כתובת אימייל תקינה");
-            return;
-        }
-
-        const quantity = getQuantity();
-        const unitPrice = resolveUnitPrice();
-        const cartItem = buildCartItem({
-            id: `${product._id}-designer-${Date.now()}`,
-            quantity,
-            price: unitPrice + 15,
-            customization: {
-                type: 'designer-service',
-                ...designerDetails,
-                // The first photo also as referenceImage, for orders/screens that read a single image
-                referenceImage: designerDetails.referenceImages[0] || null,
-            }
-        }, { priceAddon: 15 });
-
-        await addToCartAndNavigate([cartItem], {
-            successMessage: 'הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!',
-        });
-    };
-
-    // Handle the file of the direct upload flow
-    const handleFileChange = async (e) => {
+    // A ready design printed as is
+    const uploadReadyDesign = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         e.target.value = '';
         setIsUploading(true);
         try {
-            const imageUrl = await uploadImageToCloudinary(file);
-            setUploadedImage(imageUrl);
-            setShowDesignerForm(false); // Close the designer form to avoid confusion
-            setTimeout(() => {
-                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-            }, 100);
+            setUploadedImage(await uploadImageToCloudinary(file));
+            setShowDesignerForm(false);
+            setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
         } catch (error) {
-            console.error("Error uploading image:", error);
-            alert(error?.message || "הייתה שגיאה בהעלאת התמונה.");
+            console.error('Error uploading image:', error);
+            alert(error?.message || 'הייתה שגיאה בהעלאת התמונה.');
         } finally {
             setIsUploading(false);
         }
     };
 
-    // Cancel and delete the ready image uploaded in the direct flow
-    const handleRemoveUploadedImage = () => {
+    const removeReadyDesign = () => {
         setUploadedImage(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    // Photos for the designer: up to MAX_DESIGNER_IMAGES, several at once
-    const handleDesignerFileChange = async (e) => {
-        const room = MAX_DESIGNER_IMAGES - designerDetails.referenceImages.length;
-        const files = Array.from(e.target.files || []).slice(0, Math.max(0, room));
-        e.target.value = '';
-        if (!files.length) return;
-        setIsDesignerUploading(true);
-        try {
-            const results = await Promise.allSettled(files.map((file) => uploadImageToCloudinary(file)));
-            const urls = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-            setDesignerDetails((prev) => ({
-                ...prev,
-                referenceImages: [...prev.referenceImages, ...urls].slice(0, MAX_DESIGNER_IMAGES),
-            }));
-            const failed = results.length - urls.length;
-            if (failed) alert(`${failed} מהקבצים לא הועלו. אפשר לנסות שוב.`);
-        } finally {
-            setIsDesignerUploading(false);
-        }
-    };
+    const submitDesignerRequest = (request) => addToCartAndNavigate([
+        cartItem({
+            id: `${product._id}-designer-${Date.now()}`,
+            price: unitPrice() + DESIGNER_SERVICE_FEE,
+            customization: {
+                type: 'designer-service',
+                ...request,
+                // The first photo also as referenceImage, for orders/screens that read a single image
+                referenceImage: request.referenceImages[0] || null,
+            },
+        }, { priceAddon: DESIGNER_SERVICE_FEE }),
+    ], { successMessage: 'הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!' });
 
-    const handleRemoveDesignerImage = (url) => {
-        setDesignerDetails((prev) => ({ ...prev, referenceImages: prev.referenceImages.filter((src) => src !== url) }));
-    };
+    const isDesignProduct = !simpleProduct && !magnetProduct;
 
     return (
         <div className="min-h-screen bg-[#faf8f6] pb-20" dir="rtl">
-            {/* Hero Banner */}
-            <div className="w-full relative">
-                <div
-                    className="relative h-[160px] sm:h-[200px] bg-cover bg-center flex items-center justify-center text-white"
-                    style={{ backgroundImage: `url(${optimizeImageUrl(productsPageContent.img || '', { width: screenWidthImageSize() })})`, backgroundColor: '#a39589' }}
-                >
-                    <div className="absolute inset-0 bg-black/15"></div>
-                    <h1 className="relative z-10 text-3xl sm:text-4xl font-bold text-center text-white tracking-wide drop-shadow-sm" style={{ fontFamily: "'Noto Sans Hebrew', sans-serif" }}>
-                        {product.name}
-                    </h1>
-                    <div className="absolute -bottom-px left-0 w-full leading-[0] rotate-180 z-10">
-                        <svg
-                            className="relative block w-full h-[42px] sm:h-[52px]"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 1200 120"
-                            preserveAspectRatio="none"
-                            aria-hidden="true"
-                        >
-                            <path
-                                d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-                                fill="#faf8f6"
-                            />
-                        </svg>
-                    </div>
-                </div>
-            </div>
+            <ProductHeroBanner title={product.name} imageUrl={productsPageContent.img} />
 
-            {/* Main Content */}
             <div className="relative py-6 sm:py-8 px-4">
                 <div className="max-w-4xl mx-auto relative">
                     <button
@@ -405,16 +206,11 @@ const ProductSelectionPage = () => {
                     </button>
 
                     <div className="space-y-6 mt-4">
-                        {/* Main product card */}
                         <div className="bg-white rounded-2xl shadow-sm border border-[#f2665e]/15 p-6 sm:p-8">
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                                 <div className="shrink-0 flex justify-center md:justify-start self-start">
                                     <div className="p-1 rounded-lg bg-[#fff5f4] border border-[#f2665e]/20 w-fit">
-                                        <img
-                                            src={product.image}
-                                            alt={product.name}
-                                            className="w-28 h-28 object-cover rounded-md bg-white"
-                                        />
+                                        <img src={product.image} alt={product.name} className="w-28 h-28 object-cover rounded-md bg-white" />
                                     </div>
                                 </div>
 
@@ -422,97 +218,21 @@ const ProductSelectionPage = () => {
                                     <div className="space-y-4">
                                         <h2 className="text-2xl font-bold text-[#f2665e]">{product.name}</h2>
                                         {product.description && (
-                                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                                                {product.description}
-                                            </p>
+                                            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
                                         )}
-
-                                        <div className="rounded-xl bg-[#fff5f4]/60 border border-[#f2665e]/15 px-4 py-3 space-y-2">
-                                            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                                                {magnetProduct ? (
-                                                    <>
-                                                        <SalePrice product={product} priceClassName="text-xl font-semibold text-gray-900" />
-                                                        {product.size && (
-                                                            <span className="text-xs text-[#f2665e]/80">גודל {product.size} ס&quot;מ</span>
-                                                        )}
-                                                    </>
-                                                ) : showTieredPricing ? (
-                                                    <>
-                                                        <span className="text-xl font-semibold text-gray-900">
-                                                            {formatPrice(productPricing.unitPrice)}
-                                                            <span className="text-xs font-normal text-gray-500 mr-1">ליחידה</span>
-                                                        </span>
-                                                        <span className="text-sm font-semibold text-[#f2665e]">
-                                                            סה&quot;כ {formatPrice(productPricing.grandTotal)}
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <SalePrice product={product} priceClassName="text-xl font-semibold text-gray-900" />
-                                                )}
-                                            </div>
-
-                                            <ClubGiftBadge product={product} className="!justify-start" />
-                                            {product.isOnSale && showTieredPricing && (
-                                                <p className="text-xs font-bold text-[#f2665e]">מוצר במבצע: חברות מועדון מקבלות הנחה בתשלום</p>
-                                            )}
-                                            {!simpleProduct && !magnetProduct && (product.printWidth || product.printHeight) && (
-                                                <p className="text-xs text-[#f2665e]/70">
-                                                    משטח הדפסה: {product.printWidth ?? 12} × {product.printHeight ?? 18} ס&quot;מ
-                                                </p>
-                                            )}
-
-                                            <div className="flex flex-wrap items-center gap-4 pt-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-medium text-[#f2665e]/80">כמות</span>
-                                                    <div className="inline-flex items-center border border-[#f2665e]/30 rounded-lg overflow-hidden bg-white">
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleDecreaseQuantity}
-                                                            disabled={getQuantity() <= 1}
-                                                            className="px-2.5 py-1.5 text-[#f2665e] hover:bg-[#fff5f4] disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                                                            aria-label="הפחת כמות"
-                                                        >
-                                                            <Minus size={16} />
-                                                        </button>
-                                                        <input
-                                                            type="text"
-                                                            inputMode="numeric"
-                                                            pattern="[0-9]*"
-                                                            value={quantityInput}
-                                                            onChange={handleQuantityInputChange}
-                                                            onBlur={handleQuantityInputBlur}
-                                                            className="w-11 py-1.5 text-center text-sm font-semibold text-gray-900 border-x border-[#f2665e]/20 outline-none"
-                                                            aria-label="כמות"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={handleIncreaseQuantity}
-                                                            disabled={getQuantity() >= maxQuantity}
-                                                            className="px-2.5 py-1.5 text-[#f2665e] hover:bg-[#fff5f4] disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                                                            aria-label="הוסף כמות"
-                                                        >
-                                                            <Plus size={16} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                {showTieredPricing && (
-                                                    <ProductPricingInfo
-                                                        product={product}
-                                                        quantity={currentQuantity}
-                                                    />
-                                                )}
-                                                {product.stock > 0 && product.stock < 9999 && (
-                                                    <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
-                                                        במלאי {product.stock}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
+                                        <ProductPriceBox
+                                            product={product}
+                                            quantity={quantity}
+                                            pricing={pricing}
+                                            showTieredPricing={showTieredPricing}
+                                            isMagnet={magnetProduct}
+                                            isSimple={simpleProduct}
+                                        />
                                     </div>
 
                                     {simpleProduct && (
                                         <button
-                                            onClick={handleSimpleAddToCart}
+                                            onClick={() => addToCartAndNavigate([cartItem({ id: `${product._id}-simple-${Date.now()}` })])}
                                             className="self-start px-6 py-2.5 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-xl text-sm font-semibold border-2 border-[#f2665e] transition-colors cursor-pointer shadow-sm"
                                         >
                                             הוסף לסל
@@ -520,250 +240,58 @@ const ProductSelectionPage = () => {
                                     )}
 
                                     {magnetProduct && (
-                                        <div className="space-y-4 w-full">
-                                            <div className="flex flex-wrap items-center gap-3">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDesignClick(false)}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer"
-                                                >
-                                                    <Palette size={16} />
-                                                    {selfDesignOption.label}
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => magnetFileRef.current?.click()}
-                                                    disabled={isUploading}
-                                                    className="px-4 py-2 text-xs font-medium text-[#f2665e] border border-[#f2665e]/30 bg-[#fff5f4] rounded-xl hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
-                                                >
-                                                    {isUploading ? 'מעלה...' : magnetImage ? 'החלפת תמונה' : uploadOption.label}
-                                                </button>
-                                                <input type="file" ref={magnetFileRef} onChange={handleMagnetFileChange} className="hidden" accept="image/*" />
-                                                <button
-                                                    onClick={handleMagnetAddToCart}
-                                                    className="px-5 py-2 bg-[#f2665e] hover:bg-[#d95248] text-white rounded-xl text-sm font-semibold border-2 border-[#f2665e] transition-colors cursor-pointer"
-                                                >
-                                                    הוסף לסל
-                                                </button>
-                                            </div>
-                                            {magnetImage && (
-                                                <div className="relative inline-block">
-                                                    <img src={magnetImage} alt="תצוגת מגנט" className="max-w-[160px] rounded-lg border-2 border-[#f2665e]/20" />
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleRemoveMagnetImage}
-                                                        className="absolute -top-1.5 -left-1.5 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full transition-colors cursor-pointer"
-                                                        title="מחק תמונה"
-                                                        aria-label="מחק תמונה"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
+                                        <MagnetOptions
+                                            selfDesignLabel={options.selfDesign.label}
+                                            uploadLabel={options.upload.label}
+                                            onDesign={() => openEditor(false)}
+                                            onAddToCart={addMagnetToCart}
+                                        />
+                                    )}
+
+                                    {isDesignProduct && (
+                                        <>
+                                            <DesignOptions
+                                                options={options}
+                                                quantity={quantity.currentQuantity}
+                                                designerFormOpen={showDesignerForm}
+                                                isUploading={isUploading}
+                                                onDesign={openEditor}
+                                                onToggleDesigner={() => {
+                                                    setShowDesignerForm(!showDesignerForm);
+                                                    setUploadedImage(null);
+                                                }}
+                                                onUpload={() => fileInputRef.current.click()}
+                                                onCaptionIdeas={() => navigate(`/product-selection/${productId}/caption-ideas`)}
+                                            />
+                                            {isAdmin && (
+                                                <PrintOptionsEditor content={productsPageContent} onSaved={setProductsPageContent} />
                                             )}
-                                        </div>
-                                    )}
-
-                                    {!simpleProduct && !magnetProduct && (
-                                    <>
-                                    <div className="grid grid-cols-2 gap-3 w-full max-w-lg">
-                                        <PrintOptionButton
-                                            hint={selfDesignOption.hint}
-                                            onClick={() => handleDesignClick(false)}
-                                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
-                                        >
-                                            <Palette size={17} />
-                                            {selfDesignOption.label}
-                                        </PrintOptionButton>
-
-                                        <PrintOptionButton
-                                            hint={designerOption.hint}
-                                            onClick={() => { setShowDesignerForm(!showDesignerForm); setUploadedImage(null); }}
-                                            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border transition-colors cursor-pointer ${
-                                                showDesignerForm
-                                                    ? 'bg-[#f2665e] text-white border-[#f2665e]'
-                                                    : 'border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50'
-                                            }`}
-                                        >
-                                            <Sparkles size={17} />
-                                            {designerOption.label}
-                                        </PrintOptionButton>
-
-                                        <PrintOptionButton
-                                            hint={uploadOption.hint}
-                                            onClick={() => fileInputRef.current.click()}
-                                            disabled={isUploading}
-                                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e] text-[#f2665e] bg-[#fff5f4] hover:bg-[#f2665e]/10 transition-colors cursor-pointer disabled:opacity-50"
-                                        >
-                                            {isUploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
-                                            {isUploading ? 'מעלה...' : uploadOption.label}
-                                        </PrintOptionButton>
-
-                                        <PrintOptionButton
-                                            hint={captionsOption.hint}
-                                            onClick={() => navigate(`/product-selection/${productId}/caption-ideas`)}
-                                            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium border border-[#f2665e]/30 text-[#f2665e] bg-white hover:bg-[#fff5f4] hover:border-[#f2665e]/50 transition-colors cursor-pointer"
-                                        >
-                                            <Type size={17} />
-                                            {captionsOption.label}
-                                        </PrintOptionButton>
-                                    </div>
-                                    {currentQuantity > 1 && (
-                                        <div className="w-full max-w-lg mt-3 space-y-2">
-                                            <p className="text-xs text-gray-600 leading-relaxed bg-[#fff5f4] border border-[#f2665e]/15 rounded-xl px-3 py-2">
-                                                תוכלו לעצב עיצוב אישי לכל אחד מעותקי המוצר שבחרתם בבחירה ב&quot;{perCopyOption.label}&quot;, או להשתמש באופציית &quot;{selfDesignOption.label}&quot; לעיצוב אחיד עבור כולם.
-                                            </p>
-                                            <PrintOptionButton
-                                                hint={perCopyOption.hint}
-                                                onClick={() => handleDesignClick(true)}
-                                                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-[#f2665e] text-white bg-[#f2665e] hover:bg-[#d95248] transition-colors cursor-pointer"
-                                            >
-                                                <Palette size={17} />
-                                                {perCopyOption.label} ({currentQuantity})
-                                            </PrintOptionButton>
-                                        </div>
-                                    )}
-                                    {isAdmin && (
-                                        <PrintOptionsEditor content={productsPageContent} onSaved={setProductsPageContent} />
-                                    )}
-
-                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                                    </>
+                                            <input type="file" ref={fileInputRef} onChange={uploadReadyDesign} className="hidden" accept="image/*" />
+                                        </>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Preview - direct upload flow (including a new delete button to undo) */}
-                        {uploadedImage && !simpleProduct && !magnetProduct && (
-                            <div className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4">הקובץ שהעלית להדפסה ישירה:</h3>
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className="relative group">
-                                        <img src={uploadedImage} alt="Uploaded preview" className="max-w-xs w-full h-48 object-contain rounded-lg bg-gray-50 border p-2" />
-                                        {/* Small floating delete button on the image for a quick undo */}
-                                        <button
-                                            type="button"
-                                            onClick={handleRemoveUploadedImage}
-                                            className="absolute -top-2 -left-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-md transition-all cursor-pointer"
-                                            title="מחק תמונה והתחרט"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleUploadAddToCart}
-                                        className="w-full max-w-xs bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-6 rounded-full shadow-sm transition-all text-sm cursor-pointer"
-                                    >
-                                        הוסף לסל
-                                    </button>
-                                </div>
-                            </div>
+                        {uploadedImage && isDesignProduct && (
+                            <UploadedDesignPreview
+                                imageUrl={uploadedImage}
+                                onRemove={removeReadyDesign}
+                                onAddToCart={() => addToCartAndNavigate([cartItem({
+                                    id: `${product._id}-upload-${Date.now()}`,
+                                    image: uploadedImage,
+                                    customization: { type: 'upload-only', originalImage: product.image },
+                                })])}
+                            />
                         )}
 
-                        {/* Design request form for the designer */}
-                        {showDesignerForm && !simpleProduct && !magnetProduct && (
-                            <div ref={designerFormRef} className="animate-fade-in bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-6 scroll-mt-24">
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-900 mb-1">עיצוב מותאם אישית על ידי גרפיקאית</h3>
-                                    <p className="text-sm text-gray-500">הסבירו לנו מה אתם רוצים שיופיע, צרפו קובץ במידת הצורך, ואנו נשלח לכם סקיצה לאישור במייל!</p>
-                                </div>
-                                
-                                <form onSubmit={handleDesignerSubmit} className="space-y-5">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        {/* Full name */}
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 mb-1.5">שם מלא:</label>
-                                            <div className="relative">
-                                                <input required type="text" value={designerDetails.name} onChange={(e) => setDesignerDetails({...designerDetails, name: e.target.value})} className="w-full border border-gray-200 rounded-xl p-3 pl-10 pr-4 focus:ring-2 focus:ring-[#f2665e]/20 focus:border-[#f2665e] outline-none transition-all text-sm" />
-                                                <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                                            </div>
-                                        </div>
-                                        {/* Email */}
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 mb-1.5">כתובת מייל:</label>
-                                            <div className="relative">
-                                                <input required type="email" value={designerDetails.email} onChange={(e) => setDesignerDetails({...designerDetails, email: e.target.value})} className="w-full border border-gray-200 rounded-xl p-3 pl-10 pr-4 text-left ltr focus:ring-2 focus:ring-[#f2665e]/20 focus:border-[#f2665e] outline-none transition-all text-sm" />
-                                                <Mail className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                                            </div>
-                                        </div>
-                                        {/* Phone */}
-                                        <div>
-                                            <label className="block text-sm font-bold text-gray-700 mb-1.5">טלפון ליצירת קשר:</label>
-                                            <div className="relative">
-                                                <input required type="tel" value={designerDetails.phone} onChange={(e) => setDesignerDetails({...designerDetails, phone: e.target.value})} className="w-full border border-gray-200 rounded-xl p-3 pl-10 pr-4 text-left ltr focus:ring-2 focus:ring-[#f2665e]/20 focus:border-[#f2665e] outline-none transition-all text-sm" />
-                                                <Phone className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Request description */}
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-1.5">תיאור העיצוב המבוקש:</label>
-                                        <div className="relative">
-                                            <textarea required rows="4" value={designerDetails.description} onChange={(e) => setDesignerDetails({...designerDetails, description: e.target.value})} className="w-full border border-gray-200 rounded-xl p-3 pl-10 pr-4 focus:ring-2 focus:ring-[#f2665e]/20 focus:border-[#f2665e] outline-none transition-all text-sm resize-none" placeholder="לדוגמה: אני רוצה רקע ורוד, בצד אחד להוסיף את התמונה שצירפתי ובצד השני לכתוב באותיות יפות לבנות 'אמא היקרה שלנו'..." />
-                                            <FileText className="absolute left-3 top-3.5 text-gray-400" size={18} />
-                                        </div>
-                                    </div>
-
-                                    {/* Attach a file/image for the designer */}
-                                    <div className="bg-gray-50 rounded-xl p-4 border border-dashed border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                        <div className="flex items-center gap-3 text-right">
-                                            <div className="p-2.5 bg-white rounded-lg border shadow-sm text-gray-500">
-                                                <ImageIcon size={20} />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-800">רוצים לצרף תמונה או לוגו כבסיס?</p>
-                                                <p className="text-xs text-gray-400">הגרפיקאית תשתמש בקובץ זה כדי לבנות את העיצוב שלכם (עד ~10MB, מומלץ תמונות מהטלפון)</p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div>
-                                            <button
-                                                type="button"
-                                                onClick={() => designerFileRef.current.click()}
-                                                disabled={isDesignerUploading || designerDetails.referenceImages.length >= MAX_DESIGNER_IMAGES}
-                                                className="px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
-                                            >
-                                                {isDesignerUploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                                                העלאת תמונות (עד {MAX_DESIGNER_IMAGES} קבצים)
-                                            </button>
-                                            <input type="file" ref={designerFileRef} onChange={handleDesignerFileChange} className="hidden" accept="image/*" multiple />
-                                        </div>
-                                    </div>
-
-                                    {/* Small preview with a delete icon */}
-                                    {designerDetails.referenceImages.length > 0 && (
-                                        <div className="bg-green-50 text-green-800 p-3 rounded-xl border border-green-100 text-xs max-w-md space-y-2">
-                                            <p className="font-medium">
-                                                {designerDetails.referenceImages.length} מתוך {MAX_DESIGNER_IMAGES} תמונות מצורפות לבקשה
-                                            </p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {designerDetails.referenceImages.map((url, index) => (
-                                                    <div key={url} className="relative">
-                                                        <img src={optimizeImageUrl(url, { width: 96, height: 96 })} alt={`תמונה ${index + 1}`} className="w-12 h-12 object-cover rounded border bg-white shadow-sm" />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveDesignerImage(url)}
-                                                            className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-white shadow text-gray-500 hover:text-red-500 flex items-center justify-center cursor-pointer"
-                                                            aria-label={`מחיקת תמונה ${index + 1}`}
-                                                        >
-                                                            <Trash2 size={11} />
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Final form submit button */}
-                                    <div className="text-left pt-2">
-                                        <button type="submit" className="bg-[#f2665e] hover:bg-[#d95248] text-white font-bold py-2 px-8 rounded-full shadow-sm transition-all text-sm cursor-pointer">
-                                            אישור ותוספת לסל (+15 ₪)
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
+                        {showDesignerForm && isDesignProduct && (
+                            <DesignerRequestForm
+                                ref={designerFormRef}
+                                request={designerRequest}
+                                setRequest={setDesignerRequest}
+                                onSubmit={submitDesignerRequest}
+                            />
                         )}
                     </div>
                 </div>
@@ -772,4 +300,8 @@ const ProductSelectionPage = () => {
     );
 };
 
-export default ProductSelectionPage;
+/** A new product address starts the page fresh: its product, quantity, uploaded photo and designer form */
+export default function ProductSelectionRoute() {
+    const { productId } = useParams();
+    return <ProductSelectionPage key={productId} />;
+}

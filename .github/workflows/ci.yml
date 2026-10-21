@@ -1,0 +1,68 @@
+# Every push and pull request to dev/main: the client is linted, unit-tested and built, and the
+# integration tests run the server API against an in-memory MongoDB. A red check blocks nothing by
+# itself, but nothing should be merged or deployed while it is red.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client:
+    name: Client – lint, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - name: Lint (errors fail the build)
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  integration:
+    name: Integration tests – server API and client modules
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            Server/package-lock.json
+            client/package-lock.json
+            tests/package-lock.json
+      - name: Install
+        run: |
+          npm ci --prefix Server
+          npm ci --prefix client
+          npm ci --prefix tests
+      - name: Cache the MongoDB binary used by the tests
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('tests/package-lock.json') }}
+      - name: Run all test suites
+        run: node tests/run-all.mjs

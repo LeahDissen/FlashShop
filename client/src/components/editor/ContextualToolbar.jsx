@@ -1,109 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { 
-    AlignCenterIcon, AlignLeftIcon, AlignRightIcon, 
-    BoldIcon, BringForwardIcon, CropIcon, 
-    DuplicateIcon, FlipHorizontalIcon, FlipVerticalIcon,
-    ItalicIcon, NoColorIcon, PlusIcon, 
-    SendBackwardIcon, SunIcon, TrashIcon, UnderlineIcon 
-} from '../icons';
+import { BringForwardIcon, DuplicateIcon, SendBackwardIcon, TrashIcon } from '../icons';
 import { DEFAULT_EDITOR_SETTINGS } from '../../constants/editorSettingsDefaults';
-import ToolbarPopover from './ToolbarPopover';
+import ImageTools from './toolbar/ImageTools';
+import ShapeTools from './toolbar/ShapeTools';
+import TextTools from './toolbar/TextTools';
+import ToolbarDivider from './toolbar/ToolbarDivider';
 
-const NumericStepper = ({ value, onChange, min = 0, max = 200, step = 1, label }) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [draftValue, setDraftValue] = useState(String(value));
-    const inputRef = useRef(null);
-
-    useEffect(() => {
-        if (!isEditing) {
-            setDraftValue(String(value));
-        }
-    }, [value, isEditing]);
-
-    const commitValue = (raw) => {
-        const parsed = parseInt(String(raw).trim(), 10);
-        if (!Number.isNaN(parsed)) {
-            onChange(Math.max(min, Math.min(max, parsed)));
-            return;
-        }
-        setDraftValue(String(value));
-    };
-
-    const handleDecrement = () => onChange(Math.max(min, value - step));
-    const handleIncrement = () => onChange(Math.min(max, value + step));
-
-    const handleInputChange = (e) => {
-        const next = e.target.value.replace(/[^\d]/g, '');
-        setDraftValue(next);
-        if (next === '') return;
-        const parsed = parseInt(next, 10);
-        if (!Number.isNaN(parsed)) {
-            onChange(Math.max(min, Math.min(max, parsed)));
-        }
-    };
-
-    const handleFocus = (e) => {
-        setIsEditing(true);
-        window.setTimeout(() => e.target.select(), 0);
-    };
-
-    const handleBlur = () => {
-        setIsEditing(false);
-        commitValue(draftValue);
-    };
-
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            commitValue(draftValue);
-            inputRef.current?.blur();
-        }
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            setDraftValue(String(value));
-            inputRef.current?.blur();
-        }
-    };
-
-    return (
-        <div className="flex items-center gap-2">
-            {label && <span className="text-xs text-gray-500 font-medium">{label}</span>}
-            <div className="flex items-center border border-gray-300 rounded-lg h-9 bg-white overflow-hidden shadow-sm" dir="ltr">
-                <button
-                    type="button"
-                    onClick={handleDecrement}
-                    className="px-3 h-full hover:bg-gray-50 active:bg-gray-100 border-r border-gray-300 text-gray-600 transition-colors flex items-center justify-center"
-                >
-                    -
-                </button>
-                <input
-                    ref={inputRef}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={isEditing ? draftValue : String(value)}
-                    onChange={handleInputChange}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
-                    onKeyDown={handleKeyDown}
-                    aria-label={label || 'ערך מספרי'}
-                    className="w-14 text-center h-full border-none focus:ring-0 focus:outline-none text-gray-800 font-semibold bg-white text-sm cursor-text hover:bg-gray-50 focus:bg-white"
-                />
-                <button
-                    type="button"
-                    onClick={handleIncrement}
-                    className="px-3 h-full hover:bg-gray-50 active:bg-gray-100 border-l border-gray-300 text-gray-600 transition-colors flex items-center justify-center"
-                >
-                    +
-                </button>
-            </div>
-        </div>
-    );
-};
-
-const Divider = () => <div className="w-px h-8 bg-gray-200 mx-2"></div>;
-
-
+/** The bar above the canvas for the selected element: layer actions, its type's tools and opacity */
 const ContextualToolbar = ({ 
     selectedElement, 
     onUpdateElement,
@@ -115,53 +17,11 @@ const ContextualToolbar = ({
     textOptions = DEFAULT_EDITOR_SETTINGS.textToolbar,
     colors = [],
 }) => {
-    const [showColorPicker, setShowColorPicker] = useState(false);
-    const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-    const [showFilters, setShowFilters] = useState(false);
-    const colorPickerRef = useRef(null);
-    const textColorPickerRef = useRef(null);
-    const filtersRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            // The panels are rendered in a portal outside the toolbar – a click in their content is not "outside"
-            if (event.target.closest?.('[data-toolbar-popover]')) return;
-            if (colorPickerRef.current && !colorPickerRef.current.contains(event.target)) {
-                setShowColorPicker(false);
-            }
-            if (textColorPickerRef.current && !textColorPickerRef.current.contains(event.target)) {
-                setShowTextColorPicker(false);
-            }
-            if (filtersRef.current && !filtersRef.current.contains(event.target)) {
-                setShowFilters(false);
-            }
-        };
-
-        if (showColorPicker || showTextColorPicker || showFilters) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [showColorPicker, showTextColorPicker, showFilters]);
-
     if (!selectedElement) {
         return null;
     }
 
-    const handleTextChange = (key, value) => {
-        onUpdateElement({ [key]: value });
-    };
-
-    const handleImageChange = (key, value) => {
-        onUpdateElement({ [key]: value });
-    };
-
-    const handleShapeChange = (key, value) => {
-        onUpdateElement({ [key]: value });
-    };
-
-    const currentFill = selectedElement.fill;
+    const updateField = (key, value) => onUpdateElement({ [key]: value });
 
     const fonts = textOptions?.fonts?.length
         ? textOptions.fonts
@@ -171,7 +31,6 @@ const ContextualToolbar = ({
         : DEFAULT_EDITOR_SETTINGS.textToolbar.colorPresets;
     const minFontSize = Number(textOptions?.minFontSize) || DEFAULT_EDITOR_SETTINGS.textToolbar.minFontSize;
     const maxFontSize = Number(textOptions?.maxFontSize) || DEFAULT_EDITOR_SETTINGS.textToolbar.maxFontSize;
-    const isCaption = selectedElement.role === 'caption';
 
     return (
         <div className="contextual-toolbar h-14 sm:h-16 bg-white border-b border-gray-200 flex items-center px-2 sm:px-4 gap-1 sm:gap-2 shadow-sm relative z-40 shrink-0 overflow-x-auto overflow-y-visible scrollbar-thin">
@@ -192,389 +51,28 @@ const ContextualToolbar = ({
                 </button>
             </div>
 
-            <Divider />
+            <ToolbarDivider />
 
             {selectedElement.type === 'text' && (
-                <>
-                    {isCaption && (
-                        <span className="shrink-0 text-xs font-bold text-red-600 bg-red-50 border border-red-100 px-2.5 py-1 rounded-full">
-                            כתובית
-                        </span>
-                    )}
-
-                    {/* Font Family */}
-                    <div className="relative" data-tooltip="גופן" data-tooltip-pos="bottom">
-                        <select 
-                            value={selectedElement.fontFamily} 
-                            onChange={(e) => handleTextChange('fontFamily', e.target.value)}
-                            className="h-9 pl-2 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 bg-white text-gray-700 min-w-[140px]"
-                        >
-                            {fonts.map((font) => (
-                                <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                                    {font.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Font Size - THE STEPPER */}
-                    <div data-tooltip="גודל גופן" data-tooltip-pos="bottom">
-                        <NumericStepper 
-                            value={selectedElement.fontSize} 
-                            onChange={(val) => handleTextChange('fontSize', val)} 
-                            min={minFontSize} 
-                            max={maxFontSize} 
-                        />
-                    </div>
-
-                    <Divider />
-
-                    {/* Text Color Picker */}
-                    <div className="relative shrink-0" ref={textColorPickerRef}>
-                        <button
-                            type="button"
-                            onClick={() => setShowTextColorPicker(!showTextColorPicker)}
-                            className={`relative flex items-center justify-center w-9 h-9 rounded-lg border cursor-pointer shadow-sm transition-colors ${
-                                showTextColorPicker ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:bg-gray-50'
-                            }`}
-                            data-tooltip="צבע טקסט"
-                            data-tooltip-pos="bottom"
-                        >
-                            <span
-                                className="w-6 h-6 rounded-full border border-gray-200 shadow-sm"
-                                style={{ backgroundColor: selectedElement.color }}
-                            />
-                        </button>
-
-                        {showTextColorPicker && (
-                            <ToolbarPopover anchorRef={textColorPickerRef} width={288} className="p-4">
-                                <div className="text-right font-bold text-gray-800 mb-3">צבע הטקסט</div>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div
-                                        className="w-12 h-12 rounded-lg shadow-sm border border-gray-200"
-                                        style={{ backgroundColor: selectedElement.color }}
-                                    />
-                                    <div className="w-12 h-12 rounded-lg overflow-hidden relative cursor-pointer group border border-gray-200 hover:border-red-400 transition-colors">
-                                        <div className="w-full h-full bg-gradient-to-br from-red-500 via-yellow-400 to-purple-600 flex items-center justify-center">
-                                            <PlusIcon className="w-6 h-6 text-white drop-shadow-md" />
-                                        </div>
-                                        <input
-                                            type="color"
-                                            value={selectedElement.color}
-                                            onChange={(e) => handleTextChange('color', e.target.value)}
-                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                                            aria-label="צבע מותאם אישית"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="text-right text-sm font-semibold text-gray-600 mb-2">צבעים</div>
-                                <div className="grid grid-cols-6 gap-2">
-                                    {paletteValues.map((color) => (
-                                        <button
-                                            key={color}
-                                            type="button"
-                                            onClick={() => handleTextChange('color', color)}
-                                            className={`w-8 h-8 rounded-md border border-gray-200 hover:scale-110 transition-transform ${
-                                                selectedElement.color === color ? 'ring-2 ring-red-400 ring-offset-2' : ''
-                                            }`}
-                                            style={{ backgroundColor: color }}
-                                            aria-label={`בחר צבע ${color}`}
-                                        />
-                                    ))}
-                                </div>
-                            </ToolbarPopover>
-                        )}
-                    </div>
-
-                    <Divider />
-
-                    {/* Text Styling */}
-                    <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 bg-gray-50">
-                        <button 
-                            onClick={() => handleTextChange('bold', !selectedElement.bold)} 
-                            className={`w-7 h-7 flex items-center justify-center rounded ${selectedElement.bold ? 'bg-white shadow-sm text-black font-bold' : 'text-gray-500 hover:bg-gray-200'}`}
-                            data-tooltip="מודגש"
-                            data-tooltip-pos="bottom"
-                        >
-                            <BoldIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => handleTextChange('italic', !selectedElement.italic)} 
-                            className={`w-7 h-7 flex items-center justify-center rounded ${selectedElement.italic ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:bg-gray-200'}`}
-                            data-tooltip="נטוי"
-                            data-tooltip-pos="bottom"
-                        >
-                            <ItalicIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => handleTextChange('underline', !selectedElement.underline)} 
-                            className={`w-7 h-7 flex items-center justify-center rounded ${selectedElement.underline ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:bg-gray-200'}`}
-                            data-tooltip="קו תחתון"
-                            data-tooltip-pos="bottom"
-                        >
-                            <UnderlineIcon className="w-4 h-4" />
-                        </button>
-                    </div>
-
-                    <Divider />
-
-                    {/* Alignment */}
-                    <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 bg-gray-50">
-                        <button 
-                            onClick={() => handleTextChange('textAlign', 'right')} 
-                            className={`w-7 h-7 flex items-center justify-center rounded ${selectedElement.textAlign === 'right' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:bg-gray-200'}`}
-                            data-tooltip="יישור לימין"
-                            data-tooltip-pos="bottom"
-                        >
-                            <AlignRightIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => handleTextChange('textAlign', 'center')} 
-                            className={`w-7 h-7 flex items-center justify-center rounded ${selectedElement.textAlign === 'center' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:bg-gray-200'}`}
-                            data-tooltip="יישור למרכז"
-                            data-tooltip-pos="bottom"
-                        >
-                            <AlignCenterIcon className="w-4 h-4" />
-                        </button>
-                        <button 
-                            onClick={() => handleTextChange('textAlign', 'left')} 
-                            className={`w-7 h-7 flex items-center justify-center rounded ${selectedElement.textAlign === 'left' ? 'bg-white shadow-sm text-black' : 'text-gray-500 hover:bg-gray-200'}`}
-                            data-tooltip="יישור לשמאל"
-                            data-tooltip-pos="bottom"
-                        >
-                            <AlignLeftIcon className="w-4 h-4" />
-                        </button>
-                    </div>
-                </>
+                <TextTools
+                    element={selectedElement}
+                    onChange={updateField}
+                    fonts={fonts}
+                    paletteValues={paletteValues}
+                    minFontSize={minFontSize}
+                    maxFontSize={maxFontSize}
+                />
             )}
 
             {selectedElement.type === 'shape' && (
-                <>
-                    {/* Shape Color Picker */}
-                    <div className="relative" ref={colorPickerRef}>
-                        <div className="flex items-center gap-3">
-                            <span className="text-sm font-medium text-gray-600">צבע:</span>
-                            <button 
-                                onClick={() => setShowColorPicker(!showColorPicker)}
-                                className="relative flex items-center justify-center w-9 h-9 rounded-lg border border-gray-300 cursor-pointer hover:bg-gray-50 shadow-sm"
-                                data-tooltip="צבע צורה"
-                                data-tooltip-pos="bottom"
-                            >
-                                {currentFill === 'transparent' ? (
-                                    <NoColorIcon className="w-full h-full" />
-                                ) : (
-                                    <div className="w-6 h-6 rounded-full border border-gray-200 shadow-sm" style={{ backgroundColor: currentFill }}></div>
-                                )}
-                            </button>
-                        </div>
-
-                        {showColorPicker && (
-                            <ToolbarPopover anchorRef={colorPickerRef} width={288} className="p-4">
-                                <div className="text-right font-bold text-gray-800 mb-2">צבע האלמנט</div>
-                                <div className="flex items-center gap-3 mb-4">
-                                    {/* Current Color Large Preview */}
-                                    <div className="w-12 h-12 rounded-lg shadow-sm border border-gray-200 flex items-center justify-center overflow-hidden">
-                                        {currentFill === 'transparent' ? (
-                                            <NoColorIcon className="w-full h-full" />
-                                        ) : (
-                                            <div className="w-full h-full" style={{ backgroundColor: currentFill }}></div>
-                                        )}
-                                    </div>
-                                    
-                                    {/* No Color Button */}
-                                    <button 
-                                        onClick={() => handleShapeChange('fill', 'transparent')}
-                                        className="w-12 h-12 rounded-lg border border-gray-200 hover:border-red-400 transition-colors flex items-center justify-center bg-white group"
-                                        title="ללא צבע"
-                                    >
-                                        <NoColorIcon className="w-8 h-8 text-gray-400 group-hover:text-red-500" />
-                                    </button>
-
-                                    {/* Custom Color Button */}
-                                    <div className="w-12 h-12 rounded-lg overflow-hidden relative cursor-pointer group border border-gray-200 hover:border-red-400 transition-colors">
-                                         <div className="w-full h-full bg-gradient-to-br from-red-500 via-yellow-400 via-green-500 via-blue-500 to-purple-600 flex items-center justify-center">
-                                              <PlusIcon className="w-6 h-6 text-white drop-shadow-md" />
-                                         </div>
-                                         <input 
-                                            type="color" 
-                                            value={currentFill === 'transparent' ? '#ffffff' : currentFill} 
-                                            onChange={(e) => handleShapeChange('fill', e.target.value)}
-                                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="text-right text-sm font-semibold text-gray-600 mb-2">צבעים</div>
-                                <div className="grid grid-cols-6 gap-2">
-                                    {paletteValues.map(color => (
-                                        <button
-                                            key={color}
-                                            onClick={() => handleShapeChange('fill', color)}
-                                            className={`w-8 h-8 rounded-md border border-gray-200 hover:scale-110 transition-transform ${currentFill === color ? 'ring-2 ring-red-400 ring-offset-2' : ''}`}
-                                            style={{ backgroundColor: color }}
-                                            aria-label={`Select color ${color}`}
-                                        />
-                                    ))}
-                                </div>
-                            </ToolbarPopover>
-                        )}
-                    </div>
-                    
-                    <Divider />
-
-                    <div className="flex items-center gap-1">
-                         <button 
-                            onClick={() => handleShapeChange('scaleX', selectedElement.scaleX === 1 ? -1 : 1)} 
-                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 ${selectedElement.scaleX === -1 ? 'bg-blue-50 text-blue-600 border border-blue-200' : ''}`}
-                            data-tooltip="היפוך אופקי"
-                            data-tooltip-pos="bottom"
-                        >
-                            <FlipHorizontalIcon className="w-5 h-5" />
-                        </button>
-                        <button 
-                            onClick={() => handleShapeChange('scaleY', selectedElement.scaleY === 1 ? -1 : 1)} 
-                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 ${selectedElement.scaleY === -1 ? 'bg-blue-50 text-blue-600 border border-blue-200' : ''}`}
-                            data-tooltip="היפוך אנכי"
-                            data-tooltip-pos="bottom"
-                        >
-                            <FlipVerticalIcon className="w-5 h-5" />
-                        </button>
-                    </div>
-                </>
+                <ShapeTools element={selectedElement} onChange={updateField} paletteValues={paletteValues} />
             )}
 
             {selectedElement.type === 'image' && (
-                <>
-                    <button 
-                        onClick={onCrop} 
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-300 transition-colors hover:shadow-sm"
-                        data-tooltip="חיתוך תמונה"
-                        data-tooltip-pos="bottom"
-                    >
-                        <CropIcon className="w-4 h-4" />
-                        חתוך
-                    </button>
-
-                    <Divider />
-
-                    <div className="flex items-center gap-1">
-                         <button 
-                            onClick={() => handleImageChange('scaleX', selectedElement.scaleX === 1 ? -1 : 1)} 
-                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 ${selectedElement.scaleX === -1 ? 'bg-blue-50 text-blue-600 border border-blue-200' : ''}`}
-                            data-tooltip="היפוך אופקי"
-                            data-tooltip-pos="bottom"
-                        >
-                            <FlipHorizontalIcon className="w-5 h-5" />
-                        </button>
-                        <button 
-                            onClick={() => handleImageChange('scaleY', selectedElement.scaleY === 1 ? -1 : 1)} 
-                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 ${selectedElement.scaleY === -1 ? 'bg-blue-50 text-blue-600 border border-blue-200' : ''}`}
-                            data-tooltip="היפוך אנכי"
-                            data-tooltip-pos="bottom"
-                        >
-                            <FlipVerticalIcon className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <Divider />
-
-                    {/* Image Filters Popover */}
-                    <div className="relative" ref={filtersRef}>
-                        <button 
-                            onClick={() => setShowFilters(!showFilters)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${showFilters ? 'bg-red-50 border-red-300 text-red-600' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-                            data-tooltip="התאמות תמונה"
-                            data-tooltip-pos="bottom"
-                        >
-                            <SunIcon className="w-4 h-4" />
-                            <span>התאמות</span>
-                        </button>
-
-                        {showFilters && (
-                            <ToolbarPopover anchorRef={filtersRef} width={256} align="center" className="p-5">
-                                <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">התאמת תמונה</h3>
-                                
-                                <div className="space-y-4">
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-xs text-gray-500 font-medium">
-                                            <span className="flex items-center gap-1">בהירות</span>
-                                            <span>{Math.round((selectedElement.brightness || 100) - 100)}%</span>
-                                        </div>
-                                        <input 
-                                            type="range" min="0" max="200" 
-                                            value={selectedElement.brightness || 100} 
-                                            onChange={(e) => handleImageChange('brightness', parseInt(e.target.value))}
-                                            className="w-full accent-red-400 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-xs text-gray-500 font-medium">
-                                            <span>ניגודיות</span>
-                                            <span>{Math.round((selectedElement.contrast || 100) - 100)}%</span>
-                                        </div>
-                                        <input 
-                                            type="range" min="0" max="200" 
-                                            value={selectedElement.contrast || 100} 
-                                            onChange={(e) => handleImageChange('contrast', parseInt(e.target.value))}
-                                            className="w-full accent-red-400 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-xs text-gray-500 font-medium">
-                                            <span>גווני אפור</span>
-                                            <span>{selectedElement.grayscale || 0}%</span>
-                                        </div>
-                                        <input 
-                                            type="range" min="0" max="100" 
-                                            value={selectedElement.grayscale || 0} 
-                                            onChange={(e) => handleImageChange('grayscale', parseInt(e.target.value))}
-                                            className="w-full accent-red-400 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-xs text-gray-500 font-medium">
-                                            <span>ספיה</span>
-                                            <span>{selectedElement.sepia || 0}%</span>
-                                        </div>
-                                        <input 
-                                            type="range" min="0" max="100" 
-                                            value={selectedElement.sepia || 0} 
-                                            onChange={(e) => handleImageChange('sepia', parseInt(e.target.value))}
-                                            className="w-full accent-red-400 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                        <div className="flex justify-between text-xs text-gray-500 font-medium">
-                                            <span>טשטוש</span>
-                                            <span>{selectedElement.blur || 0}px</span>
-                                        </div>
-                                        <input 
-                                            type="range" min="0" max="20" step="0.5"
-                                            value={selectedElement.blur || 0} 
-                                            onChange={(e) => handleImageChange('blur', parseFloat(e.target.value))}
-                                            className="w-full accent-red-400 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <button 
-                                        onClick={() => onUpdateElement({ brightness: 100, contrast: 100, grayscale: 0, sepia: 0, blur: 0 })}
-                                        className="w-full text-xs text-red-500 hover:bg-red-50 py-1 rounded transition-colors mt-2"
-                                    >
-                                        איפוס הגדרות
-                                    </button>
-                                </div>
-                            </ToolbarPopover>
-                        )}
-                    </div>
-                </>
+                <ImageTools element={selectedElement} onChange={updateField} onCrop={onCrop} onUpdateElement={onUpdateElement} />
             )}
 
-             <Divider />
+             <ToolbarDivider />
              
              {/* Opacity - Common */}
              <div className="flex items-center gap-2" data-tooltip="שקיפות אלמנט" data-tooltip-pos="bottom">

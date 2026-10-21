@@ -8,7 +8,7 @@ export const getPage = async (endpoint) => {
         const response = await axios.get(url);
         const data = response?.data;
         return data && typeof data === "object" && !Array.isArray(data) ? data : {};
-    } catch (error) {
+    } catch {
         return {};
     }
 };

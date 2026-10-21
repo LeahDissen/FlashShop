@@ -1,0 +1,24 @@
+# Uptime check every 15 minutes: the shop's site and its API (which also reads the database).
+# A failed run makes GitHub email the account that last changed this schedule. Each address is
+# retried for about a minute first, so a short hiccup does not send an alert.
+# Note: GitHub pauses scheduled workflows after 60 days without any commit to the repository.
+name: Uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Site and API are up
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Site (flaash.co.il)
+        run: curl --fail --silent --show-error --max-time 30 --retry 3 --retry-delay 20 --retry-all-errors -o /dev/null https://flaash.co.il/
+      - name: API and database (api.flaash.co.il)
+        run: curl --fail --silent --show-error --max-time 30 --retry 3 --retry-delay 20 --retry-all-errors -o /dev/null https://api.flaash.co.il/shop-settings

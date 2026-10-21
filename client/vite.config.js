@@ -12,5 +12,11 @@ export default defineConfig({
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
       "Cross-Origin-Embedder-Policy": "unsafe-none"
     },
-  }
+  },
+  // Unit tests (npm test): pure utilities and hooks, in a simulated browser
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.test.{js,jsx}'],
+    setupFiles: ['src/test/setup.js'],
+  },
 })
