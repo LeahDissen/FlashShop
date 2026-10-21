@@ -17,6 +17,7 @@ const TESTS = [
     'orderemailtest.js',
     'clubmailtest.js',
     'welcometest.js',
+    'notifytest.js',
     'popuptest.js',
     'photopricingtest.js',
     'broadcastdowntest.js',

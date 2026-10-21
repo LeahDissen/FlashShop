@@ -31,7 +31,7 @@ export default function EditPages() {
         {
             id: 2,
             title: "עריכת כותרת (Header)",
-            description: "עדכון הלוגו והתפריט העליון המופיעים בכל דפי האתר.",
+            description: "הלוגו ושמות הקישורים בתפריט העליון (למשל \"בלוג\" ← \"הטיפים שלנו\"), בכל דפי האתר.",
             icon: <FaWindowMaximize className="text-3xl text-white" />,
             link: "/",
             targetEndpoint: "header",
@@ -67,7 +67,7 @@ export default function EditPages() {
         {
             id: 6,
             title: "עריכת פופ-אפ מועדון",
-            description: "שינוי הטקסט והעיצוב של חלונית ההצטרפות למועדון הלקוחות.",
+            description: "הטקסטים בחלונית ההצטרפות, ההודעה שאחרי ההצטרפות, ומייל ההצטרפות האוטומטי (כולל קובץ PDF במתנה).",
             icon: <FaGift className="text-3xl text-white" />,
             link: null,
             targetEndpoint: "club",

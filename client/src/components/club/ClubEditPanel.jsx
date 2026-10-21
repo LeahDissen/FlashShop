@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { uploadDocumentToCloudinary } from "../../utils/cloudinaryUpload";
+import { DEFAULT_PENDING_GIFT_TEXT, DEFAULT_SUCCESS_TEXT } from "./clubTexts";
 
 /** Admin: the club popup's texts and the automatic welcome email (subject, body, PDF gift) */
 export default function ClubEditPanel({ draft, updateDraft }) {
@@ -45,7 +46,12 @@ export default function ClubEditPanel({ draft, updateDraft }) {
             </div>
             <div>
                 <label className="block text-sm font-bold text-gray-700">הודעה אחרי הרשמה מוצלחת:</label>
-                <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.successText} onChange={(e) => updateDraft({ successText: e.target.value })} />
+                <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.successText} onChange={(e) => updateDraft({ successText: e.target.value })} placeholder={DEFAULT_SUCCESS_TEXT} />
+            </div>
+            <div>
+                <label className="block text-sm font-bold text-gray-700">הודעה כשמתנת ההצטרפות פעילה (ממתינה לאישור המייל):</label>
+                <textarea className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={draft.pendingGiftText || ""} onChange={(e) => updateDraft({ pendingGiftText: e.target.value })} placeholder={DEFAULT_PENDING_GIFT_TEXT} />
+                <p className="text-xs text-gray-500 mt-1">מופיעה מתחת להודעת ההצלחה. ריק = הנוסח שמופיע בשדה.</p>
             </div>
             <div className="border-t pt-4 mt-2">
                 <h4 className="font-bold text-gray-800 mb-1">מייל ההצטרפות האוטומטי</h4>

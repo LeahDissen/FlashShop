@@ -40,3 +40,9 @@ export const deleteClubMember = async (id) => {
     const response = await axios.delete(`${API_URL}/members/${id}`, { withCredentials: true });
     return response.data;
 };
+
+/** The logged-in customer's club status: { isMember, giftAvailable, giftPending } */
+export const getMyClubStatus = async () => {
+    const response = await axios.get(`${API_URL}/me`, { withCredentials: true });
+    return response.data;
+};

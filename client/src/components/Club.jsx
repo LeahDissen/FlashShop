@@ -21,6 +21,7 @@ const DEFAULT_CLUB_PAGE = {
     checkboxText: "",
     btnText: "",
     successText: "הצטרפת בהצלחה למועדון!",
+    pendingGiftText: "",
     welcomeSubject: "",
     welcomeBody: "",
     welcomeAttachmentUrl: ""
@@ -114,21 +115,28 @@ export default function Club() {
 
     if (!isClubOpen && !editMode) return null;
 
+    const joined = joinResult?.type === "success";
+
     const viewContent = (
-    <div className="relative w-[500px] h-[500px] max-w-[calc(100vw-2rem)] max-h-[calc(100vw-2rem)] flex items-center justify-center animate-fade-in-up">
-        <button
-            onClick={closeClub}
-            className="absolute top-4 right-4 z-50 hover:text-black text-[#f0645a] font-bold text-xl"
-            aria-label="סגור"
-        >
-            ×
-        </button>
-        <div className="bg-[#f0645a] rounded-full w-full h-full flex flex-col items-center justify-center text-center p-10 shadow-2xl text-white relative z-10">
-            <h2 className="text-3xl font-bold mb-2 leading-tight whitespace-pre-line drop-shadow-md">{draft.title}</h2>
-            <h3 className="text-lg font-medium mb-4 opacity-90 whitespace-pre-line">{draft.subtitle}</h3>
-            <p className="text-sm mb-6 px-4 font-light whitespace-pre-line">{draft.description}</p>
-                {joinResult?.type === "success" ? (
-                    <ClubJoinSuccess successText={draft.successText} result={joinResult} onClose={closeClub} />
+        <div className="relative w-[500px] h-[500px] max-w-[calc(100vw-2rem)] max-h-[calc(100vw-2rem)] flex items-center justify-center animate-fade-in-up">
+            <button
+                onClick={closeClub}
+                className="absolute top-4 right-4 z-50 hover:text-black text-[#f0645a] font-bold text-xl"
+                aria-label="סגור"
+            >
+                ×
+            </button>
+            <div className="bg-[#f0645a] rounded-full w-full h-full flex flex-col items-center justify-center text-center p-10 shadow-2xl text-white relative z-10">
+                {/* After joining only the success message is shown: the invitation above it is no longer relevant */}
+                {!joined && (
+                    <>
+                        <h2 className="text-3xl font-bold mb-2 leading-tight whitespace-pre-line drop-shadow-md">{draft.title}</h2>
+                        <h3 className="text-lg font-medium mb-4 opacity-90 whitespace-pre-line">{draft.subtitle}</h3>
+                        <p className="text-sm mb-6 px-4 font-light whitespace-pre-line">{draft.description}</p>
+                    </>
+                )}
+                {joined ? (
+                    <ClubJoinSuccess texts={draft} result={joinResult} onClose={closeClub} />
                 ) : (
                     <ClubJoinForm
                         texts={draft}
@@ -140,13 +148,13 @@ export default function Club() {
                         isJoining={isJoining}
                     />
                 )}
-            <div className="absolute top-1/4 -left-8 w-24 h-24 bg-pink-200 rounded-full -z-10 opacity-90"></div>
-            <div className="absolute top-1/3 -right-2 w-6 h-6 bg-[#a93636] rounded-full z-20"></div>
-            <div className="absolute bottom-12 right-12 w-5 h-5 bg-white rounded-full z-20"></div>
-            <div className="absolute top-1/2 -left-12 w-6 h-6 bg-[#f0645a] rounded-full z-0"></div>
+                <div className="absolute top-1/4 -left-8 w-24 h-24 bg-pink-200 rounded-full -z-10 opacity-90"></div>
+                <div className="absolute top-1/3 -right-2 w-6 h-6 bg-[#a93636] rounded-full z-20"></div>
+                <div className="absolute bottom-12 right-12 w-5 h-5 bg-white rounded-full z-20"></div>
+                <div className="absolute top-1/2 -left-12 w-6 h-6 bg-[#f0645a] rounded-full z-0"></div>
+            </div>
         </div>
-    </div>
-);
+    );
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden">

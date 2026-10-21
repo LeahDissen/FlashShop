@@ -49,7 +49,7 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
     sent.splice(0, 2);
 
     // with the join gift on: the welcome mail has no code, a confirmation mail asks to confirm the address,
-    // and only the confirmation link sends the gift code
+    // and only pressing the button on the confirmation page sends the gift code
     const { ShopSettingsModel } = require(path.join(SERVER, "models/shopSettingsModel"));
     const { ClubModel } = require(path.join(SERVER, "models/clubModel"));
     await ShopSettingsModel.updateOne({ key: "default" }, { $set: { clubGift: { enabled: true, productId: "507f1f77bcf86cd799439011", discountType: "percent", value: 100 } } }, { upsert: true });
@@ -63,13 +63,21 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
     assert.strictEqual(pending.giftType, "pending-gift");
     assert.ok(confirmMail.html.includes(`/club/confirm/${pending.verifyToken}`), "confirmation link in the mail");
     assert.strictEqual((await fetch(`${base}/club/check/${pending.giftCode}`).then((x) => x.json())).valid, false, "code not usable before confirming");
+    // opening the link (as mail scanners do) only shows the button: nothing is confirmed or sent yet
     sent.length = 0;
     r = await fetch(`${base}/club/confirm/${pending.verifyToken}`); assert.strictEqual(r.status, 200);
+    const confirmPage = await r.text();
+    assert.ok(confirmPage.includes(`action="/club/confirm/${pending.verifyToken}"`) && confirmPage.includes('method="post"'), "confirm button posts back");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.strictEqual(sent.length, 0, "no gift mail just from opening the link");
+    assert.strictEqual((await ClubModel.findOne({ email: "b@example.com" }).lean()).giftType, "pending-gift", "still pending after opening the link");
+    r = await fetch(`${base}/club/confirm/${pending.verifyToken}`, { method: "POST" }); assert.strictEqual(r.status, 200);
     await waitForSent(1);
     assert.ok(sent[0].html.includes(pending.giftCode), "gift mail with the code after confirming");
     const confirmed = await ClubModel.findOne({ email: "b@example.com" }).lean();
     assert.strictEqual(confirmed.giftType, "join-gift"); assert.strictEqual(confirmed.verifyToken, undefined);
-    r = await fetch(`${base}/club/confirm/${pending.verifyToken}`); assert.strictEqual(r.status, 400, "link works once");
+    r = await fetch(`${base}/club/confirm/${pending.verifyToken}`, { method: "POST" }); assert.strictEqual(r.status, 400, "link works once");
+    r = await fetch(`${base}/club/confirm/${pending.verifyToken}`); assert.strictEqual(r.status, 400, "used link shows the used page");
     r = await fetch(`${base}/club/confirm/nope`); assert.strictEqual(r.status, 400);
     sent.splice(0, sent.length, m);
     assert.strictEqual(m.subject, "היי רבקי!");

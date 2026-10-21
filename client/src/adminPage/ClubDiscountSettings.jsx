@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { FaGift } from "react-icons/fa";
+import { FaEdit, FaGift } from "react-icons/fa";
+import { useLocation, useNavigate } from "react-router-dom";
 import { getShopSettings, updateShopSettings } from "../api/shopSettings";
 import { useProducts } from "../hooks/useProducts";
+import useAppStore from "../store/appStore";
 
 const EMPTY_GIFT = { enabled: false, productId: "", discountType: "percent", value: 100, emailSubject: "", emailBody: "" };
 
@@ -17,6 +19,15 @@ export default function ClubDiscountSettings() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const setClubOpen = useAppStore((state) => state.setClubOpen);
+
+    /** Opens the club popup in edit mode, right here (the same as "עריכת דפים" > "עריכת פופ-אפ מועדון") */
+    const editClubPopup = () => {
+        setClubOpen(true);
+        navigate(location.pathname, { state: { autoEdit: true, targetEndpoint: "club" }, replace: true });
+    };
 
     useEffect(() => {
         getShopSettings()
@@ -59,6 +70,20 @@ export default function ClubDiscountSettings() {
                     כל ההנחות באתר הן לחברות מועדון. האתר מזהה חברה לפי המייל של החשבון שאיתו היא מתחברת לתשלום.
                     הנחה על מוצר מגדירים בעריכת המוצר, בניהול המוצרים.
                 </p>
+            </div>
+
+            <div className="rounded-xl bg-[#fff5f4] border border-[#f2665e]/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-sm text-gray-700">
+                    <span className="font-semibold block">חלונית ההצטרפות ומייל ההצטרפות</span>
+                    הטקסטים בחלונית, ההודעה שמופיעה אחרי ההצטרפות, ומייל ההצטרפות האוטומטי (עם קובץ PDF במתנה, בלי קוד).
+                </p>
+                <button
+                    type="button"
+                    onClick={editClubPopup}
+                    className="shrink-0 inline-flex items-center gap-2 bg-[#f2665e] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-[#d95248]"
+                >
+                    <FaEdit /> עריכת החלונית והמייל
+                </button>
             </div>
 
             <fieldset className="space-y-3 border border-gray-100 rounded-xl p-4">
@@ -133,7 +158,7 @@ export default function ClubDiscountSettings() {
                     rows={2}
                     value={notMemberText}
                     onChange={(e) => setNotMemberText(e.target.value)}
-                    placeholder="את עדיין לא חברת מועדון. ההצטרפות בחינם, וחברות מועדון נהנות מהמבצעים באתר."
+                    placeholder="ההנחה היא לחברי המועדון שלנו. הצטרפו עכשיו וקבלו את ההנחה"
                     className="w-full p-2 border rounded-lg"
                 />
                 <p className="text-xs text-gray-500 mt-1">מוצגת רק כשיש בסל שלה הנחה לחברות, יחד עם הסכום שתחסוך וכפתור הצטרפות.</p>

@@ -4,6 +4,7 @@ import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { getShopSettings, updateShopSettings } from "../api/shopSettings";
 import ClubDiscountSettings from "./ClubDiscountSettings";
+import EmailNotificationSettings from "./EmailNotificationSettings";
 
 export default function ShopSettingsManagement() {
     const [paymentLinkUrl, setPaymentLinkUrl] = useState("");
@@ -112,6 +113,7 @@ export default function ShopSettingsManagement() {
             </form>
             <div id="club">
                 <ClubDiscountSettings />
+                <EmailNotificationSettings />
             </div>
         </div>
     );

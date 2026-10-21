@@ -5,6 +5,7 @@
 import { DISPLAY_TYPES, getDisplayTypeForCategory } from '../../constants/productCategories';
 import { parseMagnetSize } from '../../utils/magnetSize';
 import { serializePriceTiers, validatePriceTiers } from '../../utils/productQuantityPricing';
+import { getSaleInfo, regularUnitPrice } from '../../utils/salePrice';
 
 export const DEFAULT_CAPTION_CATEGORY = 'כללי';
 const DEFAULT_PRINT_WIDTH_CM = 12;
@@ -128,4 +129,29 @@ export function buildProductPayload({ formData, priceTiers, tieredPricingEnabled
         }
     }
     return { payload };
+}
+
+/**
+ * Warnings when the product's prices contradict each other: a first quantity tier that differs from the
+ * price (everyone pays the tier, so the price is never charged), or a members' sale that the tier
+ * already gives to everyone. Michal's puzzle: price 34.99, tier 1-30 at 25, members' price 25.
+ * @returns {string[]}
+ */
+export function pricingWarnings({ formData, priceTiers, tieredPricingEnabled }) {
+    const price = Number(formData.price);
+    if (!tieredPricingEnabled || !(price > 0)) return [];
+    const product = {
+        price,
+        priceTiers: priceTiers.map(({ minQuantity, maxQuantity, unitPrice }) => ({ minQuantity, maxQuantity, unitPrice })),
+        memberDiscount: formData.memberDiscountType
+            ? { type: formData.memberDiscountType, value: Number(formData.memberDiscountValue) }
+            : null,
+    };
+    const oneUnit = Number(regularUnitPrice(product));
+    if (!(oneUnit > 0) || oneUnit === price) return [];
+    const warnings = [`במדרגת הכמות של יחידה אחת המחיר הוא ${oneUnit} ₪, ולכן כל הלקוחות משלמים ${oneUnit} ₪ ולא ${price} ₪. אם ${price} ₪ הוא המחיר הרגיל, כדאי לשנות את המדרגה הראשונה ל-${price} ₪.`];
+    if (product.memberDiscount && !getSaleInfo(product)) {
+        warnings.push(`מבצע חברות המועדון לא מוריד את המחיר מתחת ל-${oneUnit} ₪, ולכן חברות המועדון לא יקבלו הנחה על המוצר הזה.`);
+    }
+    return warnings;
 }

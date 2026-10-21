@@ -8,9 +8,12 @@ import AdminControls from "../components/AdminControls";
 import CartItem from "../components/CartItem";
 import CartPhotoGroup from "../components/CartPhotoGroup";
 import CartCheckoutBar from "../components/CartCheckoutBar";
+import CartPriceSummary from "../components/cart/CartPriceSummary";
+import { useCartQuote } from "../components/cart/useCartQuote";
 import SmartImageInput from "../components/SmartImageInput";
 import RecommendedProduct from "../components/RecommendedProduct";
 import { useAdminControl } from "../hooks/useAdminControl";
+import useAppStore from "../store/appStore";
 import useAuthStore from "../store/authStore";
 import { isPhotoPrint, useCartStore } from "../store/cartStore";
 import { assignCartLineIds, withTieredPricingFields } from "../utils/cartItem";
@@ -57,13 +60,26 @@ export default function ShoppingCartPage() {
     emptyCartText: "העגלה שלך ריקה",
     recommendedTitle: DEFAULT_RECOMMENDED_TITLE,
     payBtn: "רוצה לשלם",
-    codePlaceholder: "הזן קוד קופון",
+    codePlaceholder: "הזן קוד מתנה או הנחה",
     codeBtn: "החל",
   }, "cart");
   const { draft, updateDraft, editMode } = adminControls;
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const totalPrice = Math.max(0, subtotal - discount);
+  const openClubWithEmail = useAppStore((state) => state.openClubWithEmail);
+  // The server's price (club discounts, album, gift, coupon); the cart's own sum until it arrives
+  const { quote, couponRefusal } = useCartQuote(cartItems, appliedCoupon);
+  // A code the server refused is dropped, with its reason (the cart is already priced without it)
+  const [refusedCouponMsg, setRefusedCouponMsg] = useState("");
+  useEffect(() => {
+    if (!couponRefusal) return;
+    setRefusedCouponMsg(couponRefusal.msg);
+    setAppliedCoupon("");
+    setDiscount(0);
+  }, [couponRefusal]);
+  const cartSum = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = quote ? Number(quote.subtotal) : cartSum;
+  const totalDiscount = quote ? Number(quote.discount) : discount;
+  const totalPrice = Math.max(0, subtotal - totalDiscount);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
@@ -99,25 +115,26 @@ export default function ShoppingCartPage() {
     if (cartItems.length === 0) return alert("העגלה ריקה!");
     if (!isAuthenticated) return navigate('/login', { state: { from: '/checkout' } });
 
-    saveCheckoutDraft({ items: cartItems, subtotal, discount, totalPrice, appliedCoupon });
+    saveCheckoutDraft({ items: cartItems, subtotal, discount: totalDiscount, totalPrice, appliedCoupon });
     navigate('/checkout');
   };
 
   const handleCoupon = async (code) => {
     if (!code) return { success: false, msg: "נא להזין קוד" };
-    if (appliedCoupon === code) return { success: false, msg: "קופון זה כבר הוזן" };
+    if (appliedCoupon === code) return { success: false, msg: "הקוד הזה כבר הוזן" };
 
     const result = await checkCouponRequest(code);
+    setRefusedCouponMsg("");
     if (result.valid) {
-      let discountAmount = result.discountType === 'percent' ? subtotal * (result.discountValue / 100) : result.discountValue;
-      discountAmount = Math.min(discountAmount, subtotal);
+      let discountAmount = result.discountType === 'percent' ? cartSum * (result.discountValue / 100) : result.discountValue;
+      discountAmount = Math.min(discountAmount, cartSum);
       setDiscount(discountAmount);
       setAppliedCoupon(code);
-      return { success: true, msg: `קופון התקבל!` };
+      return { success: true, msg: "הקוד התקבל!" };
     } else {
       setDiscount(0);
       setAppliedCoupon("");
-      return { success: false, msg: "קופון לא תקין" };
+      return { success: false, msg: "הקוד אינו תקין" };
     }
   };
 
@@ -235,15 +252,20 @@ export default function ShoppingCartPage() {
               {/* Order summary and payment bar – stays on screen while scrolling a long cart
                   (not while the coupon field is open, so the taller block does not cover the items) */}
               <div className={`max-w-2xl mx-auto pt-2 z-20 ${couponOpen ? '' : 'sticky bottom-3'}`}>
+                {/* The summary lists the regular price and each discount, so the bar shows only the total */}
+                {refusedCouponMsg && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2 mb-2" role="alert">{refusedCouponMsg}</p>
+                )}
+                <CartPriceSummary quote={quote} onJoinClub={() => openClubWithEmail('')} />
                 <CartCheckoutBar
                   totalPrice={totalPrice}
                   subtotal={subtotal}
-                  discount={discount}
+                  discount={quote?.discounts?.length ? 0 : totalDiscount}
                   onCheckout={handleCheckout}
                   onCoupon={handleCoupon}
                   payBtnLabel={draft.payBtn || "רוצה לשלם"}
-                  couponBtnLabel={appliedCoupon ? `קופון: ${appliedCoupon}` : "יש לי קופון"}
-                  codePlaceholder={draft.codePlaceholder || "הזן קוד קופון"}
+                  couponBtnLabel={appliedCoupon ? `קוד: ${appliedCoupon}` : "קוד מתנה / הנחה"}
+                  codePlaceholder={draft.codePlaceholder || "הזן קוד מתנה או הנחה"}
                   codeApplyLabel={draft.codeBtn || "החל"}
                   onCouponToggle={setCouponOpen}
                 />

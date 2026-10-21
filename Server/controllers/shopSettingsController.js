@@ -1,3 +1,4 @@
+const { cleanEmail, clearEmailSettingsCache } = require("../services/shopNotifications");
 const { ShopSettingsModel } = require("../models/shopSettingsModel");
 
 const SETTINGS_KEY = "default";
@@ -57,6 +58,61 @@ const sanitizeClubGift = (gift = {}) => {
             emailBody: String(gift.emailBody || "").trim().slice(0, 5000),
         },
     };
+};
+
+/** The shop owner's email settings – admin only, never in the public settings */
+const emailSettings = (settings) => ({
+    notifications: {
+        email: settings.notifications?.email || "",
+        newOrder: settings.notifications?.newOrder !== false,
+        newMessage: settings.notifications?.newMessage !== false,
+    },
+    replyToEmail: settings.replyToEmail || "",
+});
+
+/** An email address field from the admin: "" clears it; returns { error } for an invalid address */
+const emailField = (value, label) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return { value: "" };
+    const email = cleanEmail(raw);
+    return email ? { value: email } : { error: `כתובת המייל ב"${label}" אינה תקינה` };
+};
+
+exports.getEmailSettings = async (req, res) => {
+    try {
+        res.json(emailSettings(await loadShopSettings()));
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "שגיאה בטעינת הגדרות המייל" });
+    }
+};
+
+exports.updateEmailSettings = async (req, res) => {
+    try {
+        const notifyEmail = emailField(req.body?.notifications?.email, "מייל להתראות");
+        if (notifyEmail.error) return res.status(400).json({ msg: notifyEmail.error });
+        const replyTo = emailField(req.body?.replyToEmail, "כתובת לתשובות של לקוחות");
+        if (replyTo.error) return res.status(400).json({ msg: replyTo.error });
+        const settings = await ShopSettingsModel.findOneAndUpdate(
+            { key: SETTINGS_KEY },
+            {
+                $set: {
+                    notifications: {
+                        email: notifyEmail.value,
+                        newOrder: req.body?.notifications?.newOrder !== false,
+                        newMessage: req.body?.notifications?.newMessage !== false,
+                    },
+                    replyToEmail: replyTo.value,
+                },
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true },
+        );
+        clearEmailSettingsCache();
+        res.json(emailSettings(settings));
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ msg: "שגיאה בשמירת הגדרות המייל" });
+    }
 };
 
 exports.getShopSettings = async (req, res) => {
