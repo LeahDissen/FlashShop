@@ -79,7 +79,7 @@ const notifyNewOrder = (order) => {
     ];
     return notifyShopOwner("newOrder", {
         subject: `מחכה לכם הזמנה באתר 🎉 (${number})`,
-        payload: { title: "מחכה לכם הזמנה באתר", message: lines.join("\n") },
+        payload: { title: "מחכה לכם הזמנה באתר", message: lines.join("\n"), internal: true },
         template: "./template/generalMail.handlebars",
         replyTo: order.customer?.email,
     });
@@ -91,6 +91,7 @@ const notifyNewMessage = ({ name, email, message }) => notifyShopOwner("newMessa
     payload: {
         title: "ממתינה לך הודעה חדשה באתר",
         message: [`מאת: ${name} (${email})`, "", message, "", `כל ההודעות: ${getClientUrl()}/viewmessages`].join("\n"),
+        internal: true, // an alert to the shop owner: no club mailing footer
     },
     template: "./template/generalMail.handlebars",
     replyTo: email,

@@ -72,7 +72,7 @@ const AdminControls = ({
                     e.stopPropagation();
                     setEditMode(true);
                 }}
-                className="absolute top-2 left-2 z-20 bg-white text-[#f2665e] border border-[#f2665e] px-3 py-1.5 rounded-full shadow-sm opacity-70 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100 hover:bg-[#f2665e] hover:text-white flex items-center gap-2 text-xs font-bold"
+                className="absolute top-2 left-2 z-20 bg-white text-[#f2665e] border border-[#f2665e] px-3 py-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100 hover:bg-[#f2665e] hover:text-white flex items-center gap-2 text-xs font-bold"
             >
                 <FaPen /> ערוך אזור זה
             </button>

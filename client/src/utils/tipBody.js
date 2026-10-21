@@ -59,3 +59,20 @@ export function insertImageMarker(content, imageIndex, cursor = null) {
     const tail = after && !after.startsWith('\n') ? `\n${after}` : after;
     return `${head}${imageMarker(imageIndex)}${tail}`;
 }
+
+/**
+ * Removes a body image (0-based): its "[[תמונה N]]" lines go, and the lines of the later images are
+ * renumbered so each still points at its own image.
+ * @returns {{ content: string, images: string[] }}
+ */
+export function removeBodyImage(content, images, index) {
+    const list = Array.isArray(images) ? images : [];
+    const lines = String(content || '').split('\n').flatMap((line) => {
+        const match = MARKER_LINE.exec(line);
+        if (!match) return [line];
+        const number = Number(match[1]) - 1;
+        if (number === index) return [];
+        return [number > index ? imageMarker(number - 1) : line];
+    });
+    return { content: lines.join('\n'), images: list.filter((_, i) => i !== index) };
+}

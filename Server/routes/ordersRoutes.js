@@ -3,9 +3,10 @@ const orderController = require("../controllers/ordersController");
 const orderPaymentController = require("../controllers/orderPaymentController");
 const orderEmailTemplatesController = require("../controllers/orderEmailTemplatesController");
 const { auth, authAdmin, optionalAuth } = require("../middlewares/auth");
+const { QuoteRateLimiter } = require("../middlewares/apiRate");
 
 router.post("/", auth, orderController.createOrder);
-router.post("/quote", optionalAuth, orderController.quoteOrder);
+router.post("/quote", QuoteRateLimiter, optionalAuth, orderController.quoteOrder);
 router.get("/pending/user/:userId", auth, orderController.getPendingOrderForUser);
 router.put("/pending/user/:userId", auth, orderController.updateOrder);
 router.get("/user/:userId", auth, orderController.getOrdersByUserId);

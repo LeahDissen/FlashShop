@@ -67,7 +67,15 @@ export default function ShoppingCartPage() {
 
   const openClubWithEmail = useAppStore((state) => state.openClubWithEmail);
   // The server's price (club discounts, album, gift, coupon); the cart's own sum until it arrives
-  const { quote } = useCartQuote(cartItems, appliedCoupon);
+  const { quote, couponRefusal } = useCartQuote(cartItems, appliedCoupon);
+  // A code the server refused is dropped, with its reason (the cart is already priced without it)
+  const [refusedCouponMsg, setRefusedCouponMsg] = useState("");
+  useEffect(() => {
+    if (!couponRefusal) return;
+    setRefusedCouponMsg(couponRefusal.msg);
+    setAppliedCoupon("");
+    setDiscount(0);
+  }, [couponRefusal]);
   const cartSum = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const subtotal = quote ? Number(quote.subtotal) : cartSum;
   const totalDiscount = quote ? Number(quote.discount) : discount;
@@ -116,6 +124,7 @@ export default function ShoppingCartPage() {
     if (appliedCoupon === code) return { success: false, msg: "הקוד הזה כבר הוזן" };
 
     const result = await checkCouponRequest(code);
+    setRefusedCouponMsg("");
     if (result.valid) {
       let discountAmount = result.discountType === 'percent' ? cartSum * (result.discountValue / 100) : result.discountValue;
       discountAmount = Math.min(discountAmount, cartSum);
@@ -244,6 +253,9 @@ export default function ShoppingCartPage() {
                   (not while the coupon field is open, so the taller block does not cover the items) */}
               <div className={`max-w-2xl mx-auto pt-2 z-20 ${couponOpen ? '' : 'sticky bottom-3'}`}>
                 {/* The summary lists the regular price and each discount, so the bar shows only the total */}
+                {refusedCouponMsg && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2 mb-2" role="alert">{refusedCouponMsg}</p>
+                )}
                 <CartPriceSummary quote={quote} onJoinClub={() => openClubWithEmail('')} />
                 <CartCheckoutBar
                   totalPrice={totalPrice}

@@ -5,7 +5,7 @@ import SmartImageInput from '../components/SmartImageInput';
 import useAuthStore from '../store/authStore.js';
 import { useTipsStore } from "../store/tipsStore.js";
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
-import { insertImageMarker, tipBodyBlocks } from '../utils/tipBody';
+import { imageMarker, insertImageMarker, removeBodyImage, tipBodyBlocks } from '../utils/tipBody';
 
 export default function BlogPage() {
     const isAdmin = useAuthStore(state => state.isAdmin());
@@ -182,6 +182,24 @@ export default function BlogPage() {
                                 התמונה נכנסת במקום של הסמן בטקסט, כשורה &quot;[[תמונה 1]]&quot;. אפשר להזיז את השורה, ומחיקתה מעבירה את התמונה לסוף הטיפ.
                             </span>
                         </div>
+                        {draft.images?.length > 0 && (
+                            <div className="flex flex-wrap gap-3 mt-3">
+                                {draft.images.map((src, imageIndex) => (
+                                    <div key={`${imageIndex}-${src}`} className="relative text-center">
+                                        <img src={optimizeImageUrl(src, { width: 160 })} alt="" className="w-20 h-20 object-cover rounded-lg border" />
+                                        <span className="block text-[11px] text-gray-500 mt-0.5" dir="rtl">{imageMarker(imageIndex)}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDraft((prev) => ({ ...prev, ...removeBodyImage(prev.content, prev.images, imageIndex) }))}
+                                            className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold hover:bg-red-600"
+                                            aria-label={`מחיקת ${imageMarker(imageIndex)}`}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </>
                 ) : (
                     // The tip's text with its body images where their "[[תמונה N]]" lines are

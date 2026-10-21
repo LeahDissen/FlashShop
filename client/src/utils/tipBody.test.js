@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { imageMarker, insertImageMarker, stripImageMarkers, tipBodyBlocks } from './tipBody';
+import { imageMarker, insertImageMarker, removeBodyImage, stripImageMarkers, tipBodyBlocks } from './tipBody';
 
 describe('tipBodyBlocks', () => {
     it('places each image where its marker is', () => {
@@ -32,5 +32,14 @@ describe('markers', () => {
 
     it('strips markers for summaries', () => {
         expect(stripImageMarkers('א\n[[תמונה 1]]\nב')).toBe('א\nב');
+    });
+});
+
+describe('removeBodyImage', () => {
+    it('drops the image and its line, and renumbers the later images', () => {
+        const { content, images } = removeBodyImage('א\n[[תמונה 1]]\nב\n[[תמונה 2]]\nג\n[[תמונה 3]]', ['a', 'b', 'c'], 1);
+        expect(images).toEqual(['a', 'c']);
+        expect(content).toBe('א\n[[תמונה 1]]\nב\nג\n[[תמונה 2]]');
+        expect(tipBodyBlocks(content, images).filter((b) => b.type === 'image').map((b) => b.src)).toEqual(['a', 'c']);
     });
 });

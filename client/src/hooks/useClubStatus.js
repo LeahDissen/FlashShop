@@ -5,7 +5,10 @@ import useAuthStore from '../store/authStore';
 
 const NOT_A_MEMBER = { isMember: false, giftAvailable: false, giftPending: false };
 
-let cached = null; // { key, value }: one request per login / join, shared by all the product cards
+/** How long a status is reused: long enough for a page of product cards, short enough to see the gift used */
+const STATUS_TTL_MS = 60_000;
+
+let cached = null; // { key, value, at }: shared by all the product cards
 let request = null;
 
 /**
@@ -18,23 +21,23 @@ export function useClubStatus() {
     const userId = useAuthStore((state) => state.userId);
     const clubJoinedAt = useAppStore((state) => state.clubJoinedAt);
     const key = isAuthenticated ? `${userId}:${clubJoinedAt}` : null;
-    const [status, setStatus] = useState(() => (cached && cached.key === key ? cached.value : NOT_A_MEMBER));
+    const fresh = () => cached?.key === key && Date.now() - cached.at < STATUS_TTL_MS;
+    const [status, setStatus] = useState(() => (fresh() ? cached.value : NOT_A_MEMBER));
 
     useEffect(() => {
         if (!key) return undefined;
-        if (cached?.key === key) {
+        if (cached?.key === key && Date.now() - cached.at < STATUS_TTL_MS) {
             setStatus(cached.value);
             return undefined;
         }
         let cancelled = false;
-        if (request?.key !== key) {
-            request = {
-                key,
-                promise: getMyClubStatus().catch(() => NOT_A_MEMBER),
-            };
+        if (request?.key !== key || request.done) {
+            const next = { key, done: false };
+            next.promise = getMyClubStatus().catch(() => NOT_A_MEMBER).finally(() => { next.done = true; });
+            request = next;
         }
         request.promise.then((value) => {
-            cached = { key, value };
+            cached = { key, value, at: Date.now() };
             if (!cancelled) setStatus(value);
         });
         return () => { cancelled = true; };

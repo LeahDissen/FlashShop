@@ -66,6 +66,7 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
     assert.ok(alert, "order alert sent");
     assert.ok(alert.subject.startsWith("מחכה לכם הזמנה באתר") && alert.html.includes("120.00") && alert.html.includes(String(order._id)));
     assert.strictEqual(alert.replyTo, "ron@example.com");
+    assert.ok(!alert.html.includes("רשומים למועדון"), "no club mailing footer on an internal alert");
     // the customer's own email replies to the shop's reply-to address
     const customerMail = sent.find((mail) => mail.to === "ron@example.com");
     if (customerMail) assert.strictEqual(customerMail.replyTo, "shop@example.com");

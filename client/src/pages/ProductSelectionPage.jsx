@@ -124,15 +124,18 @@ const ProductSelectionPage = () => {
         }
     };
 
-    /** perCopy: a separate design for each copy (quantity > 1) instead of one design for all */
-    const openEditor = (perCopy = false) => {
+    /**
+     * perCopy: a separate design for each copy (quantity > 1) instead of one design for all;
+     * photo: a photo uploaded here to place on the canvas (default: the uploaded ready design)
+     */
+    const openEditor = (perCopy = false, photo = uploadedImage) => {
         const orderQuantity = quantity.applyQuantity(quantity.getQuantity());
         const productForEditor = withMagnetPrintDimensions(product);
         setSelectedProduct(productForEditor);
         setOrderQuantity(orderQuantity);
         // A photo already uploaded here comes along, so it is not uploaded again in the editor
         navigate(`/editor/${productId}`, {
-            state: { product: productForEditor, quantity: orderQuantity, initialImage: uploadedImage || undefined, perCopy: perCopy && orderQuantity > 1 },
+            state: { product: productForEditor, quantity: orderQuantity, initialImage: photo || undefined, perCopy: perCopy && orderQuantity > 1 },
         });
     };
 
@@ -250,7 +253,8 @@ const ProductSelectionPage = () => {
                                         <MagnetOptions
                                             selfDesignLabel={options.selfDesign.label}
                                             uploadLabel={options.upload.label}
-                                            onDesign={() => openEditor(false)}
+                                            printProduct={withMagnetPrintDimensions(product)}
+                                            onDesign={(photo) => openEditor(false, photo)}
                                             onAddToCart={addMagnetToCart}
                                         />
                                     )}
