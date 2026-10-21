@@ -12,6 +12,7 @@ router.get("/unsubscribe/:id/:token", clubController.unsubscribe);
 router.post("/broadcast", upload.single("image"), authAdmin, clubController.sendBroadcastEmail);
 router.post("/join", clubController.joinClub);
 router.get("/check/:code", clubController.checkGiftCode);
-router.get("/confirm/:token", clubController.confirmGiftEmail);
+router.get("/confirm/:token", clubController.showGiftConfirm);
+router.post("/confirm/:token", clubController.confirmGiftEmail);
 
 module.exports = router;

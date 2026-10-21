@@ -275,12 +275,14 @@ exports.deleteClubMember = async (req, res) => {
 };
 
 /** A small response page for links opened from an email (no login) */
-const responsePage = (title, text) => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
+/** A small page shown in the browser; `extraHtml` goes under the text (e.g. a button) */
+const responsePage = (title, text, extraHtml = "") => `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head>
 <body style="margin:0;background:#f4f5f7;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;">
 <div style="background:#fff;border:1px solid #e8eaef;border-radius:16px;padding:32px 40px;max-width:420px;text-align:center;">
 <p style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:1px;color:#f2665e;">FLASHSHOP</p>
 <h1 style="margin:0 0 12px;font-size:20px;color:#1f2937;">${title}</h1>
 <p style="margin:0;color:#4b5563;line-height:1.7;">${text}</p>
+${extraHtml}
 <p style="margin:20px 0 0;"><a href="${getClientUrl()}" style="color:#f2665e;font-weight:700;">חזרה לאתר</a></p>
 </div></body></html>`;
 
@@ -302,20 +304,41 @@ exports.unsubscribe = async (req, res) => {
 
 
 /** The link from the confirmation email: the member's address is real, so her join gift code is sent */
+const GIFT_TOKEN_PATTERN = /^[a-f0-9]{48}$/;
+const invalidLinkPage = () => responsePage("הקישור אינו תקין", "לא הצלחנו לזהות את הבקשה. אפשר לפנות אלינו דרך האתר.");
+const usedLinkPage = () => responsePage("הקישור כבר שומש", "המייל כבר אושר, וקוד המתנה נשלח אלייך. אם לא מצאת אותו, כדאי לבדוק בתיקיית הספאם.");
+
+/**
+ * The confirmation link from the email only shows a button: mail security scanners open every link in
+ * an email, so confirming on the link itself sent the gift code before the member clicked anything.
+ */
+exports.showGiftConfirm = async (req, res) => {
+    try {
+        const token = String(req.params.token || "");
+        if (!GIFT_TOKEN_PATTERN.test(token)) return res.status(400).send(invalidLinkPage());
+        const pending = await ClubModel.exists({ verifyToken: token, giftType: "pending-gift" });
+        if (!pending) return res.status(400).send(usedLinkPage());
+        const button = `<form method="post" action="${req.baseUrl}/confirm/${token}" style="margin:20px 0 0;">
+<button type="submit" style="background:#f2665e;color:#fff;border:0;border-radius:999px;padding:12px 28px;font-size:16px;font-weight:700;cursor:pointer;">אישור המייל וקבלת המתנה</button>
+</form>`;
+        res.send(responsePage("כמעט סיימנו 🎁", "לחצי על הכפתור כדי לאשר את כתובת המייל, וקוד מתנת ההצטרפות יישלח אלייך מיד.", button));
+    } catch (err) {
+        console.error("show gift confirm error:", err.message);
+        res.status(500).send(responsePage("משהו השתבש", "נסו שוב מאוחר יותר."));
+    }
+};
+
+/** Pressing the button: confirms the address and sends the join gift code */
 exports.confirmGiftEmail = async (req, res) => {
     try {
         const token = String(req.params.token || "");
-        if (!/^[a-f0-9]{48}$/.test(token)) {
-            return res.status(400).send(responsePage("הקישור אינו תקין", "לא הצלחנו לזהות את הבקשה. אפשר לפנות אלינו דרך האתר."));
-        }
+        if (!GIFT_TOKEN_PATTERN.test(token)) return res.status(400).send(invalidLinkPage());
         const member = await ClubModel.findOneAndUpdate(
             { verifyToken: token, giftType: "pending-gift" },
             { $set: { giftType: "join-gift" }, $unset: { verifyToken: 1 } },
             { new: true },
         );
-        if (!member) {
-            return res.status(400).send(responsePage("הקישור כבר שומש", "המייל כבר אושר, וקוד המתנה נשלח אלייך. אם לא מצאת אותו, כדאי לבדוק בתיקיית הספאם."));
-        }
+        if (!member) return res.status(400).send(usedLinkPage());
         const { clubGift } = await loadShopSettings();
         if (clubGift?.enabled && clubGift.productId) {
             sendJoinGiftEmail({ email: member.email, name: member.name, code: member.giftCode, clubGift })
