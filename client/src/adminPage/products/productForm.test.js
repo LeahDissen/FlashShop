@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INITIAL_FORM_DATA, buildProductPayload, productToForm } from './productForm';
+import { INITIAL_FORM_DATA, buildProductPayload, pricingWarnings, productToForm } from './productForm';
 
 const designForm = { ...INITIAL_FORM_DATA, name: ' ספל ', description: ' תיאור ', price: '40', category: 'ספלים', stock: '5', image: ' https://x/m.jpg ' };
 const base = { priceTiers: [], tieredPricingEnabled: false, captions: [], isDesignCategory: true, isMagnetCategory: false };
@@ -60,5 +60,22 @@ describe('productToForm', () => {
     it('a magnet has no tiers and a simple product no caption ideas', () => {
         expect(productToForm({ category: 'x', displayType: 'magnet', priceTiers: [{ minQuantity: 1, unitPrice: 2 }] }).priceTiers).toEqual([]);
         expect(productToForm({ category: 'x', displayType: 'simple', captionIdeas: [{ text: 't' }] }).captions).toEqual([]);
+    });
+});
+
+describe('pricingWarnings', () => {
+    const form = (extra) => ({ ...INITIAL_FORM_DATA, price: '34.99', ...extra });
+    const tiers = [{ id: 'a', minQuantity: '1', maxQuantity: '30', unitPrice: '25' }, { id: 'b', minQuantity: '31', maxQuantity: '', unitPrice: '20' }];
+
+    it('warns when the first tier is not the price, and when the members sale gives nothing', () => {
+        const warnings = pricingWarnings({ formData: form({ memberDiscountType: 'price', memberDiscountValue: '25' }), priceTiers: tiers, tieredPricingEnabled: true });
+        expect(warnings).toHaveLength(2);
+        expect(warnings[0]).toContain('25 ₪');
+    });
+
+    it('has nothing to say when the first tier is the price, or without tiers', () => {
+        const matching = [{ ...tiers[0], unitPrice: '34.99' }, tiers[1]];
+        expect(pricingWarnings({ formData: form({ memberDiscountType: 'price', memberDiscountValue: '25' }), priceTiers: matching, tieredPricingEnabled: true })).toEqual([]);
+        expect(pricingWarnings({ formData: form(), priceTiers: tiers, tieredPricingEnabled: false })).toEqual([]);
     });
 });

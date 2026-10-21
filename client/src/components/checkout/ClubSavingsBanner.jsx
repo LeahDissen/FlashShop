@@ -5,7 +5,7 @@ export default function ClubSavingsBanner({ quote, onJoin }) {
     return (
         <div className="bg-[#fff5f4] border border-[#f2665e]/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-sm text-gray-800">
-                {quote.notMemberText || 'את עדיין לא חברת מועדון. ההצטרפות בחינם, וחברות מועדון נהנות מהמבצעים באתר.'}
+                {quote.notMemberText || 'ההנחה היא לחברי המועדון שלנו. הצטרפו עכשיו וקבלו את ההנחה'}
                 <span className="block font-bold text-[#f2665e] mt-1">
                     בהזמנה הזו תחסכי ₪{Number(quote.potentialMemberSavings).toFixed(2)}
                 </span>

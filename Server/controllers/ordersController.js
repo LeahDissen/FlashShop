@@ -200,14 +200,14 @@ exports.syncOrderDrive = async (req, res) => {
     }
 };
 
-/** The checkout's price preview: the same calculation as the order, without saving anything */
+/** The price preview of the cart and checkout: the same calculation as the order, without saving anything. A guest is priced as a non-member. */
 exports.quoteOrder = async (req, res) => {
     try {
         const { items, couponCode } = req.body || {};
         if (!Array.isArray(items) || items.length === 0) {
             return res.status(400).json({ msg: "העגלה ריקה" });
         }
-        const pricing = await priceOrder({ items, couponCode, userId: req.tokenData._id });
+        const pricing = await priceOrder({ items, couponCode, userId: req.tokenData?._id });
         if (pricing.error) {
             return res.status(400).json({ msg: pricing.error });
         }

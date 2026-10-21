@@ -158,7 +158,7 @@ export default function ClubDiscountSettings() {
                     rows={2}
                     value={notMemberText}
                     onChange={(e) => setNotMemberText(e.target.value)}
-                    placeholder="את עדיין לא חברת מועדון. ההצטרפות בחינם, וחברות מועדון נהנות מהמבצעים באתר."
+                    placeholder="ההנחה היא לחברי המועדון שלנו. הצטרפו עכשיו וקבלו את ההנחה"
                     className="w-full p-2 border rounded-lg"
                 />
                 <p className="text-xs text-gray-500 mt-1">מוצגת רק כשיש בסל שלה הנחה לחברות, יחד עם הסכום שתחסוך וכפתור הצטרפות.</p>
