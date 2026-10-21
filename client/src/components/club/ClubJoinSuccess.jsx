@@ -1,13 +1,18 @@
-/** After joining: the success text, the gift email notice or the benefit code, and a close button */
-export default function ClubJoinSuccess({ successText, result, onClose }) {
+import { DEFAULT_PENDING_GIFT_TEXT, DEFAULT_SUCCESS_TEXT } from './clubTexts';
+
+/**
+ * After joining: the success text, the gift email notice or the benefit code, and a close button.
+ * `texts` holds the admin's successText and pendingGiftText (empty = the defaults).
+ */
+export default function ClubJoinSuccess({ texts, result, onClose }) {
     return (
         <div className="w-full max-w-xs flex flex-col items-center gap-3 z-20" role="status">
             <p className="text-xl font-bold whitespace-pre-line drop-shadow-md">
-                {successText || "הצטרפת בהצלחה למועדון!"}
+                {texts.successText || DEFAULT_SUCCESS_TEXT}
             </p>
             {result.pendingGift && (
-                <p className="text-sm font-light">
-                    שלחנו לך מייל לאישור הכתובת 🎁 אחרי האישור יישלח אלייך קוד מתנת ההצטרפות.
+                <p className="text-sm font-light whitespace-pre-line">
+                    {texts.pendingGiftText || DEFAULT_PENDING_GIFT_TEXT}
                 </p>
             )}
             {result.code && (

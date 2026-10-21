@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { ClubModel } = require("../models/clubModel");
 const { CouponModel } = require("../models/couponModel");
+const { UserModel } = require("../models/userModel");
 const { loadShopSettings } = require("./shopSettingsController");
 const { sendEmail } = require("../utils/sendEmail");
 const { getClientUrl } = require("../utils/clientUrl");
@@ -125,6 +126,26 @@ exports.checkGiftCode = async (req, res) => {
     } catch (err) {
         console.log(err);
         res.status(500).json({ msg: "שגיאה בבדיקת הקוד" });
+    }
+};
+
+/**
+ * The logged-in customer's club status, by her account email (the same rule as checkout):
+ * a member, and whether her join gift is waiting to be ordered (confirmed and not used yet).
+ */
+exports.getMyClubStatus = async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.tokenData?._id).select("email").lean();
+        const email = String(user?.email || "").trim().toLowerCase();
+        const member = email ? await ClubModel.findOne({ email }).collation(CASE_INSENSITIVE).lean() : null;
+        res.json({
+            isMember: Boolean(member),
+            giftAvailable: Boolean(member && member.giftType === "join-gift" && !member.isUsed),
+            giftPending: Boolean(member && member.giftType === "pending-gift"),
+        });
+    } catch (err) {
+        console.error("club status error:", err.message);
+        res.status(500).json({ msg: "שגיאה בבדיקת המועדון" });
     }
 };
 
