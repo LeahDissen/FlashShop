@@ -5,16 +5,23 @@ import { getPhotoPricing } from '../api/photo';
 import AdminControls from '../components/AdminControls';
 import Gallery from '../components/Gallery';
 import Hero from '../components/Hero';
-import SmartImageInput from '../components/SmartImageInput';
 import { useAdminControl } from '../hooks/useAdminControl';
 import { useCartStore } from '../store/cartStore';
 import { uploadImageToCloudinary } from '../utils/cloudinaryUpload';
 import { uploadFilesInParallel } from '../utils/uploadQueue';
 import { blobToFile } from '../utils/cropImage';
+import FailedUploadsNotice from '../components/photoDevelopment/FailedUploadsNotice';
+import PhotoPageEditPanel from '../components/photoDevelopment/PhotoPageEditPanel';
+import UploadProgressOverlay from '../components/photoDevelopment/UploadProgressOverlay';
+import {
+    buildPhotoCartItems,
+    clampPhotoQuantity,
+    isPhotoPrintCartItem,
+    toGalleryImage,
+} from '../components/photoDevelopment/photoCartItems';
 import {
     DEFAULT_CROP,
     DEFAULT_PHOTO_PRINT_SIZE,
-    getDefaultOrientation,
     formatPrintSizeCm,
     getPhotoSizeOptions,
 } from '../utils/printSizes';
@@ -24,13 +31,11 @@ import {
     getNextPricingTierHint,
     getOrderPricing,
     getPhotoUnitPrice,
-    getPrintsBySize,
     normalizeSize,
 } from '../utils/photoQuantityPricing';
 import { clearPhotoDraft, endAlbumDetour, loadPhotoDraft, savePhotoDraft } from '../utils/photoOrderDraft';
 
-const isPhotoPrintCartItem = (item) => item?.itemType === 'photo-print';
-
+/** Photo prints: upload photos, set each one's size, quantity and crop, then add them all to the cart */
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     // The selected photos are kept for the whole visit (e.g. when leaving to pick an album and coming back)
     const [images, setImages] = useState(loadPhotoDraft);
@@ -95,17 +100,6 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         [orderPricing.totalPrints, pricing],
     );
 
-    const toGalleryImage = ({ file, index, url, width, height }) => ({
-        id: `${Date.now()}_${index}_${Math.random()}`,
-        src: url,
-        originalSrc: url,
-        alt: file.name,
-        quantity: 1,
-        size: DEFAULT_PHOTO_PRINT_SIZE,
-        crop: { ...DEFAULT_CROP },
-        orientation: getDefaultOrientation(width, height),
-    });
-
     const handleFilesSelected = async (files) => {
         const fileList = Array.from(files);
         if (fileList.length === 0) return;
@@ -133,9 +127,8 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     };
 
     const handleRetryFailed = () => handleFilesSelected(failedUploads.map(({ file }) => file));
-
     const handleSetQuantity = (id, quantity) => {
-        const qty = Math.min(9999, Math.max(1, Math.floor(Number(quantity)) || 1));
+        const qty = clampPhotoQuantity(quantity);
         setImages((prev) => prev.map((img) => (img.id === id ? { ...img, quantity: qty } : img)));
     };
 
@@ -222,37 +215,8 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             return;
         }
 
-        // The price tier is set by all the photos of the same size – including those already in the cart from an earlier round
         const photosInCart = useCartStore.getState().cartItems.filter(isPhotoPrintCartItem);
-        const printsBySize = getPrintsBySize([...images, ...photosInCart], DEFAULT_PHOTO_PRINT_SIZE);
-        const cartItems = images.map((img) => {
-            const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
-            const qty = Math.max(1, img.quantity);
-            const unitPrice = getPhotoUnitPrice(activePricing, size, printsBySize[normalizeSize(size)]);
-            return {
-                id: img.id,
-                itemType: 'photo-print',
-                size,
-                name: `פיתוח תמונה ${size} (${img.alt})`,
-                price: unitPrice,
-                quantity: qty,
-                image: img.src,
-                crop: img.crop,
-                orientation: img.orientation ?? 'landscape',
-                customDesign: {
-                    printSizeCm: size,
-                    frameSelection: img.frameSelection || undefined,
-                    captions: Array.isArray(img.captions) && img.captions.length
-                        ? img.captions.map((caption) => ({
-                            content: caption.content,
-                            fontFamily: caption.fontFamily,
-                            fontSize: caption.fontSize,
-                            color: caption.color,
-                        }))
-                        : undefined,
-                },
-            };
-        });
+        const { cartItems, printsBySize } = buildPhotoCartItems(images, activePricing, photosInCart);
 
         addToCart(cartItems);
         repriceItems((item) => (isPhotoPrintCartItem(item)
@@ -261,89 +225,38 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
         clearPhotoDraft();
         navigate('/cart');
     };
-
-    const EditContent = (
-        <div className="bg-white p-6 rounded-lg space-y-4 text-right" dir="rtl">
-            <h3 className="font-bold text-lg border-b pb-2">עריכת עמוד פיתוח תמונות</h3>
-
-            <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">תמונת רקע עליונה (URL):</label>
-                <SmartImageInput
-                    value={draft.img}
-                    onChange={(url) => updateDraft({ img: url })}
-                    className="w-full border p-2 rounded ltr"
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-bold text-gray-700">כותרת ראשית:</label>
-                <input
-                    type="text"
-                    value={draft.title}
-                    onChange={(e) => updateDraft({ title: e.target.value })}
-                    className="w-full border p-2 rounded"
-                />
-            </div>
-
-            <div>
-                <label className="block text-sm font-bold text-gray-700">כותרת משנית:</label>
-                <textarea
-                    value={draft.subtitle}
-                    onChange={(e) => updateDraft({ subtitle: e.target.value })}
-                    className="w-full border p-2 rounded h-20"
-                />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-bold text-gray-700">טקסט כפתור ראשי:</label>
-                    <input
-                        type="text"
-                        value={draft.btnText}
-                        onChange={(e) => updateDraft({ btnText: e.target.value })}
-                        className="w-full border p-2 rounded"
-                    />
-                </div>
-            </div>
-        </div>
-    );
-
-    const ViewContent = (
-        <div className="min-h-screen bg-white">
-            <Hero
-                onStartEditor={onNavigateToEditor}
-                onFilesSelected={handleFilesSelected}
-                backgroundImage={draft.img}
-                title={draft.title}
-                subtitle={draft.subtitle}
-                btnText={draft.btnText}
-                isUploading={isUploading}
-            />
-            <Gallery
-                images={images}
-                onSetQuantity={handleSetQuantity}
-                onRemove={handleRemove}
-                onClearAll={handleClearAllImages}
-                onSizeChange={handleSizeChange}
-                onAdjustPrint={setAdjustImageId}
-                onToggleOrientation={handleToggleOrientation}
-                onSendOrder={handleSendOrder}
-                availableSizes={sizeOptions}
-                pricing={pricing}
-                orderPricing={orderPricing}
-                nextTierHint={nextTierHint}
-                albumDiscount={albumDiscount}
-            />
-        </div>
-    );
-
     return (
         <AdminControls
             editMode={editMode}
-            previewContent={EditContent}
+            previewContent={<PhotoPageEditPanel draft={draft} updateDraft={updateDraft} />}
             adminControls={adminControls}
         >
-            {ViewContent}
+    <div className="min-h-screen bg-white">
+        <Hero
+            onStartEditor={onNavigateToEditor}
+            onFilesSelected={handleFilesSelected}
+            backgroundImage={draft.img}
+            title={draft.title}
+            subtitle={draft.subtitle}
+            btnText={draft.btnText}
+            isUploading={isUploading}
+        />
+        <Gallery
+            images={images}
+            onSetQuantity={handleSetQuantity}
+            onRemove={handleRemove}
+            onClearAll={handleClearAllImages}
+            onSizeChange={handleSizeChange}
+            onAdjustPrint={setAdjustImageId}
+            onToggleOrientation={handleToggleOrientation}
+            onSendOrder={handleSendOrder}
+            availableSizes={sizeOptions}
+            pricing={pricing}
+            orderPricing={orderPricing}
+            nextTierHint={nextTierHint}
+            albumDiscount={albumDiscount}
+        />
+    </div>
 
             {adjustImage && (
                 <PhotoPrintAdjustModal
@@ -356,98 +269,14 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
             )}
 
             {!isUploading && failedUploads.length > 0 && (
-                <div
-                    className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 z-[150] max-w-md bg-white border border-red-200 rounded-2xl shadow-xl p-4 text-right"
-                    dir="rtl"
-                    role="alert"
-                >
-                    <p className="font-bold text-red-700 mb-1">{failedUploads.length} תמונות לא הועלו</p>
-                    <ul className="text-xs text-gray-600 max-h-24 overflow-y-auto mb-3 space-y-0.5">
-                        {failedUploads.map(({ file, error }) => (
-                            <li key={`${file.name}-${file.size}`}>{file.name} — {error?.message || 'שגיאה'}</li>
-                        ))}
-                    </ul>
-                    <div className="flex gap-2 justify-end">
-                        <button
-                            type="button"
-                            onClick={() => setFailedUploads([])}
-                            className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-                        >
-                            סגירה
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleRetryFailed}
-                            className="px-3 py-1.5 text-sm rounded-lg bg-[#f2665e] text-white font-bold hover:bg-[#d95248]"
-                        >
-                            לנסות שוב
-                        </button>
-                    </div>
-                </div>
+                <FailedUploadsNotice
+                    failedUploads={failedUploads}
+                    onClose={() => setFailedUploads([])}
+                    onRetry={handleRetryFailed}
+                />
             )}
 
-            {isUploading && (
-                <div
-                    className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-                    dir="rtl"
-                    role="alertdialog"
-                    aria-live="polite"
-                    aria-busy="true"
-                    aria-label="מעלה תמונות"
-                >
-                    <div className="bg-white rounded-2xl shadow-2xl px-8 py-10 max-w-sm w-full text-center">
-                        <svg
-                            className="animate-spin h-14 w-14 text-[#f2665e] mb-5 mx-auto"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            aria-hidden="true"
-                        >
-                            <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                            />
-                            <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                        </svg>
-                        <h2 className="text-xl font-bold text-gray-800 mb-2">מעלה תמונות</h2>
-                        {uploadProgress ? (
-                            <>
-                                <div
-                                    className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2"
-                                    role="progressbar"
-                                    aria-valuemin={0}
-                                    aria-valuemax={uploadProgress.total}
-                                    aria-valuenow={uploadProgress.done}
-                                >
-                                    <div
-                                        className="h-full bg-[#f2665e] transition-all duration-300"
-                                        style={{ width: `${Math.round((uploadProgress.done / Math.max(1, uploadProgress.total)) * 100)}%` }}
-                                    />
-                                </div>
-                                <p className="text-gray-600 text-sm">
-                                    {uploadProgress.done} מתוך {uploadProgress.total} תמונות
-                                    {uploadProgress.failed > 0 && (
-                                        <span className="text-red-600"> · {uploadProgress.failed} נכשלו</span>
-                                    )}
-                                </p>
-                            </>
-                        ) : (
-                            <p className="text-gray-600 text-sm">{uploadStatus}</p>
-                        )}
-                        <p className="text-gray-400 text-xs mt-3">
-                            התמונות מועלות — אל תסגרו את הדף
-                        </p>
-                    </div>
-                </div>
-            )}
+            {isUploading && <UploadProgressOverlay progress={uploadProgress} status={uploadStatus} />}
         </AdminControls>
     );
 };

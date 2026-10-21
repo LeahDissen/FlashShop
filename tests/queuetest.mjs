@@ -1,0 +1,16 @@
+import assert from "node:assert";
+import { uploadFilesInParallel } from "./uploadQueue.mjs";
+import { calls, stats } from "./stubUploader.mjs";
+const files = Array.from({ length: 23 }, (_, i) => ({ name: `p${i}.jpg` }));
+files[4] = { name: "flaky.jpg" }; files[9] = { name: "broken.jpg" };
+const progress = []; const arrived = [];
+const { uploaded, failed } = await uploadFilesInParallel(files, { concurrency: 5, retries: 2, onProgress: (p) => progress.push({ ...p }), onUploaded: (r) => arrived.push(r.index) });
+assert.strictEqual(uploaded.length, 22, "22 uploaded"); assert.strictEqual(failed.length, 1); assert.strictEqual(failed[0].file.name, "broken.jpg");
+assert.deepStrictEqual(uploaded.map((u) => u.index), uploaded.map((u) => u.index).slice().sort((a, b) => a - b), "ordered by selection");
+assert.strictEqual(uploaded.find((u) => u.index === 4).url, "https://cdn/flaky.jpg", "flaky succeeded after retries");
+assert.strictEqual(calls.filter((n) => n === "flaky.jpg").length, 3, "flaky tried 3 times");
+assert.strictEqual(calls.filter((n) => n === "broken.jpg").length, 1, "non-retryable tried once");
+assert.strictEqual(stats().maxInFlight, 5, "never more than 5 in flight");
+assert.deepStrictEqual(progress.at(-1), { done: 23, total: 23, failed: 1 }); assert.strictEqual(progress[0].done, 0);
+assert.strictEqual(arrived.length, 22, "onUploaded fired per file");
+console.log("UPLOAD QUEUE TESTS PASSED (maxInFlight=" + stats().maxInFlight + ")");

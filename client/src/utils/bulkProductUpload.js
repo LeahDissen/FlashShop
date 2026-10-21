@@ -147,7 +147,7 @@ export function parseSpreadsheetFile(file) {
                 const sheet = workbook.Sheets[sheetName];
                 const rows = parseSheetRows(sheet);
                 resolve(rows);
-            } catch (err) {
+            } catch {
                 reject(new Error('לא ניתן לקרוא את קובץ האקסל/CSV'));
             }
         };

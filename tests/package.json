@@ -1,0 +1,13 @@
+{
+  "name": "flashshop-tests",
+  "version": "1.0.0",
+  "description": "Integration tests: the server API against an in-memory MongoDB, and client modules in Node",
+  "scripts": {
+    "test": "node run-all.mjs"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  },
+  "private": true
+}

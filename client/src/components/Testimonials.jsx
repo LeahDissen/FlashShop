@@ -1,22 +1,6 @@
 import { useState, useEffect } from 'react';
+import { DEFAULT_TESTIMONIALS } from '../constants/testimonials';
 
-const DEFAULT_TESTIMONIALS = [
-    {
-        id: 1,
-        text: "המלצה חמה מלקוח מרוצה על השירות המעולה, המוצרים האיכותיים והחוויה הנפלאה. הכל היה מושלם מההתחלה ועד הסוף.",
-        name: "מיכל לוי"
-    },
-    {
-        id: 2,
-        text: "פשוט וואו! לא האמנתי שאקבל יחס כזה אישי ומקצועי. ממליץ בחום לכל מי שמתלבט. בטוח אחזור שוב.",
-        name: "דניאל כהן"
-    },
-    {
-        id: 3,
-        text: "המשלוח הגיע מהר מאוד, האריזה הייתה מושקעת והמוצר עצמו בדיוק כמו בתמונות. תודה רבה!",
-        name: "נועה אברהם"
-    }
-];
 
 /**
  * @param {{ items?: Array<{ id?: number|string, text?: string, name?: string }> }} props
@@ -82,4 +66,3 @@ const Testimonials = ({ items }) => {
 };
 
 export default Testimonials;
-export { DEFAULT_TESTIMONIALS };
