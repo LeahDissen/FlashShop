@@ -25,6 +25,10 @@ const shopSettingsSchema = new mongoose.Schema(
             newOrder: { type: Boolean, default: true },
             newMessage: { type: Boolean, default: true },
         },
+        /** The shop closed to the public (while it is being set up): visitors see a "coming soon" page, the admin sees everything */
+        siteClosed: { type: Boolean, default: false },
+        /** The text visitors see while the shop is closed (empty = a default text) */
+        closedMessage: { type: String, default: "" },
         /** Where customers' replies to the site's emails go (empty = to the sending address) */
         replyToEmail: { type: String, default: "" },
     },

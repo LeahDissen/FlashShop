@@ -234,6 +234,10 @@ exports.createOrder = async (req, res) => {
         if (!items || items.length === 0) {
             return res.status(400).json({ msg: "העגלה ריקה" });
         }
+        // While the shop is closed to the public only the admin can place an order (e.g. to test it)
+        if (req.tokenData.role !== "admin" && (await loadShopSettings()).siteClosed) {
+            return res.status(403).json({ msg: "החנות עדיין לא פתוחה להזמנות. נשמח לראות אותך כשנפתח!", code: "SITE_CLOSED" });
+        }
 
         const method = fulfillmentMethod === "delivery" ? "delivery" : "pickup";
         const customerDetails = sanitizeCustomerDetails(customer);
