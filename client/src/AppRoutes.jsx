@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import AdminRoute from "./components/AdminRoute";
 import Layout from "./components/Layout";
+import SiteGate from "./components/SiteGate";
 import Terms from "./components/Terms";
 import HomePage from "./pages/HomePage";
 import { getReturnPathAfterAdd } from './utils/photoOrderDraft';
@@ -63,6 +64,7 @@ const EditorPageWrapper = () => {
 export default function AppRoutes() {
     return (
         <Router>
+            <SiteGate>
             <Suspense fallback={<PageLoader />}>
                 <Routes>
                     {/* Login route - without Layout */}
@@ -105,6 +107,7 @@ export default function AppRoutes() {
                     <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
             </Suspense>
+            </SiteGate>
         </Router>
     );
 }
