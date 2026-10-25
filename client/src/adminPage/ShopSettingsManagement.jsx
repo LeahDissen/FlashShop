@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { getShopSettings, updateShopSettings } from "../api/shopSettings";
 import ClubDiscountSettings from "./ClubDiscountSettings";
 import EmailNotificationSettings from "./EmailNotificationSettings";
+import SiteOpenSettings from "./SiteOpenSettings";
 
 export default function ShopSettingsManagement() {
     const [paymentLinkUrl, setPaymentLinkUrl] = useState("");
@@ -67,6 +68,8 @@ export default function ShopSettingsManagement() {
                     <FiArrowLeft className="text-xl" />
                 </Link>
             </div>
+
+            <SiteOpenSettings />
 
             <form onSubmit={handleSave} className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
                 {loading ? (

@@ -123,6 +123,16 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
   assert.strictEqual(s1.price, 45); assert.deepStrictEqual({ ...s1.memberDiscount }, { type: "price", value: 30 }); assert.strictEqual(s1.isOnSale, true);
   assert.strictEqual(s2.isOnSale, false);
 
+  // the shop closed to the public: visitors cannot order, the admin still can, and it opens again
+  const putSettings = (body) => fetch(base + "/shop-settings", { method: "PUT", headers: { "Content-Type": "application/json", "x-api-key": admin }, body: JSON.stringify(body) });
+  r = await putSettings({ siteClosed: true, closedMessage: "בקרוב!" }); assert.strictEqual(r.status, 200);
+  body = await (await fetch(base + "/shop-settings")).json();
+  assert.strictEqual(body.siteClosed, true); assert.strictEqual(body.closedMessage, "בקרוב!");
+  r = await order(items, memberTok); assert.strictEqual(r.status, 403); assert.strictEqual((await r.json()).code, "SITE_CLOSED");
+  r = await putSettings({ notMemberText: "x" }); assert.strictEqual((await r.json()).siteClosed, true, "other settings keep it closed");
+  r = await putSettings({ siteClosed: false }); assert.strictEqual((await r.json()).siteClosed, false);
+  r = await order(items, memberTok); assert.strictEqual(r.status, 201, "orders again once open");
+
   console.log("CLUB DISCOUNT TESTS PASSED");
   server.close(); await mongoose.disconnect(); await mongod.stop(); process.exit(0);
 })().catch((e) => { console.error("FAIL:", e); process.exit(1); });

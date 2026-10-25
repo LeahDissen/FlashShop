@@ -34,6 +34,8 @@ const publicSettings = (settings) => ({
         emailBody: settings.clubGift?.emailBody || "",
     },
     notMemberText: settings.notMemberText || "",
+    siteClosed: Boolean(settings.siteClosed),
+    closedMessage: settings.closedMessage || "",
 });
 
 /** The join gift as the admin sends it; returns { error } when invalid */
@@ -143,6 +145,12 @@ exports.updateShopSettings = async (req, res) => {
         }
         if (req.body?.notMemberText !== undefined) {
             $set.notMemberText = String(req.body.notMemberText || "").trim().slice(0, 500);
+        }
+        if (req.body?.siteClosed !== undefined) {
+            $set.siteClosed = req.body.siteClosed === true;
+        }
+        if (req.body?.closedMessage !== undefined) {
+            $set.closedMessage = String(req.body.closedMessage || "").trim().slice(0, 500);
         }
 
         const settings = await ShopSettingsModel.findOneAndUpdate(
