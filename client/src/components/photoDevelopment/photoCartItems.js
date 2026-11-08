@@ -1,5 +1,6 @@
 /** The photos chosen on the photo development page, as gallery items and as cart lines */
-import { DEFAULT_CROP, DEFAULT_PHOTO_PRINT_SIZE, getDefaultOrientation } from '../../utils/printSizes';
+import { DEFAULT_CROP, DEFAULT_PHOTO_PRINT_SIZE, getDefaultOrientation, getPrintPixelSize } from '../../utils/printSizes';
+import { paddedPrintUrl } from '../../utils/imageUrl';
 import { getPhotoUnitPrice, getPrintsBySize, normalizeSize } from '../../utils/photoQuantityPricing';
 
 export const isPhotoPrintCartItem = (item) => item?.itemType === 'photo-print';
@@ -14,6 +15,8 @@ export const toGalleryImage = ({ file, index, url, width, height }) => ({
     size: DEFAULT_PHOTO_PRINT_SIZE,
     crop: { ...DEFAULT_CROP },
     orientation: getDefaultOrientation(width, height),
+    width,
+    height,
 });
 
 /** A typed number of prints: a whole number from 1 to 9999 */
@@ -29,6 +32,7 @@ export function buildPhotoCartItems(images, pricing, photosInCart) {
     const cartItems = images.map((img) => {
         const size = img.size || DEFAULT_PHOTO_PRINT_SIZE;
         const qty = Math.max(1, img.quantity);
+        const orientation = img.orientation ?? 'landscape';
         const unitPrice = getPhotoUnitPrice(pricing, size, printsBySize[normalizeSize(size)]);
         return {
             id: img.id,
@@ -37,9 +41,10 @@ export function buildPhotoCartItems(images, pricing, photosInCart) {
             name: `פיתוח תמונה ${size} (${img.alt})`,
             price: unitPrice,
             quantity: qty,
-            image: img.src,
+            // The print file at the exact size: the whole photo with white margins where its proportions differ
+            image: paddedPrintUrl(img.src, getPrintPixelSize(size, orientation)),
             crop: img.crop,
-            orientation: img.orientation ?? 'landscape',
+            orientation,
             customDesign: {
                 printSizeCm: size,
                 frameSelection: img.frameSelection || undefined,

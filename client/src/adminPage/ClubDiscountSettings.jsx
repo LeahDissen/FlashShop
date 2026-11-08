@@ -22,11 +22,18 @@ export default function ClubDiscountSettings() {
     const navigate = useNavigate();
     const location = useLocation();
     const setClubOpen = useAppStore((state) => state.setClubOpen);
+    const setTermsOpen = useAppStore((state) => state.setTermsOpen);
 
     /** Opens the club popup in edit mode, right here (the same as "עריכת דפים" > "עריכת פופ-אפ מועדון") */
     const editClubPopup = () => {
         setClubOpen(true);
         navigate(location.pathname, { state: { autoEdit: true, targetEndpoint: "club" }, replace: true });
+    };
+
+    /** Opens the club terms (the "לקריאת התקנון" window in the join popup) in edit mode, right here */
+    const editClubTerms = () => {
+        setTermsOpen(true);
+        navigate(location.pathname, { state: { autoEdit: true, targetEndpoint: "terms" }, replace: true });
     };
 
     useEffect(() => {
@@ -83,6 +90,20 @@ export default function ClubDiscountSettings() {
                     className="shrink-0 inline-flex items-center gap-2 bg-[#f2665e] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-[#d95248]"
                 >
                     <FaEdit /> עריכת החלונית והמייל
+                </button>
+            </div>
+
+            <div className="rounded-xl bg-[#fff5f4] border border-[#f2665e]/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-sm text-gray-700">
+                    <span className="font-semibold block">תקנון המועדון</span>
+                    הטקסט שנפתח בלחיצה על &quot;לקריאת התקנון&quot; בחלונית ההצטרפות.
+                </p>
+                <button
+                    type="button"
+                    onClick={editClubTerms}
+                    className="shrink-0 inline-flex items-center gap-2 bg-[#f2665e] text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-[#d95248]"
+                >
+                    <FaEdit /> עריכת תקנון המועדון
                 </button>
             </div>
 

@@ -84,21 +84,22 @@ exports.purgeDuePhotos = async (now = new Date()) => {
     const due = await findDueOrders(now);
     if (!due.length) return { orders: 0, deleted: 0, kept: 0 };
 
+    // Photos are compared by their Cloudinary id, not their address: the same upload is printed through
+    // different addresses (one per print size and orientation, see paddedPrintUrl on the client)
+    const idOf = (url) => publicIdFromUrl(url, admin.cloudName);
     const dueIds = due.map((order) => order._id);
-    const dueUrls = [...new Set(due.flatMap(photoUrlsOf))];
-    const stillUsed = new Set(
-        (await OrderModel.find({ _id: { $nin: dueIds }, "items.image": { $in: dueUrls } }).select("items.image").lean())
-            .flatMap((order) => order.items.map((item) => item.image)),
-    );
+    const duePublicIds = [...new Set(due.flatMap(photoUrlsOf).map(idOf).filter(Boolean))];
+    const otherImages = await OrderModel.find({ _id: { $nin: dueIds }, "items.image": { $regex: `/${admin.cloudName}/image/upload/` } })
+        .select("items.image").lean();
+    const stillUsed = new Set(otherImages.flatMap((order) => order.items.map((item) => idOf(item.image))).filter(Boolean));
 
-    const toDelete = dueUrls.filter((url) => !stillUsed.has(url));
-    const publicIds = [...new Set(toDelete.map((url) => publicIdFromUrl(url, admin.cloudName)).filter(Boolean))];
+    const publicIds = duePublicIds.filter((id) => !stillUsed.has(id));
     if (publicIds.length) await deleteFromCloudinary(publicIds, admin);
 
     // Only orders whose photos are all gone are marked; one with a photo still in use is checked again tomorrow
-    const purgedIds = due.filter((order) => !photoUrlsOf(order).some((url) => stillUsed.has(url))).map((order) => order._id);
+    const purgedIds = due.filter((order) => !photoUrlsOf(order).some((url) => stillUsed.has(idOf(url)))).map((order) => order._id);
     await OrderModel.updateMany({ _id: { $in: purgedIds } }, { $set: { photosPurgedAt: now } });
-    return { orders: purgedIds.length, deleted: publicIds.length, kept: dueUrls.length - toDelete.length };
+    return { orders: purgedIds.length, deleted: publicIds.length, kept: duePublicIds.length - publicIds.length };
 };
 
 /** Runs once a few minutes after start and then daily. Failures are logged and retried on the next run. */

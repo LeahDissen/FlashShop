@@ -5,6 +5,7 @@ import { useProducts } from '../hooks/useProducts';
 import SalePrice from './SalePrice';
 import ClubGiftBadge from './ClubGiftBadge';
 import { optimizeImageUrl } from '../utils/imageUrl';
+import { productCategoryList } from '../utils/productDisplay';
 
 const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) => {
     const navigate = useNavigate();
@@ -15,7 +16,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
     const { products, loading, error } = useProducts();
     const loadError = error ? 'לא ניתן לטעון מוצרים. נסי שוב בעוד רגע.' : null;
     const categories = useMemo(
-        () => ["הכל", ...new Set(products.map((p) => p.category).filter(Boolean))],
+        () => ["הכל", ...new Set(products.flatMap(productCategoryList))],
         [products],
     );
     const [activeCategory, setActiveCategory] = useState("הכל");
@@ -44,7 +45,7 @@ const PersonalizationSection = ({ onSelectProduct, content, initialCategory }) =
 
     const filteredProducts = products.filter(product => {
         if (activeCategory === "הכל") return true;
-        return product.category === activeCategory;
+        return productCategoryList(product).includes(activeCategory);
     });
 
     const handleCategoryChange = (category) => {

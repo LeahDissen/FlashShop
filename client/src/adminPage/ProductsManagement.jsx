@@ -8,6 +8,8 @@ import { DISPLAY_TYPES, MAGNET_CATEGORY, getCategoryMeta, getDisplayTypeForCateg
 import { getProductDirectLink } from '../utils/productDisplay';
 import CaptionIdeasEditor from './products/CaptionIdeasEditor';
 import CategoryField from './products/CategoryField';
+import ExtraCategoriesField from './products/ExtraCategoriesField';
+import GalleryField from './products/GalleryField';
 import MemberDiscountField from './products/MemberDiscountField';
 import PriceTiersEditor from './products/PriceTiersEditor';
 import PrintAreaFields from './products/PrintAreaFields';
@@ -233,6 +235,13 @@ export default function ProductsManagement() {
                             categories={categories}
                         />
 
+                        <ExtraCategoriesField
+                            mainCategory={formData.category}
+                            value={formData.extraCategories}
+                            allCategories={categories.allCategories}
+                            onChange={(extraCategories) => patchForm({ extraCategories })}
+                        />
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700">תיאור</label>
                             <textarea name="description" value={formData.description} onChange={handleChange} className="w-full p-2 border rounded-lg" required />
@@ -291,9 +300,12 @@ export default function ProductsManagement() {
                                 onChange={(url) => patchForm({ image: url })}
                                 placeholder="https://..."
                                 className="w-full p-2 border rounded-lg"
+                                previewClassName="h-28 w-28 rounded-lg border border-gray-200 object-contain bg-gray-50 shrink-0"
                                 required
                             />
                         </div>
+
+                        <GalleryField value={formData.gallery} onChange={(gallery) => patchForm({ gallery })} />
 
                         {isDesignCategory && (
                             <CaptionIdeasEditor

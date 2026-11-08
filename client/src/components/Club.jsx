@@ -8,6 +8,7 @@ import ClubJoinSuccess from "./club/ClubJoinSuccess";
 import { useAdminControl } from "../hooks/useAdminControl.jsx";
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore.js';
+import { formatBirthDateInput, parseBirthDate } from '../utils/birthDateInput';
 
 const EMPTY_JOIN_FORM = { name: "", email: "", birthdate: "", agreed: false };
 
@@ -72,16 +73,21 @@ export default function Club() {
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        const nextValue = type === 'checkbox' ? checked
+            : name === 'birthdate' ? formatBirthDateInput(value)
+            : value;
+        setFormData(prev => ({ ...prev, [name]: nextValue }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.agreed) {
             alert("יש לאשר את התקנון");
+            return;
+        }
+        const birthDate = parseBirthDate(formData.birthdate);
+        if (!birthDate) {
+            setJoinResult({ type: "error", message: "תאריך הלידה לא תקין. יש להקליד יום, חודש ושנה, למשל 15031990." });
             return;
         }
         setIsJoining(true);
@@ -91,7 +97,7 @@ export default function Club() {
                 user_id: userId || null,
                 email: formData.email,
                 name: formData.name,
-                birthDate: formData.birthdate
+                birthDate
             };
             const data = await joinClubRequest(payload);
             setJoinResult({ type: "success", code: data.code, pendingGift: Boolean(data.pendingGift) });

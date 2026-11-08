@@ -43,7 +43,7 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
   const memberTok = await mkUser("Member@Example.com"), outsiderTok = await mkUser("out@example.com");
   const customer = { name: "רבקה כהן", phone: "0531112222", email: "r@example.com" };
   const post = (p, body, tok) => fetch(base + p, { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": tok }, body: JSON.stringify(body) });
-  const order = (items, tok, couponCode) => post("/orders", { items, customer, fulfillmentMethod: "pickup", couponCode }, tok);
+  const order = (items, tok, couponCode) => post("/orders", { items, customer, fulfillmentMethod: "pickup", couponCode, termsAccepted: true }, tok);
 
   const mug = await ProductModel.create({ name: "ספל", price: 50, category: "ספלים", image: "https://x/m.jpg", description: "ספל", stock: 10, memberDiscount: { type: "percent", value: 20 } });
   const bag = await ProductModel.create({ name: "תיק", price: 40, category: "תיקים", image: "https://x/b.jpg", description: "תיק", stock: 10 });

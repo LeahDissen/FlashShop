@@ -24,16 +24,18 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
   const now = new Date("2026-12-01T00:00:00Z"), days = (n) => new Date(now.getTime() - n * 864e5);
   const url = (id) => `https://res.cloudinary.com/mycloud/image/upload/v1/${id}.jpg`;
   const photo = (id) => ({ name: `פיתוח תמונה 10x15 (${id}.JPG)`, itemType: "photo-print", image: url(id), quantity: 1, price: 1 });
+  // A print file of the same upload at another size and orientation (exact-size JPEG with white margins)
+  const padded = (id, w, h) => ({ ...photo(id), image: `https://res.cloudinary.com/mycloud/image/upload/c_pad,b_white,w_${w},h_${h},q_95/v1/${id}.jpg` });
   const uid = new mongoose.Types.ObjectId();
   const mk = (o) => OrderModel.create({ user_id: uid, total_price: 1, ...o });
-  const printedOld = await mk({ status: "delivered", statusChangedAt: days(31), items: [photo("a"), photo("shared"), { name: "ספל", image: url("design"), quantity: 1, price: 30 }] });
+  const printedOld = await mk({ status: "delivered", statusChangedAt: days(31), items: [photo("a"), padded("shared", 1772, 1181), { name: "ספל", image: url("design"), quantity: 1, price: 30 }] });
   const printedNew = await mk({ status: "shipped", statusChangedAt: days(10), items: [photo("b")] });
   const legacyOld = await mk({ status: "delivered", date_created: days(60), items: [photo("c")] });
   const processing = await mk({ status: "processing", statusChangedAt: days(90), items: [photo("d")] });
   const cancelledOld = await mk({ status: "cancelled", statusChangedAt: days(40), items: [photo("e")] });
   const unpaidOld = await mk({ status: "awaiting_payment", date_created: days(8), payment: { provider: "hyp", status: "pending" }, items: [photo("f")] });
   const reviewOld = await mk({ status: "awaiting_payment", date_created: days(30), payment: { provider: "hyp", status: "review" }, items: [photo("g")] });
-  const cartWithShared = await mk({ status: "pending", items: [photo("shared")] });
+  const cartWithShared = await mk({ status: "pending", items: [padded("shared", 1535, 2126)] });
 
   const result = await svc.purgeDuePhotos(now);
   // printedOld keeps its shared photo (an open cart uses it) -> not marked, rechecked tomorrow

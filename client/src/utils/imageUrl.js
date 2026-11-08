@@ -22,3 +22,18 @@ export function screenWidthImageSize(maxWidth = 2400) {
     const pixels = window.innerWidth * (window.devicePixelRatio || 1);
     return Math.min(maxWidth, Math.ceil(pixels / 400) * 400);
 }
+
+/**
+ * The print file for a Cloudinary photo at exactly `width`×`height` pixels, as a JPEG: the whole photo,
+ * uncropped, centered on white (Cloudinary pads it on the fly, so nothing is uploaded again).
+ * Other URLs are returned as is.
+ */
+export function paddedPrintUrl(url, { width, height }) {
+    const match = CLOUDINARY_UPLOAD.exec(String(url || ''));
+    if (!match || !width || !height) return url;
+    const [, prefix, rest] = match;
+    if (rest.startsWith('c_pad,')) return url;
+    // The ".jpg" ending makes Cloudinary deliver a JPEG (what print labs take), whatever was uploaded
+    const asJpeg = /\.[a-z0-9]+$/i.test(rest) ? rest.replace(/\.[a-z0-9]+$/i, '.jpg') : `${rest}.jpg`;
+    return `${prefix}c_pad,b_white,w_${Math.round(width)},h_${Math.round(height)},q_95/${asJpeg}`;
+}

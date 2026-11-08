@@ -8,6 +8,10 @@ import ClubSavingsBanner from '../components/checkout/ClubSavingsBanner';
 import FulfillmentMethodStep from '../components/checkout/FulfillmentMethodStep';
 import OrderSummaryCard from '../components/checkout/OrderSummaryCard';
 import PaymentStep from '../components/checkout/PaymentStep';
+import FulfillmentNotice from '../components/checkout/FulfillmentNotice';
+import SiteTermsModal from '../components/checkout/SiteTermsModal';
+import { getPage } from '../api/pages';
+import { DEFAULT_CHECKOUT_TEXTS, mergeCheckoutTexts } from '../constants/checkoutTexts';
 import { DELIVERY_FEE, buildSummaryLines } from '../components/checkout/checkoutSummary';
 import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
@@ -40,7 +44,14 @@ export default function CheckoutPage() {
     const [quote, setQuote] = useState(null);
     const [quoteError, setQuoteError] = useState('');
     const [accountEmail, setAccountEmail] = useState('');
+    const [checkoutTexts, setCheckoutTexts] = useState(DEFAULT_CHECKOUT_TEXTS);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [isTermsOpen, setTermsOpen] = useState(false);
     const openClubWithEmail = useAppStore((state) => state.openClubWithEmail);
+
+    useEffect(() => {
+        getPage('checkout').then((data) => setCheckoutTexts(mergeCheckoutTexts(data)));
+    }, []);
     const clubJoinedAt = useAppStore((state) => state.clubJoinedAt);
 
     // A long order summary pushes the steps below the fold: bring the next step (and its button) into view
@@ -158,7 +169,7 @@ export default function CheckoutPage() {
     };
 
     const handleSecurePayment = async () => {
-        if (!draft || isPaying || !fulfillmentMethod) return;
+        if (!draft || isPaying || !fulfillmentMethod || !termsAccepted) return;
 
         const errors = validateCheckoutDetails({
             fulfillmentMethod,
@@ -179,6 +190,7 @@ export default function CheckoutPage() {
                 fulfillmentMethod,
                 customer,
                 shippingAddress: fulfillmentMethod === 'delivery' ? shipping : undefined,
+                termsAccepted,
             });
 
             paymentSubmittedRef.current = true;
@@ -250,6 +262,10 @@ export default function CheckoutPage() {
                 <div ref={stepRef} className="space-y-6 scroll-mt-6">
                     {step === 'method' && <FulfillmentMethodStep onSelect={selectMethod} />}
 
+                    {step !== 'method' && fulfillmentMethod && (
+                        <FulfillmentNotice fulfillmentMethod={fulfillmentMethod} texts={checkoutTexts} />
+                    )}
+
                     {step === 'details' && fulfillmentMethod && (
                         <CheckoutDetailsForm
                             fulfillmentMethod={fulfillmentMethod}
@@ -268,12 +284,19 @@ export default function CheckoutPage() {
                             fulfillmentMethod={fulfillmentMethod}
                             customerName={customer.name}
                             isPaying={isPaying}
+                            termsAccepted={termsAccepted}
+                            termsCheckboxText={checkoutTexts.termsCheckboxText}
+                            onTermsChange={setTermsAccepted}
+                            onOpenTerms={() => setTermsOpen(true)}
                             onPay={handleSecurePayment}
                             onBack={() => setStep('details')}
                         />
                     )}
                 </div>
             </div>
+            {isTermsOpen && (
+                <SiteTermsModal title={checkoutTexts.termsTitle} content={checkoutTexts.termsContent} onClose={() => setTermsOpen(false)} />
+            )}
         </div>
     );
 }

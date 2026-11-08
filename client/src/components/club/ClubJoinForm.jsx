@@ -7,7 +7,7 @@ export default function ClubJoinForm({ texts, formData, onChange, onSubmit, onOp
         <form onSubmit={onSubmit} className="w-full max-w-xs flex flex-col gap-3 z-20">
             <input type="text" name="name" placeholder={texts.inputNamePlaceholder} value={formData.name} onChange={onChange} required className="w-full px-4 py-2 rounded-md text-gray-700 bg-white/90 text-right" />
             <input type="email" name="email" placeholder={texts.inputEmailPlaceholder} value={formData.email} onChange={onChange} required className="w-full px-4 py-2 rounded-md text-gray-700 bg-white/90 text-right" />
-            <input type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => e.target.type = 'text'} name="birthdate" placeholder={texts.inputDatePlaceholder} value={formData.birthdate} onChange={onChange} required className="w-full px-4 py-2 rounded-md text-gray-700 bg-white/90 text-right" />
+            <input type="text" inputMode="numeric" autoComplete="off" dir="ltr" maxLength={10} name="birthdate" placeholder={texts.inputDatePlaceholder || "תאריך לידה: יום/חודש/שנה"} value={formData.birthdate} onChange={onChange} required className="w-full px-4 py-2 rounded-md text-gray-700 bg-white/90 text-right placeholder:text-right" />
             <div className="flex items-start gap-2 mt-2 justify-end w-full px-2">
                 <label className="text-[11px] leading-tight text-right cursor-pointer select-none" htmlFor="club-terms">
                     {texts.checkboxText}{" "}

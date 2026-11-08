@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PHOTO_ORIENTATION } from '../../utils/printSizes';
 import { buildPhotoCartItems, clampPhotoQuantity, toGalleryImage } from './photoCartItems';
 
 const pricing = {
@@ -58,6 +57,31 @@ describe('gallery helpers', () => {
 
     it('adds an uploaded photo as one print in the default size', () => {
         const item = toGalleryImage({ file: { name: 'p.jpg' }, index: 0, url: 'https://x/p', width: 600, height: 900 });
-        expect(item).toMatchObject({ src: 'https://x/p', originalSrc: 'https://x/p', alt: 'p.jpg', quantity: 1, size: '10x15', orientation: DEFAULT_PHOTO_ORIENTATION });
+        expect(item).toMatchObject({ src: 'https://x/p', originalSrc: 'https://x/p', alt: 'p.jpg', quantity: 1, size: '10x15', width: 600, height: 900 });
+    });
+
+    it('keeps the photo orientation: portrait stays portrait, landscape and square print landscape', () => {
+        const orientationOf = (width, height) => toGalleryImage({ file: { name: 'p.jpg' }, index: 0, url: 'https://x/p', width, height }).orientation;
+        expect(orientationOf(600, 900)).toBe('portrait');
+        expect(orientationOf(900, 600)).toBe('landscape');
+        expect(orientationOf(800, 800)).toBe('landscape');
+    });
+});
+
+describe('print file', () => {
+    const cloudinary = 'https://res.cloudinary.com/demo/image/upload/v1/photo.jpg';
+
+    it('sends a Cloudinary photo as an exact-size file with white margins, in the print orientation', () => {
+        const [landscape, portrait] = buildPhotoCartItems([
+            image('a', '10x15', 1, { src: cloudinary, orientation: 'landscape' }),
+            image('b', '13x18', 1, { src: cloudinary, orientation: 'portrait' }),
+        ], pricing, []).cartItems;
+        expect(landscape.image).toBe('https://res.cloudinary.com/demo/image/upload/c_pad,b_white,w_1772,h_1181,q_95/v1/photo.jpg');
+        expect(portrait.image).toBe('https://res.cloudinary.com/demo/image/upload/c_pad,b_white,w_1535,h_2126,q_95/v1/photo.jpg');
+    });
+
+    it('leaves other image addresses as they are', () => {
+        const [item] = buildPhotoCartItems([image('a', '10x15', 1, { src: 'data:image/jpeg;base64,xx' })], pricing, []).cartItems;
+        expect(item.image).toBe('data:image/jpeg;base64,xx');
     });
 });

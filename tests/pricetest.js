@@ -19,7 +19,7 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
   const customer = { name: "רבקה כהן", phone: "0531112222", email: "r@example.com" };
   const order = (items) => fetch(base + "/orders", {
     method: "POST", headers: { "Content-Type": "application/json", "x-api-key": user },
-    body: JSON.stringify({ items, customer, fulfillmentMethod: "pickup" }),
+    body: JSON.stringify({ items, customer, fulfillmentMethod: "pickup", termsAccepted: true }),
   });
 
   const mug = await ProductModel.create({ name: "ספל", price: 50, category: "ספלים", image: "https://x/m.jpg", description: "ספל לבן", stock: 10 });
@@ -51,10 +51,19 @@ const req = (m) => require(path.join(SERVER, "node_modules", m));
   r = await order([{ name: "עיצוב", price: 0.1, quantity: 1, customDesign: { projectId: "p" } }]);
   assert.strictEqual(r.status, 400, "design without product");
 
+  // the order is refused until the site terms are accepted, and the acceptance time is kept
+  r = await fetch(base + "/orders", {
+    method: "POST", headers: { "Content-Type": "application/json", "x-api-key": user },
+    body: JSON.stringify({ items: [{ productId: id, name: "ספל", price: 50, quantity: 1 }], customer, fulfillmentMethod: "pickup" }),
+  });
+  assert.strictEqual(r.status, 400, "terms not accepted");
+  assert.strictEqual((await r.json()).code, "TERMS_REQUIRED");
+
   // a regular product still works, and a line id like "<productId>-rec-123" resolves to the product
   r = await order([{ id: `${id}-rec-123`, name: "ספל", price: 50, quantity: 1 }]);
   body = await r.json();
   assert.strictEqual(r.status, 201); assert.strictEqual(body.total_price, 50);
+  assert.ok(body.termsAcceptedAt, "terms acceptance time saved");
 
   console.log("PRICE TESTS PASSED");
   server.close(); await mongoose.disconnect(); await mongod.stop(); process.exit(0);

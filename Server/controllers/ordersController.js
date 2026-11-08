@@ -229,10 +229,14 @@ exports.quoteOrder = async (req, res) => {
 exports.createOrder = async (req, res) => {
     try {
         const userId = req.tokenData._id;
-        const { items, couponCode, fulfillmentMethod, customer, shippingAddress } = req.body;
+        const { items, couponCode, fulfillmentMethod, customer, shippingAddress, termsAccepted } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ msg: "העגלה ריקה" });
+        }
+        // The customer must tick "I read the site terms" at checkout; the time is kept on the order
+        if (termsAccepted !== true) {
+            return res.status(400).json({ msg: "יש לאשר את תקנון האתר לפני התשלום", code: "TERMS_REQUIRED" });
         }
         // While the shop is closed to the public only the admin can place an order (e.g. to test it)
         if (req.tokenData.role !== "admin" && (await loadShopSettings()).siteClosed) {
@@ -263,6 +267,7 @@ exports.createOrder = async (req, res) => {
         // Create the new order with the processing status
         const newOrder = new OrderModel({
             user_id: userId,
+            termsAcceptedAt: new Date(),
             items: verifiedItems,
             subtotal,
             discount,
