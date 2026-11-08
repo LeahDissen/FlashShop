@@ -31,7 +31,10 @@ export function searchProducts(products, query, limit = 8) {
 
     return (products || [])
         .map((product) => {
-            const fields = FIELD_WEIGHTS.map(([key, weight]) => [normalizeSearchText(product[key]), weight]);
+            const fields = FIELD_WEIGHTS.map(([key, weight]) => [
+                normalizeSearchText(key === 'category' ? [product.category, ...(product.extraCategories || [])].join(' ') : product[key]),
+                weight,
+            ]);
             const score = words.reduce((total, word) => total + fields.reduce(
                 (sum, [text, weight]) => sum + (text.includes(word) ? weight : 0),
                 0,

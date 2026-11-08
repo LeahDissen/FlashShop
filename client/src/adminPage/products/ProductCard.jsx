@@ -11,11 +11,15 @@ export default function ProductCard({ product, isBeingEdited, onCopyLink, onEdit
     return (
         <div className={`bg-white p-4 rounded-xl shadow-sm border transition-all ${isBeingEdited ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-100'}`}>
             <div className="flex gap-4">
-                <img src={product.image} alt={product.name} className="w-24 h-24 object-cover rounded-lg bg-gray-100" />
+                <img src={product.image} alt={product.name} className="w-24 h-24 xl:w-44 xl:h-44 object-contain rounded-lg bg-gray-100 shrink-0" />
                 <div className="flex-1 flex flex-col justify-between">
                     <div>
                         <h3 className="font-bold text-gray-800">{product.name}</h3>
-                        <p className="text-xs text-gray-500 bg-gray-100 inline-block px-2 py-1 rounded mt-1">{product.category}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                            {[product.category, ...(product.extraCategories || [])].filter(Boolean).map((category) => (
+                                <span key={category} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{category}</span>
+                            ))}
+                        </div>
                         {product.size && (
                             <p className="text-xs text-[#f2665e] mt-1">גודל: {product.size}</p>
                         )}

@@ -22,3 +22,8 @@ export function getProductDirectLink(productId) {
     if (typeof window === 'undefined') return `/product-selection/${productId}`;
     return `${window.location.origin}/product-selection/${productId}`;
 }
+
+/** Every category the product is listed under: the main one first, then the extra ones */
+export function productCategoryList(product) {
+    return [...new Set([product?.category, ...(product?.extraCategories || [])].filter(Boolean))];
+}

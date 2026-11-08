@@ -3,6 +3,7 @@ import { FaCheckCircle, FaExclamationCircle, FaLink } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { getShopSettings, updateShopSettings } from "../api/shopSettings";
+import CheckoutTextsSettings from "./CheckoutTextsSettings";
 import ClubDiscountSettings from "./ClubDiscountSettings";
 import EmailNotificationSettings from "./EmailNotificationSettings";
 import SiteOpenSettings from "./SiteOpenSettings";
@@ -117,6 +118,7 @@ export default function ShopSettingsManagement() {
             <div id="club">
                 <ClubDiscountSettings />
                 <EmailNotificationSettings />
+                <CheckoutTextsSettings />
             </div>
         </div>
     );

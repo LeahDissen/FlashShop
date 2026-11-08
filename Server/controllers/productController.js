@@ -9,8 +9,35 @@ function normalizeMaxQuantity(value) {
     return Number.isFinite(num) ? num : null;
 }
 
+const MAX_EXTRA_CATEGORIES = 10;
+const MAX_GALLERY_IMAGES = 12;
+
+const httpsUrlOrNull = (value) => {
+    try {
+        const url = new URL(String(value || ""));
+        return url.protocol === "https:" ? url.href : null;
+    } catch {
+        return null;
+    }
+};
+
 function sanitizeProductBody(body = {}) {
     const data = { ...body };
+
+    // Extra categories: trimmed, unique, without the main category
+    if (data.extraCategories !== undefined) {
+        const main = String(data.category ?? "").trim();
+        const list = Array.isArray(data.extraCategories) ? data.extraCategories : [];
+        data.extraCategories = [...new Set(list.map((c) => String(c ?? "").trim()).filter((c) => c && c !== main))]
+            .slice(0, MAX_EXTRA_CATEGORIES);
+    }
+
+    // Gallery: https image links only, without repeating the main image
+    if (data.gallery !== undefined) {
+        const list = Array.isArray(data.gallery) ? data.gallery : [];
+        const main = httpsUrlOrNull(data.image);
+        data.gallery = [...new Set(list.map(httpsUrlOrNull).filter((url) => url && url !== main))].slice(0, MAX_GALLERY_IMAGES);
+    }
 
     if (Array.isArray(data.priceTiers)) {
         data.priceTiers = data.priceTiers
@@ -40,11 +67,7 @@ function sanitizeProductBody(body = {}) {
     // Shape: a built-in one, or the admin's own PNG (https) for "custom"
     if (data.shape !== undefined) {
         const type = data.shape?.type;
-        let maskUrl = "";
-        try {
-            const url = new URL(String(data.shape?.maskUrl || ""));
-            if (url.protocol === "https:") maskUrl = url.href;
-        } catch { /* not a URL */ }
+        const maskUrl = httpsUrlOrNull(data.shape?.maskUrl) || "";
         if (["circle", "heart", "star", "flower"].includes(type)) data.shape = { type };
         else if (type === "custom" && maskUrl) data.shape = { type, maskUrl };
         else data.shape = null;

@@ -75,7 +75,8 @@ export default function HomeEditPanel({ draft, updateDraft, heroHeightKey, heroF
                 </label>
             </div>
             <div>
-                <label className="font-bold block mb-2">{HOME_TILE_COUNT} מוצרים — תמונה + שם + קישור (4 בשורה):</label>
+                <label className="font-bold block mb-1">{HOME_TILE_COUNT} מוצרים — תמונה + שם + קישור (4 בשורה):</label>
+                <p className="text-xs text-gray-500 mb-2">באתר מוצגים רק ריבועים שיש להם תמונה. כדי לראות 8 ריבועים, צריך תמונה בכל אחד מהם.</p>
                 <div className="grid grid-cols-2 gap-3">
                     {editTiles.map((prod, index) => (
                         <div key={index} className="border rounded-xl p-3 bg-gray-50 space-y-2">
@@ -102,6 +103,9 @@ export default function HomeEditPanel({ draft, updateDraft, heroHeightKey, heroF
                                 dir="ltr"
                                 onChange={(e) => updateProduct(index, 'link', e.target.value)}
                             />
+                            {!prod?.image && (prod?.name || prod?.link) && (
+                                <p className="text-[11px] font-semibold text-amber-700">חסרה תמונה: ריבוע בלי תמונה לא מוצג באתר.</p>
+                            )}
                         </div>
                     ))}
                 </div>

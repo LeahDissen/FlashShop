@@ -13,6 +13,7 @@ const PAGE_KEYS = [
     "cart",
     "footer",
     "product-categories",
+    "checkout",
 ];
 
 /**

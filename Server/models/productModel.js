@@ -6,6 +6,10 @@ let productSchema = new mongoose.Schema({
     price: { type: Number, required: true },
     image: {type:String,required:true},
     category: { type: String, required: true },
+    /** More categories the product is also listed under (the main `category` sets how it is designed) */
+    extraCategories: { type: [String], default: [] },
+    /** More product photos shown on the product page next to the main `image` */
+    gallery: { type: [String], default: [] },
     /** design = full design | simple = image + price | magnet = magnets (photo upload) */
     displayType: { type: String, enum: ['design', 'simple', 'magnet'], default: 'design' },
     /** The magnet size as a field of the individual product — not a variant inside the same product */

@@ -1,49 +1,30 @@
-import { useEffect, useState } from 'react';
-import {
-    DEFAULT_CROP,
-    DEFAULT_PHOTO_PRINT_SIZE,
-    getCropTransformStyle,
-    normalizeZoomCrop,
-    resolvePrintDimensions,
-} from '../utils/printSizes';
+import { DEFAULT_PHOTO_PRINT_SIZE, resolvePrintDimensions } from '../utils/printSizes';
 
 /**
- * Photo preview at the print ratio (cover + zoom/pan)
+ * Photo preview at the print ratio, exactly as it prints: the whole photo on white, with white margins
+ * where its proportions differ from the print (the print file is made the same way, see paddedPrintUrl).
+ * A photo adjusted in the print editor is already rendered at the print ratio, so it fills the frame.
  */
 const PhotoCroppedPreview = ({
     src,
     alt = '',
     size = DEFAULT_PHOTO_PRINT_SIZE,
     orientation = 'portrait',
-    crop = DEFAULT_CROP,
     className = '',
     frameClassName = '',
 }) => {
-    const [dims, setDims] = useState({ w: 0, h: 0 });
-
-    useEffect(() => {
-        if (!src) return;
-        const img = new Image();
-        img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
-        img.src = src;
-    }, [src]);
-
     const print = resolvePrintDimensions(size, orientation);
-    const imageAspect = dims.w && dims.h ? dims.w / dims.h : print.aspect;
-    const zoomCrop = normalizeZoomCrop(crop);
-    const transformStyle = getCropTransformStyle(zoomCrop, imageAspect, print.aspect);
 
     return (
         <div
-            className={`relative overflow-hidden bg-gray-100 ${frameClassName}`}
+            className={`relative overflow-hidden bg-white ${frameClassName}`}
             style={{ aspectRatio: `${print.width} / ${print.height}` }}
         >
             {src && (
                 <img
                     src={src}
                     alt={alt}
-                    className={`absolute inset-0 w-full h-full max-w-none ${className}`}
-                    style={{ objectFit: 'cover', ...transformStyle }}
+                    className={`absolute inset-0 w-full h-full max-w-none object-contain ${className}`}
                     draggable={false}
                 />
             )}

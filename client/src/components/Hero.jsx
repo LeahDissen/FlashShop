@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { optimizeImageUrl, screenWidthImageSize } from '../utils/imageUrl';
 
 const Hero = ({
@@ -11,6 +11,22 @@ const Hero = ({
   isUploading = false,
 }) => {
   const fileInputRef = useRef(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const canDrop = Boolean(onFilesSelected) && !isUploading;
+
+  // A file dropped just outside the drop area would make the browser open it and leave the page
+  useEffect(() => {
+    if (!onFilesSelected) return undefined;
+    const keepPage = (event) => {
+      if (Array.from(event.dataTransfer?.types || []).includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', keepPage);
+    window.addEventListener('drop', keepPage);
+    return () => {
+      window.removeEventListener('dragover', keepPage);
+      window.removeEventListener('drop', keepPage);
+    };
+  }, [onFilesSelected]);
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -27,6 +43,27 @@ const Hero = ({
     event.target.value = '';
   };
 
+  const handleDragOver = (event) => {
+    if (!canDrop || !Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (event) => {
+    // Leaving into a child element of the drop area still counts as inside
+    if (!event.currentTarget.contains(event.relatedTarget)) setIsDragOver(false);
+  };
+
+  /** Dropped files go through the same upload as the file picker; anything that isn't an image is ignored */
+  const handleDrop = async (event) => {
+    if (!canDrop) return;
+    event.preventDefault();
+    setIsDragOver(false);
+    const images = Array.from(event.dataTransfer?.files || []).filter((file) => file.type.startsWith('image/'));
+    if (images.length > 0) await onFilesSelected(images);
+  };
+
   return (
     <section
       className="relative bg-cover bg-center bg-no-repeat py-8 md:py-15"
@@ -35,7 +72,14 @@ const Hero = ({
       <div className="absolute inset-0 bg-black/10"></div>
 
       <div className="relative container mx-auto px-6 text-center z-10">
-        <div className="border-2 border-dashed border-[#f2665e]/60 bg-white/80 backdrop-blur-md p-10 md:p-20 max-w-4xl mx-auto rounded-[30px] shadow-lg flex flex-col items-center justify-center min-h-[300px]">
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed backdrop-blur-md p-10 md:p-20 max-w-4xl mx-auto rounded-[30px] shadow-lg flex flex-col items-center justify-center min-h-[300px] transition-colors ${
+            isDragOver ? 'border-[#f2665e] bg-[#fff5f4]/95' : 'border-[#f2665e]/60 bg-white/80'
+          }`}
+        >
 
           <h1 className="text-3xl md:text-4xl font-bold text-[#f2665e] mb-2 drop-shadow-sm">
             {title}

@@ -1,5 +1,7 @@
 /** The last step: a reminder of the order and the button that creates it and moves to the secure payment page */
-export default function PaymentStep({ fulfillmentMethod, customerName, isPaying, onPay, onBack }) {
+export default function PaymentStep({
+    fulfillmentMethod, customerName, isPaying, termsAccepted, termsCheckboxText, onTermsChange, onOpenTerms, onPay, onBack,
+}) {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
             <h2 className="text-xl font-bold text-gray-800">פרטי תשלום</h2>
@@ -9,10 +11,27 @@ export default function PaymentStep({ fulfillmentMethod, customerName, isPaying,
             <p className="text-sm text-gray-600">
                 {fulfillmentMethod === 'delivery' ? 'משלוח לבית' : 'איסוף עצמי'} · {customerName}
             </p>
+            <div className="flex items-start gap-2 rounded-lg bg-gray-50 border border-gray-100 px-3 py-3">
+                <input
+                    type="checkbox"
+                    id="site-terms"
+                    checked={termsAccepted}
+                    onChange={(e) => onTermsChange(e.target.checked)}
+                    required
+                    className="mt-0.5 w-4 h-4 accent-[#f2665e] cursor-pointer shrink-0"
+                />
+                <label htmlFor="site-terms" className="text-sm text-gray-700 cursor-pointer select-none">
+                    {termsCheckboxText}{' '}
+                    <button type="button" onClick={onOpenTerms} className="underline font-semibold text-[#f2665e] hover:text-[#d95248]">
+                        (לקריאת התקנון)
+                    </button>
+                </label>
+            </div>
+            {!termsAccepted && <p className="text-xs text-gray-500">כדי להמשיך לתשלום יש לסמן את אישור התקנון.</p>}
             <button
                 type="button"
                 onClick={onPay}
-                disabled={isPaying}
+                disabled={isPaying || !termsAccepted}
                 className="w-full bg-[#f2665e] text-white font-bold py-3 rounded-lg hover:bg-[#d95248] transition disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
                 {isPaying ? (
