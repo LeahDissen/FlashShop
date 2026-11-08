@@ -134,7 +134,7 @@ const ImageCard = ({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onAdjustPrint?.(image.id); }}
                     title="התמונה לא מתאימה בדיוק לגודל המוזמן ותודפס עם שוליים לבנים. לחיצה לעריכה."
-                    className="absolute bottom-12 right-2 z-20 bg-amber-50/95 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm"
+                    className="absolute top-12 right-2 z-20 bg-amber-50/95 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm"
                 >
                     שוליים לבנים · עריכה
                 </button>

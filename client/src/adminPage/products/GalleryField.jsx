@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import SmartImageInput from '../../components/SmartImageInput';
 
@@ -5,8 +6,17 @@ const MAX_GALLERY_IMAGES = 12;
 
 /** More photos of the product, shown on the product page next to the main image */
 export default function GalleryField({ value = [], onChange }) {
+    // A stable key per row, so removing a row doesn't hand its upload or focus to the next one
+    const rowIds = useRef([]);
+    const nextId = useRef(0);
+    while (rowIds.current.length < value.length) rowIds.current.push(nextId.current++);
+    rowIds.current.length = value.length;
+
     const update = (index, url) => onChange(value.map((item, i) => (i === index ? url : item)));
-    const remove = (index) => onChange(value.filter((_, i) => i !== index));
+    const remove = (index) => {
+        rowIds.current.splice(index, 1);
+        onChange(value.filter((_, i) => i !== index));
+    };
 
     return (
         <div>
@@ -14,7 +24,7 @@ export default function GalleryField({ value = [], onChange }) {
             <p className="text-xs text-gray-500 mb-1.5">מופיעות בעמוד המוצר, לצד התמונה הראשית.</p>
             <div className="space-y-2">
                 {value.map((url, index) => (
-                    <div key={index} className="flex items-start gap-2">
+                    <div key={rowIds.current[index]} className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                             <SmartImageInput
                                 value={url}
