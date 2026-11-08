@@ -27,6 +27,8 @@ let orderSchema = new mongoose.Schema({
     },
     total_price: Number,
     shipping_fee: { type: Number, default: 0 },
+    /** When the customer ticked "I read the site terms" at checkout */
+    termsAcceptedAt: { type: Date },
     fulfillment_method: {
         type: String,
         enum: ["pickup", "delivery"],

@@ -22,6 +22,7 @@ import { parseMagnetSize, withMagnetPrintDimensions } from '../utils/magnetSize'
 import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
 import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
 import { getProductOrderPricing, hasTieredPricing } from '../utils/productQuantityPricing';
+import ProductImageGallery from '../components/productSelection/ProductImageGallery';
 
 /**
  * A product's page: its price and quantity, and how to order it – straight to the cart (a simple
@@ -218,11 +219,7 @@ const ProductSelectionPage = () => {
                     <div className="space-y-6 mt-4">
                         <div className="bg-white rounded-2xl shadow-sm border border-[#f2665e]/15 p-6 sm:p-8">
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
-                                <div className="shrink-0 flex justify-center md:justify-start self-start">
-                                    <div className="p-1 rounded-lg bg-[#fff5f4] border border-[#f2665e]/20 w-fit">
-                                        <img src={product.image} alt={product.name} className="w-28 h-28 object-cover rounded-md bg-white" />
-                                    </div>
-                                </div>
+                                <ProductImageGallery key={product._id} product={product} />
 
                                 <div className="flex-1 text-right w-full flex flex-col gap-6">
                                     <div className="space-y-4">

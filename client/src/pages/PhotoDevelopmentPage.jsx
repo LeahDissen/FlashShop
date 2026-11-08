@@ -24,8 +24,10 @@ import {
     DEFAULT_PHOTO_PRINT_SIZE,
     formatPrintSizeCm,
     getPhotoSizeOptions,
+    needsWhiteMargins,
 } from '../utils/printSizes';
 import PhotoPrintAdjustModal from '../components/PhotoPrintAdjustModal';
+import WhiteMarginsNotice from '../components/photoDevelopment/WhiteMarginsNotice';
 import {
     getAlbumDiscount,
     getNextPricingTierHint,
@@ -39,6 +41,8 @@ import { clearPhotoDraft, endAlbumDetour, loadPhotoDraft, savePhotoDraft } from 
 const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
     // The selected photos are kept for the whole visit (e.g. when leaving to pick an album and coming back)
     const [images, setImages] = useState(loadPhotoDraft);
+    /** How many of the last uploaded photos will print with white margins (shows the notice) */
+    const [whiteMarginsCount, setWhiteMarginsCount] = useState(0);
     /** The photo development price list from the server; null until loaded */
     const [pricing, setPricing] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -111,10 +115,16 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
 
         try {
             // A few photos in parallel, each joins the gallery as soon as it is ready
+            let marginsCount = 0;
             const { failed } = await uploadFilesInParallel(fileList, {
                 onProgress: setUploadProgress,
-                onUploaded: (result) => setImages((prev) => [...prev, toGalleryImage(result)]),
+                onUploaded: (result) => {
+                    const image = toGalleryImage(result);
+                    if (needsWhiteMargins(image.width, image.height, image.size, image.orientation)) marginsCount += 1;
+                    setImages((prev) => [...prev, image]);
+                },
             });
+            if (marginsCount > 0) setWhiteMarginsCount(marginsCount);
 
             if (failed.length > 0) {
                 failed.forEach(({ file, error }) => console.error('Error uploading image:', file.name, error));
@@ -274,6 +284,10 @@ const PhotoDevelopmentPage = ({ onNavigateToEditor }) => {
                     onClose={() => setFailedUploads([])}
                     onRetry={handleRetryFailed}
                 />
+            )}
+
+            {!isUploading && failedUploads.length === 0 && whiteMarginsCount > 0 && (
+                <WhiteMarginsNotice count={whiteMarginsCount} onClose={() => setWhiteMarginsCount(0)} />
             )}
 
             {isUploading && <UploadProgressOverlay progress={uploadProgress} status={uploadStatus} />}

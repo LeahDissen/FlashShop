@@ -13,6 +13,7 @@ import {
     parseHiddenCategoriesFromPage,
     sanitizeCustomCategories,
 } from '../../constants/productCategories';
+import { productCategoryList } from '../../utils/productDisplay';
 
 /**
  * The shop's product categories in the admin: the built-in ones (some may be hidden) and the shop's
@@ -97,7 +98,7 @@ export function useProductCategories({ products, onCategoryAdded, onCategoryRemo
     /** A built-in category is hidden; the shop's own is deleted. Products keep their category either way. */
     const removeCategory = async (categoryValue) => {
         if (!categoryValue) return;
-        const inUse = products.some((p) => p.category === categoryValue);
+        const inUse = products.some((p) => productCategoryList(p).includes(categoryValue));
         const msg = inUse
             ? `להסיר את הקטגוריה "${categoryValue}" מהרשימה? מוצרים קיימים יישארו משויכים אליה.`
             : `להסיר את הקטגוריה "${categoryValue}" מהרשימה?`;

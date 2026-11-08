@@ -122,10 +122,34 @@ export function resolvePrintDimensions(sizeStr, orientation = 'portrait') {
     };
 }
 
+/**
+ * The print keeps the photo's own orientation: a portrait photo prints portrait, a landscape or a
+ * square photo prints landscape (a square one gets white margins at the sides).
+ */
 export function getDefaultOrientation(imageWidth, imageHeight) {
-    void imageWidth;
-    void imageHeight;
-    return DEFAULT_PHOTO_ORIENTATION;
+    if (!imageWidth || !imageHeight) return DEFAULT_PHOTO_ORIENTATION;
+    return imageHeight > imageWidth ? 'portrait' : 'landscape';
+}
+
+/** Print resolution for photo prints */
+export const PHOTO_PRINT_DPI = 300;
+const CM_PER_INCH = 2.54;
+
+/** The print file's exact size in pixels, e.g. 10×15 landscape at 300 DPI = 1772×1181 */
+export function getPrintPixelSize(sizeStr, orientation, dpi = PHOTO_PRINT_DPI) {
+    const { width, height } = resolvePrintDimensions(sizeStr, orientation);
+    const toPx = (cm) => Math.round((cm / CM_PER_INCH) * dpi);
+    return { width: toPx(width), height: toPx(height) };
+}
+
+/** Proportions closer than this are treated as the same (camera 3:2 photos fit 10×15 exactly) */
+const FIT_TOLERANCE = 0.015;
+
+/** Whether the photo's proportions differ from the print's, so it prints with white margins */
+export function needsWhiteMargins(imageWidth, imageHeight, sizeStr, orientation) {
+    if (!imageWidth || !imageHeight) return false;
+    const { aspect } = resolvePrintDimensions(sizeStr, orientation);
+    return Math.abs(imageWidth / imageHeight - aspect) / aspect > FIT_TOLERANCE;
 }
 
 export function getImageDimensions(src) {
@@ -153,39 +177,6 @@ export function getPrintSizeLabel(sizeStr, _availableSizes = [], orientation = '
 
 /** Zoom crop: scale + pan inside a fixed frame */
 export const DEFAULT_CROP = { scale: 1, offsetX: 0, offsetY: 0 };
-
-export function normalizeZoomCrop(crop) {
-    if (crop && typeof crop.scale === 'number') {
-        return {
-            scale: Math.max(1, crop.scale),
-            offsetX: crop.offsetX ?? 0,
-            offsetY: crop.offsetY ?? 0,
-        };
-    }
-    return { ...DEFAULT_CROP };
-}
-
-/** CSS transform for a cover view with zoom and drag */
-export function getCropTransformStyle(crop = DEFAULT_CROP, imageAspect, frameAspect) {
-    const normalized = normalizeZoomCrop(crop);
-    const scale = normalized.scale;
-    const offsetX = normalized.offsetX;
-    const offsetY = normalized.offsetY;
-
-    const coverScale =
-        imageAspect > frameAspect
-            ? imageAspect / frameAspect
-            : frameAspect / imageAspect;
-
-    const totalScale = coverScale * scale;
-    const maxPanX = scale > 1 ? ((totalScale - 1) / totalScale) * 50 : 0;
-    const maxPanY = scale > 1 ? ((totalScale - 1) / totalScale) * 50 : 0;
-
-    return {
-        transform: `translate(${offsetX * maxPanX}%, ${offsetY * maxPanY}%) scale(${totalScale})`,
-        transformOrigin: 'center center',
-    };
-}
 
 /** Whether the photo's ratio differs from the print ratio (may get cropped) */
 export function getCropWarning(imageWidth, imageHeight, printAspect) {

@@ -19,6 +19,8 @@ export const INITIAL_FORM_DATA = {
     displayType: '',
     stock: 100,
     image: '',
+    extraCategories: [],
+    gallery: [],
     printWidth: DEFAULT_PRINT_WIDTH_CM,
     printHeight: DEFAULT_PRINT_HEIGHT_CM,
     allowOrientationToggle: false,
@@ -55,6 +57,8 @@ export function productToForm(product) {
             displayType,
             stock: product.stock,
             image: product.image,
+            extraCategories: product.extraCategories ?? [],
+            gallery: product.gallery ?? [],
             printWidth: product.printWidth ?? DEFAULT_PRINT_WIDTH_CM,
             printHeight: product.printHeight ?? DEFAULT_PRINT_HEIGHT_CM,
             allowOrientationToggle: Boolean(product.allowOrientationToggle),
@@ -100,6 +104,8 @@ export function buildProductPayload({ formData, priceTiers, tieredPricingEnabled
         displayType: getDisplayTypeForCategory(formData.category),
         stock: Number(formData.stock),
         image: formData.image.trim(),
+        extraCategories: (formData.extraCategories || []).filter((c) => c && c !== formData.category),
+        gallery: (formData.gallery || []).map((url) => url.trim()).filter(Boolean),
         shape: formData.shapeType
             ? { type: formData.shapeType, maskUrl: formData.shapeType === 'custom' ? formData.shapeMaskUrl : undefined }
             : null,

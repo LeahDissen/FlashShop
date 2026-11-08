@@ -4,10 +4,10 @@ import { XIcon } from './icons';
 import PhotoCroppedPreview from './PhotoCroppedPreview';
 import QuantityInput from './QuantityInput';
 import {
-    DEFAULT_CROP,
     DEFAULT_PHOTO_PRINT_SIZE,
     getCompactPrintSizeLabel,
     getPhotoSizeOptions,
+    needsWhiteMargins,
 } from '../utils/printSizes';
 
 const ImageCard = ({
@@ -32,6 +32,8 @@ const ImageCard = ({
     const currentSize = image.size || DEFAULT_PHOTO_PRINT_SIZE;
     const orientation = image.orientation ?? 'landscape';
     const currentSizeLabel = getCompactPrintSizeLabel(currentSize, orientation);
+    // A photo adjusted in the print editor is already rendered at the print ratio
+    const hasWhiteMargins = !image.cropState && needsWhiteMargins(image.width, image.height, currentSize, orientation);
 
     const handleSelectSize = (value) => {
         if (onSizeChange) {
@@ -48,7 +50,6 @@ const ImageCard = ({
                     alt={image.alt}
                     size={currentSize}
                     orientation={orientation}
-                    crop={image.crop ?? DEFAULT_CROP}
                     frameClassName="w-full h-auto max-h-full shadow-inner"
                     className="transition-transform duration-300 group-hover:scale-[1.02]"
                 />
@@ -127,6 +128,17 @@ const ImageCard = ({
                     )}
                 </div>
             </div>
+
+            {hasWhiteMargins && (
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onAdjustPrint?.(image.id); }}
+                    title="התמונה לא מתאימה בדיוק לגודל המוזמן ותודפס עם שוליים לבנים. לחיצה לעריכה."
+                    className="absolute top-12 right-2 z-20 bg-amber-50/95 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm"
+                >
+                    שוליים לבנים · עריכה
+                </button>
+            )}
 
             <div className="absolute bottom-2 left-2 right-2 flex justify-center z-10" onClick={(e) => e.stopPropagation()}>
                 <QuantityInput
