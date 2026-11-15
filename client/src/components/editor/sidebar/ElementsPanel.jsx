@@ -111,6 +111,9 @@ const ElementsPanel = ({
 
             addImageElement(item.src, width, height, naturalWidth, naturalHeight);
         };
+        img.onerror = () => {
+            if (item.isReadyDesign) alert('לא הצלחנו לטעון את העיצוב. נסו שוב או בחרו עיצוב אחר.');
+        };
         img.src = item.src;
     };
 
