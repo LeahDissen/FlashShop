@@ -1,5 +1,6 @@
 /** Cart lines from the product page, and the designer request's contact checks */
 import { withTieredPricingFields } from '../../utils/cartItem';
+import { nameWithVariant } from '../../utils/productVariants';
 
 /** Added to the product price when the shop's designer creates the design (the server adds the same) */
 export const DESIGNER_SERVICE_FEE = 15;
@@ -7,13 +8,14 @@ export const DESIGNER_SERVICE_FEE = 15;
 export const MAX_DESIGNER_IMAGES = 6;
 
 /**
- * A cart line for this product. A magnet has a fixed price; other products carry their quantity tiers
+ * A cart line for this product (variant: the chosen color/size, also shown in its name). A magnet has a fixed price; other products carry their quantity tiers
  * so the cart can reprice them (priceAddon: a fee on top of each unit, like the designer's).
  */
-export function buildProductCartItem({ product, quantity, unitPrice, isMagnet, overrides = {}, priceAddon = 0 }) {
+export function buildProductCartItem({ product, quantity, unitPrice, isMagnet, overrides = {}, priceAddon = 0, variant }) {
     const item = {
         productId: product._id,
-        name: product.name,
+        name: nameWithVariant(product.name, variant),
+        ...(variant ? { variant } : {}),
         price: unitPrice,
         image: product.image,
         quantity,

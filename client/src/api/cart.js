@@ -22,6 +22,8 @@ const compactCartItemForSync = (item) => {
         price: item.price,
         quantity: item.quantity,
         size: item.size,
+        // The chosen color/size (checked against the product at checkout)
+        variant: item.variant || undefined,
         image: imageForSync,
         customDesign: compactCustomDesign,
         customization: item.customization?.type

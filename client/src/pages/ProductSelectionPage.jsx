@@ -23,6 +23,8 @@ import { getReturnPathAfterAdd } from '../utils/photoOrderDraft';
 import { isMagnetProduct, isSimpleProduct } from '../utils/productDisplay';
 import { getProductOrderPricing, hasTieredPricing } from '../utils/productQuantityPricing';
 import ProductImageGallery from '../components/productSelection/ProductImageGallery';
+import VariantPicker from '../components/productSelection/VariantPicker';
+import { availableStock, cartVariant, hasVariants, isSoldOut, isVariantComplete } from '../utils/productVariants';
 
 /**
  * A product's page: its price and quantity, and how to order it – straight to the cart (a simple
@@ -50,7 +52,17 @@ const ProductSelectionPage = () => {
     const fileInputRef = useRef(null);
     const designerFormRef = useRef(null);
 
-    const quantity = useProductQuantity({ productId, stock: product?.stock });
+    /** The color/size the customer chose */
+    const [variant, setVariant] = useState({ color: '', size: '' });
+    const [showVariantError, setShowVariantError] = useState(false);
+    const variantRef = useRef(null);
+    const variantStock = product ? availableStock(product, variant) : Infinity;
+    const quantity = useProductQuantity({
+        productId,
+        // A product that tracks stock is limited by what is left of the chosen color/size (no limit until chosen)
+        stock: product?.trackStock ? (variantStock ?? Infinity) : product?.stock,
+        tracked: Boolean(product?.trackStock),
+    });
 
     useEffect(() => {
         if (product) {
@@ -105,8 +117,24 @@ const ProductSelectionPage = () => {
         perCopy: getPrintOption(productsPageContent, 'optionPerCopy'),
     };
     const unitPrice = () => (pricing?.unitPrice ?? Number(product.price)) || 0;
+    const chosenVariant = cartVariant(product, variant);
+    const soldOut = isSoldOut(product) || variantStock === 0;
+    /** Before ordering: a color/size must be chosen and still be in stock */
+    const ensureVariant = () => {
+        if (hasVariants(product) && !isVariantComplete(product, variant)) {
+            setShowVariantError(true);
+            variantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return false;
+        }
+        if (soldOut) {
+            alert('המוצר שבחרת אזל מהמלאי');
+            return false;
+        }
+        return true;
+    };
     const cartItem = (overrides, extra = {}) => buildProductCartItem({
         product,
+        variant: chosenVariant,
         quantity: quantity.getQuantity(),
         unitPrice: unitPrice(),
         isMagnet: magnetProduct,
@@ -116,6 +144,7 @@ const ProductSelectionPage = () => {
 
     // After adding to the cart, back to the products page so the customer can keep shopping
     const addToCartAndNavigate = async (items, { successMessage } = {}) => {
+        if (!ensureVariant()) return;
         try {
             await addToCart(items, { successMessage });
             navigate(getReturnPathAfterAdd(product, '/products'));
@@ -130,8 +159,10 @@ const ProductSelectionPage = () => {
      * photo: a photo uploaded here to place on the canvas (default: the uploaded ready design)
      */
     const openEditor = (perCopy = false, photo = uploadedImage) => {
+        if (!ensureVariant()) return;
         const orderQuantity = quantity.applyQuantity(quantity.getQuantity());
-        const productForEditor = withMagnetPrintDimensions(product);
+        // The chosen color/size travels with the product to the editor and onto the cart line
+        const productForEditor = { ...withMagnetPrintDimensions(product), selectedVariant: chosenVariant };
         setSelectedProduct(productForEditor);
         setOrderQuantity(orderQuantity);
         // A photo already uploaded here comes along, so it is not uploaded again in the editor
@@ -201,6 +232,7 @@ const ProductSelectionPage = () => {
     ], { successMessage: 'הבקשה לעיצוב נקלטה והמוצר נוסף לסל בהצלחה!' });
 
     const isDesignProduct = !simpleProduct && !magnetProduct;
+    const colorImage = product.colors?.find((c) => c.name === variant.color)?.image || '';
 
     return (
         <div className="min-h-screen bg-[#faf8f6] pb-20" dir="rtl">
@@ -219,13 +251,31 @@ const ProductSelectionPage = () => {
                     <div className="space-y-6 mt-4">
                         <div className="bg-white rounded-2xl shadow-sm border border-[#f2665e]/15 p-6 sm:p-8">
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
-                                <ProductImageGallery key={product._id} product={product} />
+                                <ProductImageGallery
+                                    key={`${product._id}-${variant.color}`}
+                                    product={colorImage ? { ...product, image: colorImage, gallery: [product.image, ...(product.gallery || [])] } : product}
+                                />
 
                                 <div className="flex-1 text-right w-full flex flex-col gap-6">
                                     <div className="space-y-4">
                                         <h2 className="text-2xl font-bold text-[#f2665e]">{product.name}</h2>
                                         {product.description && (
                                             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+                                        )}
+                                        {hasVariants(product) && (
+                                            <div ref={variantRef}>
+                                                <VariantPicker
+                                                    product={product}
+                                                    value={variant}
+                                                    onChange={(next) => { setVariant(next); setShowVariantError(false); }}
+                                                    showError={showVariantError}
+                                                />
+                                            </div>
+                                        )}
+                                        {soldOut && (
+                                            <p className="text-sm font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                                                {isSoldOut(product) ? 'המוצר אזל מהמלאי' : 'הצבע והמידה שבחרת אזלו מהמלאי. אפשר לבחור אחרים.'}
+                                            </p>
                                         )}
                                         <ProductPriceBox
                                             product={product}
@@ -234,6 +284,7 @@ const ProductSelectionPage = () => {
                                             showTieredPricing={showTieredPricing}
                                             isMagnet={magnetProduct}
                                             isSimple={simpleProduct}
+                                            stockLeft={product.trackStock && Number.isFinite(variantStock) ? variantStock : null}
                                         />
                                     </div>
 

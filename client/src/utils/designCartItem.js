@@ -4,6 +4,7 @@
  */
 import { getUnitPriceForQuantity } from './productQuantityPricing';
 import { withTieredPricingFields } from './cartItem';
+import { nameWithVariant } from './productVariants';
 
 const DESIGN_SUFFIX = 'בעיצוב אישי';
 const FALLBACK_NAME = `מוצר ${DESIGN_SUFFIX}`;
@@ -60,10 +61,13 @@ export function describeDesignProduct(product, { quantity = 1, tieredPrice = fal
 export function buildDesignCartItem({ product, quantity = 1, tieredPrice = false, image, customDesign }) {
     const { name, price, productId } = describeDesignProduct(product, { quantity, tieredPrice });
     const productObject = product && typeof product === 'object' ? product : null;
+    // The color/size chosen on the product page before opening the editor
+    const variant = productObject?.selectedVariant;
     return withTieredPricingFields({
         id: `cart_${Date.now()}`,
         productId,
-        name,
+        name: nameWithVariant(name, variant),
+        ...(variant ? { variant } : {}),
         price,
         image,
         quantity,

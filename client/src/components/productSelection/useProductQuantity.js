@@ -7,10 +7,11 @@ const UNLIMITED_STOCK = 9999;
  * The quantity on the product page: typed or stepped, kept between 1 and the stock, and shared with
  * the editor through the product store. A new product starts again from 1.
  */
-export function useProductQuantity({ productId, stock }) {
+export function useProductQuantity({ productId, stock, tracked = false }) {
     const setOrderQuantity = useProductStore((state) => state.setOrderQuantity);
     const [quantityInput, setQuantityInput] = useState('1');
-    const maxQuantity = stock > 0 ? stock : UNLIMITED_STOCK;
+    // A product that tracks stock is limited by what is left (at least 1, so the field stays usable when sold out)
+    const maxQuantity = tracked ? Math.max(1, Number(stock) || 0) : (stock > 0 ? stock : UNLIMITED_STOCK);
 
     useEffect(() => {
         setQuantityInput('1');
