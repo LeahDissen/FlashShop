@@ -59,8 +59,8 @@ const ProductSelectionPage = () => {
     const variantStock = product ? availableStock(product, variant) : Infinity;
     const quantity = useProductQuantity({
         productId,
-        // A product that tracks stock is limited by what is left of the chosen color/size
-        stock: product?.trackStock ? (variantStock ?? product.stock) : product?.stock,
+        // A product that tracks stock is limited by what is left of the chosen color/size (no limit until chosen)
+        stock: product?.trackStock ? (variantStock ?? Infinity) : product?.stock,
         tracked: Boolean(product?.trackStock),
     });
 

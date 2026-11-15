@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import SmartImageInput from '../../components/SmartImageInput';
 import { SIZE_PRESETS, variantCombinations, variantLabel } from '../../utils/productVariants';
@@ -16,6 +16,11 @@ const stockKey = (color, size) => `${color}|${size}`;
 export default function VariantsField({ value, onChange }) {
     const { trackStock, colors, sizes, variantStock } = value;
     const [sizeInput, setSizeInput] = useState('');
+    // A stable key per color row, so removing a row doesn't hand its photo upload to the next one
+    const rowIds = useRef([]);
+    const nextId = useRef(0);
+    while (rowIds.current.length < colors.length) rowIds.current.push(nextId.current++);
+    rowIds.current.length = colors.length;
     const stockMap = new Map(variantStock.map((row) => [stockKey(row.color, row.size), row.stock]));
     const combinations = variantCombinations(colors.filter((c) => c.name.trim()), sizes);
     const hasOptions = colors.some((c) => c.name.trim()) || sizes.length > 0;
@@ -53,8 +58,7 @@ export default function VariantsField({ value, onChange }) {
                 <p className="text-xs text-gray-500 mb-1.5">הלקוחה בוחרת צבע. המחיר זהה לכל הצבעים. תמונה: המוצר בצבע הזה (לא חובה).</p>
                 <div className="space-y-2">
                     {colors.map((color, index) => (
-                        // Rows have no id: the inputs are fully controlled, so index keys are safe here
-                        <div key={index} className="rounded-lg border border-gray-100 p-2 space-y-2">
+                        <div key={rowIds.current[index]} className="rounded-lg border border-gray-100 p-2 space-y-2">
                             <div className="flex items-center gap-2">
                                 <input
                                     type="color"
@@ -71,7 +75,7 @@ export default function VariantsField({ value, onChange }) {
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => onChange({ colors: colors.filter((_, i) => i !== index) })}
+                                    onClick={() => { rowIds.current.splice(index, 1); onChange({ colors: colors.filter((_, i) => i !== index) }); }}
                                     className="shrink-0 p-2.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
                                     aria-label="מחיקת צבע"
                                 >
