@@ -1,6 +1,7 @@
 const { ProductModel } = require("../models/productModel");
 const { generateGiftIdea } = require("../utils/aiService");
 const { isMagnetProductDoc, parseMagnetSize } = require("../utils/magnetSize");
+const { sanitizeVariantFields } = require("../utils/productVariants");
 
 function normalizeMaxQuantity(value) {
     if (value == null || value === "") return null;
@@ -11,6 +12,8 @@ function normalizeMaxQuantity(value) {
 
 const MAX_EXTRA_CATEGORIES = 10;
 const MAX_GALLERY_IMAGES = 12;
+const MAX_DESIGN_AREAS = 4;
+const MAX_AREA_CM = 200;
 
 const httpsUrlOrNull = (value) => {
     try {
@@ -107,6 +110,21 @@ function sanitizeProductBody(body = {}) {
                 category: String(c?.category ?? "כללי").trim() || "כללי",
             }))
             .filter((c) => c.text.length > 0);
+    }
+
+    sanitizeVariantFields(data);
+    // Extra design areas: named, unique, a sensible size, at most 4
+    if (data.designAreas !== undefined) {
+        const seen = new Set();
+        data.designAreas = (Array.isArray(data.designAreas) ? data.designAreas : [])
+            .map((a) => ({
+                name: String(a?.name ?? "").trim().slice(0, 40),
+                printWidth: Number(a?.printWidth),
+                printHeight: Number(a?.printHeight),
+            }))
+            .filter((a) => a.name && !seen.has(a.name) && seen.add(a.name)
+                && a.printWidth > 0 && a.printWidth <= MAX_AREA_CM && a.printHeight > 0 && a.printHeight <= MAX_AREA_CM)
+            .slice(0, MAX_DESIGN_AREAS);
     }
 
     Object.keys(data).forEach((key) => {

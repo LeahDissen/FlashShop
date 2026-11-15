@@ -43,6 +43,25 @@ function CopiesFolder({ copies }) {
     );
 }
 
+/** The extra design areas of an order line (e.g. the back), each with its print size */
+function AreasFolder({ areas }) {
+    return (
+        <div className="mt-3">
+            <p className="text-xs font-semibold text-gray-600 mb-1">שטחי עיצוב נוספים</p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {areas.map((area) => (
+                    <a key={area.image} href={area.image} target="_blank" rel="noreferrer" className="block text-center">
+                        <img src={optimizeImageUrl(area.image, { width: 200 })} alt={area.name} loading="lazy" className="w-full aspect-square object-contain rounded border bg-gray-50" />
+                        <span className="text-xs text-gray-700 block mt-0.5">
+                            {area.name}{area.widthCm && area.heightCm ? ` · ${area.widthCm}×${area.heightCm} ס״מ` : ''}
+                        </span>
+                    </a>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 /** One order line for production: what it is, its price, its files to download and the customer's choices */
 export default function OrderItemCard({ item, index, orderId, orientationLabels }) {
     const downloads = collectItemDownloads(item, orderId, index);
@@ -79,6 +98,7 @@ export default function OrderItemCard({ item, index, orderId, orientationLabels 
                         </span>
                     </p>
                     {item.customDesign?.copies?.length > 0 && <CopiesFolder copies={item.customDesign.copies} />}
+                    {item.customDesign?.areas?.length > 0 && <AreasFolder areas={item.customDesign.areas} />}
                     <div className="flex flex-wrap gap-2 mt-3">
                         {downloads.map((file) => (
                             <button

@@ -1,3 +1,4 @@
+import { designAreaSuffix } from './designAreas';
 /** Converts cm to pixels on the editor screen */
 export const CM_TO_PX = 30;
 export const MAX_CANVAS_PX = 520;
@@ -82,7 +83,7 @@ export function cmToCanvasPx(cm, canvasWidthPx, widthCm) {
 
 /** Draft storage key – separates different products, sizes, orientations and frames */
 export function getCanvasStorageKey(product, dims, frameAspectRatio = null, orientationFlipped = false) {
-    const id = product?._id || product?.id || 'no-product';
+    const id = `${product?._id || product?.id || 'no-product'}${designAreaSuffix(product)}`;
     const framePart = frameAspectRatio
         ? `_ar${String(frameAspectRatio).replace(':', 'x')}`
         : '';

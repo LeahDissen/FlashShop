@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Canvas from '../components/editor/Canvas.jsx';
 import ContextualToolbar from '../components/editor/ContextualToolbar';
 import CopiesReviewModal from '../components/editor/CopiesReviewModal';
 import CopiesStrip from '../components/editor/CopiesStrip';
+import DesignAreasStrip from '../components/editor/DesignAreasStrip';
 import EditorBusyOverlay from '../components/editor/EditorBusyOverlay';
 import EditorFooter from '../components/editor/EditorFooter';
 import EditorHeader from '../components/editor/EditorHeader';
@@ -13,6 +14,7 @@ import ProductPreviewModal from '../components/editor/ProductPreviewModal';
 import SavedProjectsModal from '../components/editor/SavedProjectsModal';
 import { useCanvasCapture } from '../hooks/editor/useCanvasCapture';
 import { useCanvasLayout } from '../hooks/editor/useCanvasLayout';
+import { useDesignAreas } from '../hooks/editor/useDesignAreas';
 import { useDesignOrder } from '../hooks/editor/useDesignOrder';
 import { useEditorDraft } from '../hooks/editor/useEditorDraft';
 import { useEditorHistory } from '../hooks/editor/useEditorHistory';
@@ -200,6 +202,25 @@ const EditorPage = ({ onNavigateToHome }) => {
         editor: projectEditor,
     });
 
+    // The design areas open the preview of the main design, which the order hook below provides
+    const openPreviewRef = useRef(null);
+    const openMainPreview = useCallback(() => openPreviewRef.current?.(), []);
+    const { setActiveFrameAspectRatio, setOrientationFlipped } = layout;
+    const resetLayoutForArea = useCallback(() => {
+        setActiveFrameAspectRatio(null);
+        setOrientationFlipped(false);
+    }, [setActiveFrameAspectRatio, setOrientationFlipped]);
+    const designAreas = useDesignAreas({
+        // A separate design per copy has no extra areas
+        enabled: !isPerCopyMode,
+        selectedProduct,
+        selectProduct,
+        captureCanvasImage,
+        setIsSaving,
+        openPreview: openMainPreview,
+        resetCanvasLayout: resetLayoutForArea,
+    });
+
     const order = useDesignOrder({
         selectedProduct,
         orderQuantity,
@@ -216,7 +237,10 @@ const EditorPage = ({ onNavigateToHome }) => {
         setIsPreviewLoading,
         previewImage,
         setPreviewImage,
+        extraAreas: designAreas.orderedAreas,
+        onOrdered: designAreas.clearAreas,
     });
+    openPreviewRef.current = order.openPreview;
 
     const copies = usePerCopyDesign({
         enabled: isPerCopyMode,
@@ -244,7 +268,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                 onExit={onNavigateToHome}
                 projectName={projectName}
                 onProjectNameChange={setProjectName}
-                onPreview={copies.copyCount ? copies.previewCopies : order.openPreview}
+                onPreview={copies.copyCount ? copies.previewCopies : designAreas.continueToPreview}
                 isPreviewLoading={isPreviewLoading}
                 onUndo={history.undo}
                 onRedo={history.redo}
@@ -255,6 +279,16 @@ const EditorPage = ({ onNavigateToHome }) => {
                 productLabel={selectedProduct?.name || null}
                 printSizeLabel={printSizeLabel}
             />
+            {designAreas.areas.length > 0 && (
+                <DesignAreasStrip
+                    areas={designAreas.areas}
+                    activeArea={designAreas.activeArea}
+                    areaFiles={designAreas.areaFiles}
+                    onSelect={designAreas.switchArea}
+                    onRemove={designAreas.removeArea}
+                    disabled={isSaving}
+                />
+            )}
             {copies.copyCount > 0 && (
                 <CopiesStrip
                     copyCount={copies.copyCount}
@@ -319,6 +353,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                         addCaptionElement={actions.addCaptionElement}
                         addImageElement={actions.addImageElement}
                         addShapeElement={actions.addShapeElement}
+                        canvasDimensions={canvasDimensions}
                         onApplyGlobalFrame={frames.applyGlobalFrame}
                         onRemoveGlobalFrame={frames.removeGlobalFrame}
                         onSelectGlobalFrame={frames.selectGlobalFrame}
@@ -383,6 +418,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                 printSizeLabel={printSizeLabel}
                 isSaving={isSaving}
                 onConfirm={order.confirmAndOrder}
+                extraAreas={designAreas.orderedAreas}
             />
 
             {(isPreviewLoading || isSaving) && !order.isPreviewOpen && <EditorBusyOverlay isSaving={isSaving} />}

@@ -12,6 +12,7 @@ import { invalidateEditorAssetsCache } from '../hooks/useEditorAssets';
 import SmartImageInput from '../components/SmartImageInput';
 
 const TABS = [
+    { id: 'readyDesign', label: 'עיצובים מוכנים' },
     { id: 'shape', label: 'צורות' },
     { id: 'elementBackground', label: 'תמונות רקע (אלמנטים)' },
     { id: 'canvasBackground', label: 'תמונות רקע (קנבס)' },
@@ -31,9 +32,9 @@ const emptyForm = (category) => ({
 const inputClass = 'w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:border-[#f2665e]';
 
 export default function EditorAssetsManagement() {
-    const [category, setCategory] = useState('shape');
+    const [category, setCategory] = useState('readyDesign');
     const [assets, setAssets] = useState([]);
-    const [form, setForm] = useState(emptyForm('shape'));
+    const [form, setForm] = useState(emptyForm('readyDesign'));
     const [editingId, setEditingId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -162,7 +163,7 @@ export default function EditorAssetsManagement() {
                         ניהול רכיבי עיצוב עצמי
                     </h1>
                     <p className="text-gray-500 mt-1">
-                        הוספה, עריכה ומחיקה של צורות, רקעים, גרפיקות ואייקונים בספריית העורך.
+                        הוספה, עריכה ומחיקה של עיצובים מוכנים, צורות, רקעים, גרפיקות ואייקונים בספריית העורך.
                     </p>
                 </div>
                 <Link

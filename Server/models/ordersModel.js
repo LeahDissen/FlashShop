@@ -13,6 +13,11 @@ let orderSchema = new mongoose.Schema({
         itemType: String,
         customDesign: { type: mongoose.Schema.Types.Mixed },
         customization: { type: mongoose.Schema.Types.Mixed },
+        /** The color/size the customer chose */
+        variant: {
+            color: { type: String },
+            size: { type: String },
+        },
     }],
     subtotal: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
@@ -64,6 +69,8 @@ let orderSchema = new mongoose.Schema({
     clubGiftMemberId: { type: mongoose.Schema.Types.ObjectId },
     /** When the status last changed – the 30-day photo retention counts from a printed/cancelled status */
     statusChangedAt: { type: Date },
+    /** Set once the order's units were taken off the product stock (so it happens only once) */
+    stockDeductedAt: { type: Date },
     /** Set once the customer's uploaded photos were deleted from Cloudinary */
     photosPurgedAt: { type: Date },
     date_created: {

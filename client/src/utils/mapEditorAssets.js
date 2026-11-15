@@ -29,6 +29,7 @@ export const mapEditorAssets = (raw) => {
     const list = Array.isArray(raw) ? raw : [];
 
     return {
+        readyDesigns: inCategory(list, 'readyDesign').map((item) => toElement(item)).filter(Boolean),
         shapes: inCategory(list, 'shape').map((item) => toElement(item, { asShape: true })).filter(Boolean),
         backgroundAssets: inCategory(list, 'elementBackground').map((item) => toElement(item)).filter(Boolean),
         graphics: inCategory(list, 'graphic').map((item) => toElement(item)).filter(Boolean),
@@ -47,9 +48,11 @@ export const mapEditorAssets = (raw) => {
 };
 
 /** Empty library – the default when no hard-coded default assets are needed */
-export const EMPTY_EDITOR_ASSETS = Object.freeze({ shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] });
+export const EMPTY_EDITOR_ASSETS = Object.freeze({ readyDesigns: [], shapes: [], backgroundAssets: [], graphics: [], icons: [], canvasBackgrounds: [], colors: [] });
 
 export const mergeEditorAssetsWithFallback = (mapped, fallbacks) => ({
+    // Ready designs have no built-in defaults: only what the shop uploaded
+    readyDesigns: mapped.readyDesigns,
     shapes: mapped.shapes.length ? mapped.shapes : fallbacks.shapes,
     backgroundAssets: mapped.backgroundAssets.length ? mapped.backgroundAssets : fallbacks.backgroundAssets,
     graphics: mapped.graphics.length ? mapped.graphics : fallbacks.graphics,
