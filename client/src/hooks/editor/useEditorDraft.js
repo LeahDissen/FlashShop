@@ -80,7 +80,9 @@ export function useEditorDraft({
         const savedKey = localStorage.getItem(draftKeys.canvasKey);
         const savedElementsRaw = localStorage.getItem(draftKeys.elements);
 
-        if (!canvasAppliedKeyRef.current && savedKey && savedKey !== storageKey && savedElementsRaw) {
+        // Also when switching to another design area: each area reopens with its own frame/orientation
+        const openingDraft = !canvasAppliedKeyRef.current || appliedDraftKeyRef.current !== draftProductKey;
+        if (openingDraft && savedKey && savedKey !== storageKey && savedElementsRaw) {
             // The page opens unframed and unturned: a draft made with a frame or a turned canvas opens that canvas first
             const saved = findSavedCanvasSettings(selectedProduct, savedKey, safeJsonParse(savedElementsRaw, []));
             if (saved && (saved.frameAspectRatio !== activeFrameAspectRatio || saved.orientationFlipped !== orientationFlipped)) {

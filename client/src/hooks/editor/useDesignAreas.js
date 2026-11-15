@@ -18,7 +18,7 @@ const dataUrlToFile = async (dataUrl, name) => {
  * the order, so the order line carries every area she designed. "המשך" from an area goes back to the
  * main design first, since the order is made from there.
  */
-export function useDesignAreas({ enabled, selectedProduct, selectProduct, captureCanvasImage, setIsSaving, openPreview }) {
+export function useDesignAreas({ enabled, selectedProduct, selectProduct, captureCanvasImage, setIsSaving, openPreview, resetCanvasLayout }) {
     const base = mainProduct(selectedProduct);
     const productId = base?._id || base?.id || null;
     const baseAreas = base?.designAreas;
@@ -53,20 +53,25 @@ export function useDesignAreas({ enabled, selectedProduct, selectProduct, captur
         return next;
     }, [activeArea, areas, areaFiles, captureCanvasImage, saveAreaFiles]);
 
+    /** Set by "המשך" on an area: the main design's preview opens once it is back on the canvas */
+    const pendingPreviewRef = useRef(false);
     const switchArea = useCallback(async (areaName) => {
         if ((areaName || null) === activeArea || !base) return;
         setIsSaving(true);
         try {
             await captureActiveArea();
             const target = areas.find((a) => a.name === areaName);
+            // Each area opens unframed and unturned; its draft then reopens its own frame/orientation
+            resetCanvasLayout();
             selectProduct(target ? areaProduct(base, target) : base);
         } catch (error) {
+            pendingPreviewRef.current = false;
             console.error('Saving the design area failed', error);
             alert('לא הצלחנו לשמור את העיצוב של השטח הזה. נסו שוב.');
         } finally {
             setIsSaving(false);
         }
-    }, [activeArea, base, areas, captureActiveArea, selectProduct, setIsSaving]);
+    }, [activeArea, base, areas, captureActiveArea, selectProduct, setIsSaving, resetCanvasLayout]);
 
     /** An area she no longer wants printed */
     const removeArea = useCallback((areaName) => {
@@ -76,7 +81,6 @@ export function useDesignAreas({ enabled, selectedProduct, selectProduct, captur
     }, [areaFiles, saveAreaFiles]);
 
     // "המשך" on an area: back to the main design, then its preview opens
-    const pendingPreviewRef = useRef(false);
     const continueToPreview = useCallback(async () => {
         if (!activeArea) {
             openPreview();

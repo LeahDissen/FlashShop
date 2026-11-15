@@ -205,6 +205,11 @@ const EditorPage = ({ onNavigateToHome }) => {
     // The design areas open the preview of the main design, which the order hook below provides
     const openPreviewRef = useRef(null);
     const openMainPreview = useCallback(() => openPreviewRef.current?.(), []);
+    const { setActiveFrameAspectRatio, setOrientationFlipped } = layout;
+    const resetLayoutForArea = useCallback(() => {
+        setActiveFrameAspectRatio(null);
+        setOrientationFlipped(false);
+    }, [setActiveFrameAspectRatio, setOrientationFlipped]);
     const designAreas = useDesignAreas({
         // A separate design per copy has no extra areas
         enabled: !isPerCopyMode,
@@ -213,6 +218,7 @@ const EditorPage = ({ onNavigateToHome }) => {
         captureCanvasImage,
         setIsSaving,
         openPreview: openMainPreview,
+        resetCanvasLayout: resetLayoutForArea,
     });
 
     const order = useDesignOrder({
