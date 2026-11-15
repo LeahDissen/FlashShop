@@ -44,3 +44,19 @@ describe('product variants', () => {
         expect(nameWithVariant('חולצה (לבן · M)', { color: 'לבן', size: 'M' })).toBe('חולצה (לבן · M)');
     });
 });
+
+import { mergeGuestCart, toCheckoutItem } from './cartItem';
+
+describe('variants on cart lines', () => {
+    it('sends the chosen color/size to checkout', () => {
+        const line = { id: 'l1', productId: 'p', name: 'חולצה (לבן · M)', price: 40, quantity: 1, variant: { color: 'לבן', size: 'M' } };
+        expect(toCheckoutItem(line).variant).toEqual({ color: 'לבן', size: 'M' });
+    });
+
+    it('keeps different colors of the same product as separate rows when carts merge', () => {
+        const white = { id: 'a', productId: 'p', price: 40, quantity: 1, variant: { color: 'לבן', size: 'M' } };
+        const black = { id: 'b', productId: 'p', price: 40, quantity: 2, variant: { color: 'שחור', size: 'M' } };
+        const merged = mergeGuestCart([white], [black]);
+        expect(merged).toHaveLength(2);
+    });
+});
