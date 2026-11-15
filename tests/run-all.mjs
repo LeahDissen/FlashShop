@@ -28,6 +28,7 @@ const TESTS = [
     'clubdiscounttest.js',
     'tipsimporttest.js',
     'producttest.js',
+    'stocktest.js',
     { file: 'emailprovidertest.js', env: { NODE_ENV: 'production' } },
     'cartmergetest.mjs',
     'cartlogintest.mjs',
