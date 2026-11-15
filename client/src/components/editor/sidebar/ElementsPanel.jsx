@@ -64,16 +64,25 @@ const ElementSection = ({ title, items, onAdd, onShowAll }) => {
     );
 };
 
-/** Shapes, background pictures, graphics and icons: a scrolling row per category, or all of one category */
+/** Ready designs fill the canvas (kept whole) and go behind the other elements, so text added on them stays visible */
+function fitToCanvas(naturalWidth, naturalHeight, canvas) {
+    const scale = Math.min(canvas.width / naturalWidth, canvas.height / naturalHeight);
+    return { width: naturalWidth * scale, height: naturalHeight * scale };
+}
+
+/** Ready designs, shapes, background pictures, graphics and icons: a scrolling row per category, or all of one category */
 const ElementsPanel = ({
     addImageElement,
     addShapeElement,
+    readyDesigns = [],
+    canvasDimensions,
     shapes,
     backgroundAssets,
     graphics,
     icons,
 }) => {
     const [expandedCategory, setExpandedCategory] = useState(null);
+    const readyItems = readyDesigns.map((item) => ({ ...item, isReadyDesign: true }));
 
     const handleAdd = (item) => {
         if (item.type === 'shape' && item.content) {
@@ -83,6 +92,11 @@ const ElementsPanel = ({
 
         const img = new Image();
         img.onload = () => {
+            if (item.isReadyDesign && canvasDimensions?.width && canvasDimensions?.height) {
+                const { width, height } = fitToCanvas(img.width, img.height, canvasDimensions);
+                addImageElement(item.src, width, height, img.width, img.height, { atBack: true });
+                return;
+            }
             const maxWidth = 150;
             const maxHeight = 150;
             let { width, height } = img;
@@ -136,6 +150,9 @@ const ElementsPanel = ({
 
     return (
         <div className="p-4 overflow-y-auto h-full">
+            {readyItems.length > 0 && (
+                <ElementSection title="עיצובים מוכנים" items={readyItems} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "עיצובים מוכנים", items: readyItems })} />
+            )}
             <ElementSection title="צורות" items={shapes} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "צורות", items: shapes })} />
             <ElementSection title="תמונות רקע" items={backgroundAssets} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "תמונות רקע", items: backgroundAssets })} />
             <ElementSection title="גרפיקות" items={graphics} onAdd={handleAdd} onShowAll={() => setExpandedCategory({ title: "גרפיקות", items: graphics })} />

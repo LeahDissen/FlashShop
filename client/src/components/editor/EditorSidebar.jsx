@@ -28,6 +28,7 @@ const EditorSidebar = ({
     activeGlobalFrameId,
     editorSettings = DEFAULT_EDITOR_SETTINGS,
     colors,
+    canvasDimensions,
 }) => {
     const { assets } = useEditorAssets(FALLBACK_EDITOR_ASSETS);
     const [activeTab, setActiveTab] = useState('background');
@@ -70,6 +71,8 @@ const EditorSidebar = ({
                 <ElementsPanel
                     addImageElement={addImageElement}
                     addShapeElement={addShapeElement}
+                    readyDesigns={assets.readyDesigns}
+                    canvasDimensions={canvasDimensions}
                     shapes={assets.shapes}
                     backgroundAssets={assets.backgroundAssets}
                     graphics={assets.graphics}

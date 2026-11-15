@@ -7,6 +7,8 @@ const CATEGORIES = [
     "graphic",
     "icon",
     "color",
+    /** Finished designs the shop uploads; the customer places one on the canvas and can add text (a name) */
+    "readyDesign",
 ];
 
 const TYPES = ["shape", "image", "color"];
