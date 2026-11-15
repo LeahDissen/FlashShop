@@ -66,6 +66,7 @@ const icons = [
 ];
 
 export const FALLBACK_EDITOR_ASSETS = {
+    readyDesigns: [],
     shapes,
     backgroundAssets,
     graphics,

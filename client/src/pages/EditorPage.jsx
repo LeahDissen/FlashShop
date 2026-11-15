@@ -319,6 +319,7 @@ const EditorPage = ({ onNavigateToHome }) => {
                         addCaptionElement={actions.addCaptionElement}
                         addImageElement={actions.addImageElement}
                         addShapeElement={actions.addShapeElement}
+                        canvasDimensions={canvasDimensions}
                         onApplyGlobalFrame={frames.applyGlobalFrame}
                         onRemoveGlobalFrame={frames.removeGlobalFrame}
                         onSelectGlobalFrame={frames.selectGlobalFrame}
