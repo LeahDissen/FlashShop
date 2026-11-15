@@ -179,6 +179,12 @@ const sanitizeCartItem = (item) => {
         image: maybeStoreImage(item.image) ?? (typeof item.image === "string" ? item.image : undefined),
         itemType: item.itemType,
     }, item);
+    // The chosen color/size is kept in the saved cart; an order uses the version checked against the product
+    if (item.variant && typeof item.variant === "object") {
+        const color = sanitizeText(item.variant.color, 40);
+        const size = sanitizeText(item.variant.size, 40);
+        if (color || size) sanitized.variant = { color, size };
+    }
     const rawId = resolveProductId(item);
     if (isValidObjectId(rawId)) {
         sanitized.productId = rawId;

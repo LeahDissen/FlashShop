@@ -43,7 +43,7 @@ function QuantityStepper({ quantity }) {
 }
 
 /** The price (per unit and total with quantity tiers, or the sale price), badges, print size, quantity and stock */
-export default function ProductPriceBox({ product, quantity, pricing, showTieredPricing, isMagnet, isSimple }) {
+export default function ProductPriceBox({ product, quantity, pricing, showTieredPricing, isMagnet, isSimple, stockLeft = null }) {
     return (
         <div className="rounded-xl bg-[#fff5f4]/60 border border-[#f2665e]/15 px-4 py-3 space-y-2">
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
@@ -80,9 +80,10 @@ export default function ProductPriceBox({ product, quantity, pricing, showTiered
             <div className="flex flex-wrap items-center gap-4 pt-1">
                 <QuantityStepper quantity={quantity} />
                 {showTieredPricing && <ProductPricingInfo product={product} quantity={quantity.currentQuantity} />}
-                {product.stock > 0 && product.stock < 9999 && (
-                    <span className="text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
-                        במלאי {product.stock}
+                {/* Only a product that tracks stock shows what is left (the number on other products is not kept up to date) */}
+                {stockLeft > 0 && stockLeft <= 10 && (
+                    <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                        נשארו רק {stockLeft} במלאי
                     </span>
                 )}
             </div>

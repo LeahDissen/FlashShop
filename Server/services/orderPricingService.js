@@ -9,6 +9,7 @@ const { calculateCouponDiscount } = require("./couponService");
 const { getPhotoUnitPrice, countPrintsBySize, normalizeSize, isPhotoPrintItem } = require("../utils/photoQuantityPricing");
 const { getUnitPriceForQuantity } = require("../utils/productQuantityPricing");
 const { resolveProductId, withItemExtras } = require("../utils/orderItems");
+const { resolveVariant, availableStock, variantLabel } = require("../utils/productVariants");
 
 const DELIVERY_FEE = 25;
 /** Added to the product price when the shop's designer creates the design (matches the client) */
@@ -25,6 +26,8 @@ async function priceOrder({ items, couponCode, userId }) {
     let subtotal = 0;
     const verifiedItems = [];
     const discountEntries = [];
+    /** Units ordered per product + color/size, to check the whole cart against the stock */
+    const orderedUnits = new Map();
 
     const photoItems = items.filter(isPhotoPrintItem);
     // Each size's price tier is set by the number of prints of that size in the order
@@ -69,6 +72,24 @@ async function priceOrder({ items, couponCode, userId }) {
             return { error: `מספר העיצובים לא תואם לכמות: ${item.name || product.name}. יש לעצב שוב את העותקים.` };
         }
 
+        const variantResult = resolveVariant(product, item.variant);
+        if (variantResult.error) return { error: variantResult.error };
+        const { variant } = variantResult;
+        if (product.trackStock) {
+            const key = `${product._id}|${variant?.color || ""}|${variant?.size || ""}`;
+            const units = (orderedUnits.get(key) || 0) + qty;
+            orderedUnits.set(key, units);
+            const left = availableStock(product, variant);
+            if (units > left) {
+                const label = [product.name, variantLabel(variant)].filter(Boolean).join(" ");
+                return {
+                    error: left > 0
+                        ? `נשארו במלאי רק ${left} יחידות של ${label}. יש לעדכן את הכמות בסל.`
+                        : `${label} אזל מהמלאי. יש להסיר אותו מהסל.`,
+                };
+            }
+        }
+
         const isCustom = Boolean(item.customDesign || item.customization);
         const serviceFee = item.customization?.type === "designer-service" ? DESIGNER_SERVICE_FEE : 0;
         const basePrice = getUnitPriceForQuantity(product, qty);
@@ -77,9 +98,12 @@ async function priceOrder({ items, couponCode, userId }) {
         discountEntries.push({ productId: String(product._id), unitPrice: basePrice, quantity: qty, product });
 
         subtotal += unitPrice * qty;
+        const baseName = isCustom && item.name ? item.name : product.name;
+        const label = variantLabel(variant);
         verifiedItems.push(withItemExtras({
             productId: product._id,
-            name: isCustom && item.name ? item.name : product.name,
+            name: label && !baseName.includes(label) ? `${baseName} (${label})` : baseName,
+            ...(variant ? { variant } : {}),
             size: item.size,
             price: unitPrice,
             quantity: qty,

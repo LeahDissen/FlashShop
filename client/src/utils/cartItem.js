@@ -118,13 +118,15 @@ export const toCheckoutItem = (item) => {
         image: normalized.image,
         customDesign: normalized.customDesign,
         customization: normalized.customization,
+        variant: normalized.variant,
     };
 };
 
 /** A plain catalog product (no design, customization or photo print): the same product in two carts is one row */
 const plainProductKey = (item) => {
     if (!item.productId || item.customDesign || item.customization || item.itemType) return null;
-    return `${item.productId}|${item.size || ''}`;
+    // A different color/size of the same product is its own row
+    return `${item.productId}|${item.size || ''}|${item.variant?.color || ''}|${item.variant?.size || ''}`;
 };
 
 /**

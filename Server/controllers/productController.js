@@ -1,6 +1,7 @@
 const { ProductModel } = require("../models/productModel");
 const { generateGiftIdea } = require("../utils/aiService");
 const { isMagnetProductDoc, parseMagnetSize } = require("../utils/magnetSize");
+const { sanitizeVariantFields } = require("../utils/productVariants");
 
 function normalizeMaxQuantity(value) {
     if (value == null || value === "") return null;
@@ -111,6 +112,7 @@ function sanitizeProductBody(body = {}) {
             .filter((c) => c.text.length > 0);
     }
 
+    sanitizeVariantFields(data);
     // Extra design areas: named, unique, a sensible size, at most 4
     if (data.designAreas !== undefined) {
         const seen = new Set();

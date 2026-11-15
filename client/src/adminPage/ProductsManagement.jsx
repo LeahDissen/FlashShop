@@ -11,6 +11,7 @@ import CategoryField from './products/CategoryField';
 import ExtraCategoriesField from './products/ExtraCategoriesField';
 import GalleryField from './products/GalleryField';
 import MemberDiscountField from './products/MemberDiscountField';
+import VariantsField from './products/VariantsField';
 import PriceTiersEditor from './products/PriceTiersEditor';
 import PrintAreaFields from './products/PrintAreaFields';
 import DesignAreasField from './products/DesignAreasField';
@@ -217,7 +218,7 @@ export default function ProductsManagement() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
                     <h2 className={`text-xl font-bold mb-4 flex items-center gap-2 ${isEditing ? 'text-blue-600' : 'text-green-600'}`}>
                         {isEditing ? <FaEdit /> : <FaPlus />}
                         {isEditing ? 'עריכת מוצר' : 'הוספת מוצר חדש'}
@@ -281,6 +282,13 @@ export default function ProductsManagement() {
                                     כל גודל נשמר כמוצר נפרד. להוסיף גודל נוסף — צרו מוצר מגנט נוסף.
                                 </p>
                             </div>
+                        )}
+
+                        {!isMagnetCategory && (
+                            <VariantsField
+                                value={{ trackStock: formData.trackStock, colors: formData.colors, sizes: formData.sizes, variantStock: formData.variantStock }}
+                                onChange={patchForm}
+                            />
                         )}
 
                         {!isMagnetCategory && (
