@@ -47,6 +47,8 @@ export function useEditorDraft({
     const draftKeys = useMemo(() => getDraftStorageKeys(draftProductKey), [draftProductKey]);
     /** The canvas whose draft is on screen (null until the product's draft was restored) */
     const canvasAppliedKeyRef = useRef(null);
+    /** The draft (product, or product area) the canvas on screen belongs to: autosave never writes it into another one */
+    const appliedDraftKeyRef = useRef(null);
     /** The same as a render-safe flag: true once the product's draft is on the canvas */
     const [isCanvasReady, setIsCanvasReady] = useState(false);
     const storageWarningShownRef = useRef(false);
@@ -54,6 +56,8 @@ export function useEditorDraft({
     // Autosave. A design per copy is saved separately (usePerCopyDesign), so the regular draft is left as it was.
     useEffect(() => {
         if (!canvasAppliedKeyRef.current || isPerCopyMode) return;
+        // Right after switching to another design area the canvas still shows the previous one
+        if (appliedDraftKeyRef.current !== draftProductKey) return;
         const savedElements = safeStorageSetItem(draftKeys.elements, JSON.stringify(elements));
         writeDraft(draftKeys, { background: canvasBackground, projectName, frameSelection: frameSelection || null });
 
@@ -61,19 +65,24 @@ export function useEditorDraft({
             storageWarningShownRef.current = true;
             alert(STORAGE_FULL_MESSAGE);
         }
-    }, [elements, canvasBackground, projectName, frameSelection, draftKeys, isPerCopyMode]);
+    }, [elements, canvasBackground, projectName, frameSelection, draftKeys, draftProductKey, isPerCopyMode]);
 
     // Restore the product's draft when its canvas opens (or start a new design)
     useEffect(() => {
         // Before the product arrives this would apply an empty "no-product" canvas
         if (!selectedProduct) return;
         const storageKey = getCanvasStorageKey(selectedProduct, canvasDimensions, activeFrameAspectRatio, orientationFlipped);
-        if (canvasAppliedKeyRef.current === storageKey) return;
+        if (canvasAppliedKeyRef.current === storageKey) {
+            appliedDraftKeyRef.current = draftProductKey;
+            return;
+        }
 
         const savedKey = localStorage.getItem(draftKeys.canvasKey);
         const savedElementsRaw = localStorage.getItem(draftKeys.elements);
 
-        if (!canvasAppliedKeyRef.current && savedKey && savedKey !== storageKey && savedElementsRaw) {
+        // Also when switching to another design area: each area reopens with its own frame/orientation
+        const openingDraft = !canvasAppliedKeyRef.current || appliedDraftKeyRef.current !== draftProductKey;
+        if (openingDraft && savedKey && savedKey !== storageKey && savedElementsRaw) {
             // The page opens unframed and unturned: a draft made with a frame or a turned canvas opens that canvas first
             const saved = findSavedCanvasSettings(selectedProduct, savedKey, safeJsonParse(savedElementsRaw, []));
             if (saved && (saved.frameAspectRatio !== activeFrameAspectRatio || saved.orientationFlipped !== orientationFlipped)) {
@@ -113,12 +122,14 @@ export function useEditorDraft({
             projectName: savedProjectName,
         });
         canvasAppliedKeyRef.current = storageKey;
+        appliedDraftKeyRef.current = draftProductKey;
         setIsCanvasReady(true);
     // The canvas identity – not the whole product object, which is replaced on every load
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
         selectedProduct?._id,
         selectedProduct?.id,
+        selectedProduct?.designArea,
         productId,
         canvasDimensions.width,
         canvasDimensions.height,

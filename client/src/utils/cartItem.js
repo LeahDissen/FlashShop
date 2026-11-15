@@ -95,6 +95,10 @@ export const compactCustomDesignForCart = (customDesign) => {
         copies: Array.isArray(customDesign.copies) && customDesign.copies.length
             ? customDesign.copies
             : undefined,
+        // Extra design areas (e.g. the back): each area's uploaded print file
+        areas: Array.isArray(customDesign.areas) && customDesign.areas.length
+            ? customDesign.areas
+            : undefined,
     };
 
     const hasValue = Object.values(compact).some((value) => value != null);

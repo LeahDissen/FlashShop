@@ -93,6 +93,7 @@ const compactCaptions = (captions) => {
 };
 
 const MAX_DESIGN_COPIES = 200;
+const MAX_DESIGN_AREAS = 4;
 
 const compactCustomDesign = (customDesign) => {
     if (!customDesign || typeof customDesign !== "object") return undefined;
@@ -112,8 +113,21 @@ const compactCustomDesign = (customDesign) => {
                 .filter(Boolean)
                 .slice(0, MAX_DESIGN_COPIES)
             : undefined,
+        // Extra design areas (e.g. a shirt's back): each area's print file (https, uploaded by the editor)
+        areas: Array.isArray(customDesign.areas)
+            ? customDesign.areas
+                .filter((area) => typeof area?.image === "string" && /^https:\/\//.test(area.image))
+                .map((area) => ({
+                    name: String(area.name || "").slice(0, 40),
+                    image: area.image,
+                    widthCm: Number(area.widthCm) || undefined,
+                    heightCm: Number(area.heightCm) || undefined,
+                }))
+                .slice(0, MAX_DESIGN_AREAS)
+            : undefined,
     };
     if (compact.copies && !compact.copies.length) delete compact.copies;
+    if (compact.areas && !compact.areas.length) delete compact.areas;
     const hasValue = Object.values(compact).some((value) => value != null);
     return hasValue ? compact : undefined;
 };

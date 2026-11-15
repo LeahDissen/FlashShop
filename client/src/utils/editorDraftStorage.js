@@ -1,3 +1,4 @@
+import { designAreaSuffix } from './designAreas';
 /**
  * The editor's draft in localStorage, kept per product so each product reopens with its own design.
  * Every function here tolerates a full or unavailable storage: the editor keeps working, only unsaved.
@@ -45,7 +46,7 @@ export const safeStorageSetItem = (key, value) => {
 
 /** The product a draft belongs to: its id, the id in the URL, or a shared key when there is no product */
 export const resolveDraftProductKey = (product, fallbackProductId) =>
-    product?._id || product?.id || fallbackProductId || 'no-product';
+    `${product?._id || product?.id || fallbackProductId || 'no-product'}${designAreaSuffix(product)}`;
 
 /** @returns {{ canvasKey: string, elements: string, background: string, projectName: string, frameSelection: string }} */
 export const getDraftStorageKeys = (productKey) => Object.fromEntries(

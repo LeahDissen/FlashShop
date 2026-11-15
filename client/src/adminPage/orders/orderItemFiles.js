@@ -53,7 +53,9 @@ export function collectItemDownloads(item, orderId, index) {
         item.customDesign.copies.forEach((copy, i) => add(copy.image, `עותק ${i + 1}`, `copy-${i + 1}`));
         return files;
     }
-    add(item.image, 'הורדת תמונה', 'design');
+    add(item.image, item.customDesign?.areas?.length ? 'הורדת העיצוב הראשי' : 'הורדת תמונה', 'design');
+    // Extra design areas (e.g. the back): one print file each
+    (item.customDesign?.areas || []).forEach((area, i) => add(area.image, `הורדת ${area.name}`, `area-${i + 1}`));
     add(item.customization?.referenceImage, 'הורדת קובץ מצורף', 'reference');
     return files;
 }

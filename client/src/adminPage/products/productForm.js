@@ -34,6 +34,7 @@ export const INITIAL_FORM_DATA = {
     colors: [],
     sizes: [],
     variantStock: [],
+    designAreas: [],
 };
 
 export const createEmptyTier = () => ({
@@ -76,6 +77,7 @@ export function productToForm(product) {
             colors: (product.colors ?? []).map((c) => ({ name: c.name, hex: c.hex || '#FFFFFF', image: c.image || '' })),
             sizes: product.sizes ?? [],
             variantStock: product.variantStock ?? [],
+            designAreas: (product.designAreas ?? []).map((a) => ({ name: a.name, printWidth: a.printWidth, printHeight: a.printHeight })),
         },
         captions: displayType === DISPLAY_TYPES.DESIGN ? (product.captionIdeas ?? []) : [],
         priceTiers: tiers.map((t, i) => ({
@@ -149,6 +151,16 @@ export function buildProductPayload({ formData, priceTiers, tieredPricingEnabled
         payload.printWidth = Number(formData.printWidth) || DEFAULT_PRINT_WIDTH_CM;
         payload.printHeight = Number(formData.printHeight) || DEFAULT_PRINT_HEIGHT_CM;
         payload.allowOrientationToggle = Boolean(formData.allowOrientationToggle);
+        const areas = (formData.designAreas || []).map((a) => ({
+            name: String(a.name || '').trim(),
+            printWidth: Number(a.printWidth),
+            printHeight: Number(a.printHeight),
+        }));
+        if (areas.some((a) => !a.name || !(a.printWidth > 0) || !(a.printHeight > 0))) {
+            return { error: 'לכל שטח עיצוב נוסף צריך שם, רוחב וגובה' };
+        }
+        if (new Set(areas.map((a) => a.name)).size !== areas.length) return { error: 'שמות שטחי העיצוב חייבים להיות שונים' };
+        payload.designAreas = areas;
     }
     if (isMagnetCategory) {
         const parsedSize = parseMagnetSize(magnetSize);

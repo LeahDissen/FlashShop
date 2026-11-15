@@ -11,6 +11,7 @@ import { SparklesIcon, XIcon } from '../icons';
  * @param {string|null} [props.printSizeLabel]
  * @param {boolean} props.isSaving
  * @param {() => void} props.onConfirm
+ * @param {{ name: string, image: string }[]} [props.extraAreas] - more design areas printed with the order
  */
 export default function ProductPreviewModal({
     isOpen,
@@ -20,6 +21,7 @@ export default function ProductPreviewModal({
     printSizeLabel,
     isSaving,
     onConfirm,
+    extraAreas = [],
 }) {
     if (!isOpen) return null;
 
@@ -99,6 +101,19 @@ export default function ProductPreviewModal({
                     ) : (
                         <div className="text-center text-gray-500 py-8">
                             <p>טוען תצוגה מקדימה...</p>
+                        </div>
+                    )}
+                    {extraAreas.length > 0 && (
+                        <div className="w-full">
+                            <p className="text-sm text-gray-600 text-center mb-2">יודפסו גם:</p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                                {extraAreas.map((area) => (
+                                    <figure key={area.name} className="bg-white rounded-lg border border-gray-200 p-1.5 w-24">
+                                        <img src={area.image} alt={area.name} className="w-full h-20 object-contain" />
+                                        <figcaption className="text-xs text-center text-gray-700 mt-1 truncate">{area.name}</figcaption>
+                                    </figure>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
