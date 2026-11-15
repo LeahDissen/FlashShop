@@ -13,6 +13,7 @@ import GalleryField from './products/GalleryField';
 import MemberDiscountField from './products/MemberDiscountField';
 import PriceTiersEditor from './products/PriceTiersEditor';
 import PrintAreaFields from './products/PrintAreaFields';
+import DesignAreasField from './products/DesignAreasField';
 import ProductCard from './products/ProductCard';
 import ProductShapeField from './products/ProductShapeField';
 import {
@@ -325,6 +326,9 @@ export default function ProductsManagement() {
                                 onFieldChange={handleChange}
                                 onToggleOrientation={(checked) => patchForm({ allowOrientationToggle: checked })}
                             />
+                        )}
+                        {isDesignCategory && (
+                            <DesignAreasField value={formData.designAreas} onChange={(designAreas) => patchForm({ designAreas })} />
                         )}
 
                         <div className="flex gap-2 pt-2">

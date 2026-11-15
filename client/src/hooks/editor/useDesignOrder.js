@@ -38,6 +38,8 @@ export function useDesignOrder({
     setIsPreviewLoading,
     previewImage,
     setPreviewImage,
+    extraAreas = [],
+    onOrdered,
 }) {
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
@@ -88,12 +90,16 @@ export function useDesignOrder({
                     captions: collectCaptions(elements),
                     designFile,
                     printSizeCm: { width: canvasDimensions.widthCm, height: canvasDimensions.heightCm },
+                    // Extra areas she designed (e.g. the back), each with its own print file
+                    ...(extraAreas.length ? { areas: extraAreas } : {}),
                 },
             });
+            if (extraAreas.length) cartItem.name = `${cartItem.name} + ${extraAreas.map((a) => a.name).join(', ')}`;
 
             await addToCart([cartItem], { successMessage: 'המוצר והעיצוב שלך נוספו בהצלחה לסל הקניות!' });
             setIsPreviewOpen(false);
             clearDraft();
+            onOrdered?.();
             onNavigateToHome?.();
         } catch (error) {
             console.error('Failed to order project', error);
@@ -116,6 +122,8 @@ export function useDesignOrder({
         onNavigateToHome,
         setIsSaving,
         setPreviewImage,
+        extraAreas,
+        onOrdered,
     ]);
 
     return { isPreviewOpen, openPreview, closePreview, confirmAndOrder };

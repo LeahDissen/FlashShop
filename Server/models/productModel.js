@@ -32,6 +32,13 @@ let productSchema = new mongoose.Schema({
     /** Print area dimensions in cm – used for the editor canvas size */
     printWidth: { type: Number, default: 12 },
     printHeight: { type: Number, default: 18 },
+    /** More areas the customer may design besides the main print area (e.g. a shirt's back), each with its own size in cm */
+    designAreas: [{
+        _id: false,
+        name: { type: String, required: true, trim: true },
+        printWidth: { type: Number, required: true },
+        printHeight: { type: Number, required: true },
+    }],
     /** Whether the customer may flip the canvas orientation (portrait/landscape) in the editor */
     allowOrientationToggle: { type: Boolean, default: false },
     /** Sentences that fit as a caption on the product – shown to the customer on the caption ideas page */
