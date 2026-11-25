@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FaClock, FaEnvelope, FaMapMarkerAlt, FaPhoneAlt } from "react-icons/fa";
 import { sendMessageRequest } from "../api/messages";
+import { validateEmailAddress, validateIsraeliPhone } from "../utils/checkoutValidation";
 import { getPage } from "../api/pages";
 import AdminControls from "./AdminControls";
 import { useAdminControl } from "../hooks/useAdminControl";
@@ -38,6 +39,7 @@ export default function Footer() {
     const [contactForm, setContactForm] = useState({
         name: "",
         email: "",
+        phone: "",
         message: "",
     });
     const [sending, setSending] = useState(false);
@@ -49,13 +51,17 @@ export default function Footer() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!contactForm.name?.trim() || !contactForm.email?.trim() || !contactForm.message?.trim()) {
-            setStatusMsg({ type: 'error', text: 'מלא/י שם, אימייל והודעה.' });
+        // Many customers have no email at hand, so a phone number is enough
+        if (!contactForm.name?.trim() || !contactForm.message?.trim() || (!contactForm.email?.trim() && !contactForm.phone?.trim())) {
+            setStatusMsg({ type: 'error', text: 'מלא/י שם, טלפון או אימייל, והודעה.' });
             return;
         }
-        const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRe.test(contactForm.email)) {
+        if (contactForm.email?.trim() && validateEmailAddress(contactForm.email)) {
             setStatusMsg({ type: 'error', text: 'כתובת אימייל לא תקינה.' });
+            return;
+        }
+        if (contactForm.phone?.trim() && validateIsraeliPhone(contactForm.phone)) {
+            setStatusMsg({ type: 'error', text: 'מספר טלפון לא תקין.' });
             return;
         }
 
@@ -66,7 +72,7 @@ export default function Footer() {
 
             if (res.ok === true || res.ok === 200 || res.ok === 201 || res.message) {
                 setStatusMsg({ type: 'success', text: 'ההודעה נשלחה בהצלחה. תודה!' });
-                setContactForm({ name: '', email: '', message: '' });
+                setContactForm({ name: '', email: '', phone: '', message: '' });
             } else {
                 setStatusMsg({ type: 'error', text: 'אירעה שגיאה בשליחת ההודעה.' });
             }
@@ -140,6 +146,18 @@ export default function Footer() {
                                 style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
                                 onChange={(e) => handleContactFormChange("email", e.target.value)}
                                 aria-label="אימייל"
+                            />
+                        </div>
+                        <div className="relative">
+                            <input
+                                type="tel"
+                                dir="ltr"
+                                placeholder={draft.notePlaceholderPhone || "טלפון"}
+                                value={contactForm.phone}
+                                className="w-full h-8 bg-white/70 px-3 rounded text-[#f2665e] placeholder:text-[#f2665e]/70 text-right text-sm outline-none focus:bg-white"
+                                style={{ fontFamily: 'Noto Sans Hebrew, sans-serif' }}
+                                onChange={(e) => handleContactFormChange("phone", e.target.value)}
+                                aria-label="טלפון"
                             />
                         </div>
                         <div className="relative">

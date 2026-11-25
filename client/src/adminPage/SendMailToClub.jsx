@@ -200,6 +200,7 @@ export default function SendMailToClub() {
                                     </th>
                                     <th className="p-3 font-bold">שם</th>
                                     <th className="p-3 font-bold">מייל</th>
+                                    <th className="p-3 font-bold">טלפון</th>
                                     <th className="p-3 font-bold">תאריך הצטרפות</th>
                                     <th className="p-3 font-bold">קוד מתנה</th>
                                     <th className="p-3 w-10"></th>
@@ -224,6 +225,7 @@ export default function SendMailToClub() {
                                             )}
                                         </td>
                                         <td className="p-3 text-[#f2665e]" dir="ltr">{member.email}</td>
+                                        <td className="p-3 text-gray-600" dir="ltr">{member.phone || ''}</td>
                                         <td className="p-3 text-gray-500 text-sm">
                                             {new Date(member.createdAt).toLocaleDateString("he-IL")}
                                         </td>

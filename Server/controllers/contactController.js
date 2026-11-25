@@ -3,15 +3,18 @@ const { ContactModel } = require('../models/contactModel');
 
 exports.receiveContact = async (req, res) => {
   try {
-    const { name, email, message } = req.body;
-    if (!name || !email || !message) {
+    const { name, message } = req.body;
+    const email = String(req.body.email || '').trim();
+    const phone = String(req.body.phone || '').replace(/[^\d+\-\s]/g, '').trim().slice(0, 20);
+    // Many customers have no email at hand: a phone number is enough
+    if (!name || !message || (!email && !phone)) {
       return res.status(400).json({ ok: false, error: 'Missing fields' });
     }
-    const contact = new ContactModel({ name, email, message });
+    const contact = new ContactModel({ name, email, phone, message });
     await contact.save();
 
     // The shop owner gets an email alert when she set an address in the admin (in the background)
-    notifyNewMessage({ name, email, message });
+    notifyNewMessage({ name, email, phone, message });
 
     res.status(200).json({ ok: true, message: 'Sent' });
   } catch (err) {
