@@ -86,15 +86,15 @@ const notifyNewOrder = (order) => {
 };
 
 /** A message from the contact form; replying to the alert answers the customer */
-const notifyNewMessage = ({ name, email, message }) => notifyShopOwner("newMessage", {
+const notifyNewMessage = ({ name, email, phone, message }) => notifyShopOwner("newMessage", {
     subject: `הודעה חדשה באתר מאת ${name}`,
     payload: {
         title: "ממתינה לך הודעה חדשה באתר",
-        message: [`מאת: ${name} (${email})`, "", message, "", `כל ההודעות: ${getClientUrl()}/viewmessages`].join("\n"),
+        message: [`מאת: ${name} (${[email, phone].filter(Boolean).join(" · ")})`, "", message, "", `כל ההודעות: ${getClientUrl()}/viewmessages`].join("\n"),
         internal: true, // an alert to the shop owner: no club mailing footer
     },
     template: "./template/generalMail.handlebars",
-    replyTo: email,
+    replyTo: email || undefined,
 });
 
 module.exports = { cleanEmail, loadEmailSettings, clearEmailSettingsCache, replyToAddress, notifyNewOrder, notifyNewMessage };

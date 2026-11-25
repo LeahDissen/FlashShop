@@ -31,6 +31,7 @@ exports.joinClub = async (req, res) => {
     try {
         const { user_id, name, birthDate } = req.body;
         const email = String(req.body.email || "").trim().toLowerCase();
+        const phone = String(req.body.phone || "").replace(/[^\d+\-\s]/g, "").trim().slice(0, 20) || undefined;
         if (!email || !name) {
             return res.status(400).json({ msg: "יש למלא שם וכתובת מייל" });
         }
@@ -48,6 +49,7 @@ exports.joinClub = async (req, res) => {
             user_id: user_id || null,
             email,
             name,
+            phone,
             birthDate,
             giftCode: newCode,
             // The code gives the join gift only while it is turned on (after the email is confirmed); otherwise it is just a member id
@@ -152,7 +154,7 @@ exports.getMyClubStatus = async (req, res) => {
 exports.getClubMembers = async (req, res) => {
     try {
         const members = await ClubModel.find({})
-            .select("name email birthDate giftCode isUsed unsubscribed createdAt")
+            .select("name email phone birthDate giftCode isUsed unsubscribed createdAt")
             .sort({ createdAt: -1 });
         res.json(members);
     } catch (err) {

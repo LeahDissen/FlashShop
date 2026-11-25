@@ -93,13 +93,20 @@ export default function ViewMessages() {
                                     </p>
                                 </div>
                                 <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
-                                    <a
-                                        href={`mailto:${msg.email}`}
-                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-2"
-                                    >
-                                        <FaReply />
-                                        השב למייל: {msg.email}
-                                    </a>
+                                    {msg.email && (
+                                        <a
+                                            href={`mailto:${msg.email}`}
+                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-2"
+                                        >
+                                            <FaReply />
+                                            השב למייל: {msg.email}
+                                        </a>
+                                    )}
+                                    {msg.phone && (
+                                        <a href={`tel:${msg.phone}`} dir="ltr" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                            📞 {msg.phone}
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         ))}

@@ -38,8 +38,11 @@ const itemFiles = (item) => {
     if (item.customDesign?.copies?.length) {
         return item.customDesign.copies.map((copy, index) => ({ src: copy.image, kind: `עותק${index + 1}`, single: true }));
     }
+    // Extra design areas (e.g. the back): one file each, named after the area
+    const areas = (item.customDesign?.areas || []).map((area) => ({ src: area.image, kind: safeName(area.name) || 'שטח' }));
     return [
-        { src: item.image, kind: '' },
+        { src: item.image, kind: areas.length ? 'עיצוב ראשי' : '' },
+        ...areas,
         { src: item.customization?.referenceImage, kind: 'מצורף' },
     ];
 };
@@ -63,7 +66,9 @@ export function buildOrderFileList(order) {
             if (!src || typeof src !== 'string' || seen.has(src)) return;
             seen.add(src);
             const parts = [line, size, single ? 'x1' : copies, kind, label].filter(Boolean);
-            entries.push({ src, name: `${parts.join('_')}.${extensionFromSrc(src)}`, item });
+            // Photo prints go into one folder per print size, e.g. "10x15/"
+            const folder = size ? `${size}/` : '';
+            entries.push({ src, name: `${folder}${parts.join('_')}.${extensionFromSrc(src)}`, item });
         });
     });
     return entries;

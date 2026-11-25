@@ -9,8 +9,9 @@ import { useAdminControl } from "../hooks/useAdminControl.jsx";
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore.js';
 import { formatBirthDateInput, parseBirthDate } from '../utils/birthDateInput';
+import { validateIsraeliPhone } from '../utils/checkoutValidation';
 
-const EMPTY_JOIN_FORM = { name: "", email: "", birthdate: "", agreed: false };
+const EMPTY_JOIN_FORM = { name: "", email: "", phone: "", birthdate: "", agreed: false };
 
 const DEFAULT_CLUB_PAGE = {
     title: "",
@@ -90,6 +91,10 @@ export default function Club() {
             setJoinResult({ type: "error", message: "תאריך הלידה לא תקין. יש להקליד יום, חודש ושנה, למשל 15031990." });
             return;
         }
+        if (formData.phone.trim() && validateIsraeliPhone(formData.phone)) {
+            setJoinResult({ type: "error", message: "מספר הטלפון לא תקין." });
+            return;
+        }
         setIsJoining(true);
         setJoinResult(null);
         try {
@@ -97,6 +102,7 @@ export default function Club() {
                 user_id: userId || null,
                 email: formData.email,
                 name: formData.name,
+                phone: formData.phone.trim(),
                 birthDate
             };
             const data = await joinClubRequest(payload);
