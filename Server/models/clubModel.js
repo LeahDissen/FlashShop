@@ -15,6 +15,10 @@ let clubSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    phone: {
+        type: String,
+        required: false
+    },
     birthDate: {
         type: Date,
         required: false
